@@ -17,9 +17,35 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-  -- exposed-modules:     
-  -- other-modules:       
-  -- other-extensions:    
-  build-depends:       base >=4.7 && <4.8
-  -- hs-source-dirs:      
-  default-language:    Haskell2010
+    exposed-modules:     
+        SubHask.Algebra
+        SubHask.Category
+        SubHask.Category.Bijective
+        SubHask.Category.Constrained
+        SubHask.Category.Monotonic
+        SubHask.Category.Product
+        SubHask.Category.Slice
+        SubHask.Functor
+        SubHask.Instances
+
+    other-modules:       
+
+    extensions:    
+        TypeFamilies,
+        ConstraintKinds,
+        DataKinds,
+        MultiParamTypeClasses,
+        FlexibleInstances,
+        FlexibleContexts,
+        TypeOperators,
+        RankNTypes,
+        InstanceSigs,
+        ScopedTypeVariables
+    
+    hs-source-dirs:     
+        src
+
+    build-depends:       
+        base            >= 4.7 && <4.8,
+        ghc-prim,
+        containers      >= 0.5
