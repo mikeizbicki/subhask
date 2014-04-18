@@ -57,6 +57,72 @@ embedGrp ::
     ) => subcat a b -> Grp a b
 embedGrp = embed
 
+---------------------------------------
+
+class Monoid m => Abelian m
+
+---------------------------------------
+
+class (Abelian r, Group r) => Ring r where
+    one :: r
+    (*) :: r -> r -> r
+
+---------------------------------------
+
+class Ring r => Field r where
+    reciprocal :: r -> r
+    reciprocal r = one/r
+
+    (/) :: r -> r -> r
+    n/d = n * reciprocal d
+
+---------------------------------------
+
+class Field r => Floating r where
+    pi :: r
+    exp :: r -> r
+    sqrt :: r -> r
+    log :: r -> r
+    (**) :: r -> r -> r
+    -- TODO: add rest of Floating functions
+
+---------------------------------------
+
+type family Scalar m
+
+class (Abelian m, Group m, Scalar r~Scalar m) => Module r m where
+    (.*) :: r -> m -> m
+    r .* m = m *. r 
+
+    (*.) :: m -> r -> m
+    m *. r  = r .* m
+
+---------------------------------------
+
+class (Module r v, Field r) => VectorSpace r v where
+    (/.) :: v -> r -> v
+    v /. r = v *. reciprocal r
+
+---------------------------------------
+
+class VectorSpace (Scalar v) v => InnerProductSpace v where
+    (<>) :: v -> v -> Scalar v
+
+innerProductNorm :: (Floating (Scalar v), InnerProductSpace v) => v -> Scalar v
+innerProductNorm v = sqrt $ v<>v 
+
+innerProductDistance :: (Floating (Scalar v), InnerProductSpace v) => v -> v -> Scalar v
+innerProductDistance v1 v2 = innerProductNorm $ v1-v2
+
+---------------------------------------
+
+class MetricSpace v where
+    distance :: v -> v -> Scalar v
+
+---------------------------------------
+
+class (InnerProductSpace v, MetricSpace v) => HilbertSpace v
+
 -------------------------------------------------------------------------------
 -- generic structures
 
@@ -97,6 +163,56 @@ instance Group P.Integer    where negate = P.negate
 instance Group P.Float      where negate = P.negate
 instance Group P.Double     where negate = P.negate
 instance Group P.Rational   where negate = P.negate
+
+instance Abelian P.Int        
+instance Abelian P.Integer    
+instance Abelian P.Float      
+instance Abelian P.Double    
+instance Abelian P.Rational 
+
+-------------------
+
+instance Ring P.Int         where one = 1; (*) = (P.*)
+instance Ring P.Integer     where one = 1; (*) = (P.*)
+instance Ring P.Float       where one = 1; (*) = (P.*)
+instance Ring P.Double      where one = 1; (*) = (P.*)
+instance Ring P.Rational    where one = 1; (*) = (P.*)
+
+instance Field P.Float      where (/) = (P./)
+instance Field P.Double     where (/) = (P./)
+instance Field P.Rational   where (/) = (P./)
+
+instance Floating P.Float where
+    pi = P.pi
+    sqrt = P.sqrt
+    log = P.log
+    exp = P.exp
+    (**) = (P.**)
+
+instance Floating P.Double where
+    pi = P.pi
+    sqrt = P.sqrt
+    log = P.log
+    exp = P.exp
+    (**) = (P.**)
+
+-------------------
+
+type instance Scalar P.Int      = P.Int
+type instance Scalar P.Integer  = P.Integer
+type instance Scalar P.Float    = P.Float
+type instance Scalar P.Double   = P.Double
+type instance Scalar P.Rational = P.Rational
+
+instance Module P.Int       P.Int       where (.*) = (P.*)
+instance Module P.Integer   P.Integer   where (.*) = (P.*)
+instance Module P.Float     P.Float     where (.*) = (P.*)
+instance Module P.Double    P.Double    where (.*) = (P.*)
+instance Module P.Rational  P.Rational  where (.*) = (P.*)
+
+instance VectorSpace P.Float     P.Float     where (/.) = (P./)
+instance VectorSpace P.Double    P.Double    where (/.) = (P./)
+instance VectorSpace P.Rational  P.Rational  where (/.) = (P./)
 
 -------------------------------------------------------------------------------
 -- example: Z n
