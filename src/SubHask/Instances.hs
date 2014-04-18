@@ -8,8 +8,8 @@ import qualified Data.Set as Set
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Category.Constrained
-import SubHask.Category.Monotonic
+import SubHask.Category.Trans.Constrained
+import SubHask.Category.Trans.Monotonic
 import SubHask.Functor
 
 -------------------------------------------------------------------------------
@@ -40,13 +40,13 @@ instance P.Ord a => TypeMonoid Set.Set a where
 
 ---------------------------------------
 
-instance Functor (Constrained '[P.Ord]) Set.Set where
+instance ConcreteCategory cat => Functor (ConstrainedT '[P.Ord] cat) Set.Set where
     fmap f set =  Set.map (embed f) set
 
-instance Applicative (Constrained '[P.Ord]) Set.Set where
+instance ConcreteCategory cat => Applicative (ConstrainedT '[P.Ord] cat) Set.Set where
     fs <*> xs = Set.unions [ fmap f xs | f <- Set.toList fs ]
 
-instance Monad (Constrained '[P.Ord]) Set.Set where
+instance ConcreteCategory cat => Monad (ConstrainedT '[P.Ord] cat) Set.Set where
 
 ---------------------------------------
 

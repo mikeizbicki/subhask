@@ -220,34 +220,27 @@ instance VectorSpace P.Rational  P.Rational  where (/.) = (P./)
 newtype Z (n::Nat) = Z P.Integer
     deriving (P.Read,P.Show,P.Eq,P.Ord)
 
-instance KnownNat n => Finite (Z n) where
-    type Order (Z n) = n
-    index i = Index i
-    deIndex (Index i) = i
-    enumerate = [ Z i | i <- [0..n P.- 1] ]
-        where
-            n = natVal (Proxy :: Proxy n)
-
 instance KnownNat n => Monoid (Z n) where
     zero = Z 0
-    (Z z1) + (Z z2) = Z $ z1 P.+ z2 `P.mod` n
+    (Z z1) + (Z z2) = Z $ z1 + z2 `P.mod` n
         where
             n = natVal (Proxy :: Proxy n)
 
 instance KnownNat n => Group (Z n) where
-    negate (Z i) = Z $ P.negate i `P.mod` n
+    negate (Z i) = Z $ negate i `P.mod` n
         where
             n = natVal (Proxy :: Proxy n)
 
-class Finite a where
-    type Order a :: Nat
-    index :: a -> Index a
-    deIndex :: Index a -> a
-    enumerate :: [a]
-    
-newtype Index a = Index (Z (Order a))
-    deriving (P.Read,P.Show,P.Eq,P.Ord)
+instance KnownNat n => Abelian (Z n) 
 
-swapIndex :: Order a ~ Order b => Index a -> Index b
-swapIndex (Index i) = Index i
+instance KnownNat n => Ring (Z n) where
+    one = Z 1
+    (Z z1)*(Z z2) = Z $ z1 * z2 `P.mod` n
+        where
+            n = natVal (Proxy :: Proxy n)
+
+type instance Scalar (Z n) = P.Integer
+
+instance KnownNat n => Module P.Integer (Z n) where
+    i .* z = Z i * z
 

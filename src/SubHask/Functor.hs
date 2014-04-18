@@ -11,6 +11,9 @@ import SubHask.Category
 class Functor cat f where
     fmap :: ValidCategory cat a b => cat a b -> f a -> f b
 
+(<$>) :: (Functor cat f, ValidCategory cat a b) => cat a b -> f a -> f b
+(<$>) = fmap
+
 class Natural cat f1 f2 where
     nmap :: cat a b -> f1 a -> f2 b
 

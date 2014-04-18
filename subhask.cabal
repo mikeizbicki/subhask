@@ -20,11 +20,12 @@ library
     exposed-modules:     
         SubHask.Algebra
         SubHask.Category
-        SubHask.Category.Bijective
-        SubHask.Category.Constrained
-        SubHask.Category.Monotonic
         SubHask.Category.Product
         SubHask.Category.Slice
+        SubHask.Category.SparseFunction
+        SubHask.Category.Trans.Bijective
+        SubHask.Category.Trans.Constrained
+        SubHask.Category.Trans.Monotonic
         SubHask.Functor
         SubHask.Instances
 
@@ -40,7 +41,8 @@ library
         TypeOperators,
         RankNTypes,
         InstanceSigs,
-        ScopedTypeVariables
+        ScopedTypeVariables,
+        UndecidableInstances
     
     hs-source-dirs:     
         src

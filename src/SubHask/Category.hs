@@ -22,6 +22,9 @@ class Category cat where
 
 -------------------
 
+
+---------------------------------------
+
 class SubCategory cat subcat where
     embed :: ValidCategory subcat a b => subcat a b -> cat a b
 
