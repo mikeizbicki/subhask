@@ -9,6 +9,7 @@ import qualified Prelude as P
 import SubHask.Category
 
 -------------------------------------------------------------------------------
+-- type classes
 
 class Monoid m where
     zero :: m
@@ -55,6 +56,47 @@ embedGrp ::
     , ValidCategory subcat a b
     ) => subcat a b -> Grp a b
 embedGrp = embed
+
+-------------------------------------------------------------------------------
+-- generic structures
+
+instance (Monoid a, Monoid b) => Monoid (a,b) where
+    zero = (zero,zero)
+    (a1,b1)+(a2,b2) = (a1+a2,b1+b2)
+
+instance (Monoid a, Monoid b, Monoid c) => Monoid (a,b,c) where
+    zero = (zero,zero,zero)
+    (a1,b1,c1)+(a2,b2,c2) = (a1+a2,b1+b2,c1+c2)
+
+instance (Monoid a, Monoid b, Monoid c, Monoid d) => Monoid (a,b,c,d) where
+    zero = (zero,zero,zero,zero)
+    (a1,b1,c1,d1)+(a2,b2,c2,d2) = (a1+a2,b1+b2,c1+c2,d1+d2)
+
+---------------------------------------
+
+instance (Group a, Group b) => Group (a,b) where
+    negate (a,b) = (negate a,negate b)
+
+instance (Group a, Group b, Group c) => Group (a,b,c) where
+    negate (a,b,c) = (negate a,negate b,negate c)
+
+instance (Group a, Group b, Group c, Group d) => Group (a,b,c,d) where
+    negate (a,b,c,d) = (negate a,negate b,negate c,negate d)
+
+-------------------------------------------------------------------------------
+-- standard numbers
+
+instance Monoid P.Int       where  zero = 0; (+) = (P.+)
+instance Monoid P.Integer   where  zero = 0; (+) = (P.+)
+instance Monoid P.Float     where  zero = 0; (+) = (P.+)
+instance Monoid P.Double    where  zero = 0; (+) = (P.+)
+instance Monoid P.Rational  where  zero = 0; (+) = (P.+)
+
+instance Group P.Int        where negate = P.negate
+instance Group P.Integer    where negate = P.negate
+instance Group P.Float      where negate = P.negate
+instance Group P.Double     where negate = P.negate
+instance Group P.Rational   where negate = P.negate
 
 -------------------------------------------------------------------------------
 -- example: Z n

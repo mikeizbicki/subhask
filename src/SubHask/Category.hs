@@ -33,6 +33,10 @@ instance SubCategory a a where
 class Category cat => Groupoid cat where
     inverse :: ValidCategory cat a b => cat a b -> cat b a
 
+class SubCategory (->) cat => ConcreteCategory cat 
+
+instance SubCategory (->) cat => ConcreteCategory cat
+
 -------------------------------------------------------------------------------
 -- example categories
 

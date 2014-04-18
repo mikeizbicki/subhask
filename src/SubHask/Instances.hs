@@ -13,6 +13,23 @@ import SubHask.Category.Monotonic
 import SubHask.Functor
 
 -------------------------------------------------------------------------------
+-- []
+
+instance Pointed [] where
+    point a = [a]
+
+instance TypeMonoid [] a where
+    join xss = P.concat xss
+
+instance ConcreteCategory cat => Functor cat [] where
+    fmap f xs = P.map (embed f) xs
+
+instance ConcreteCategory cat => Applicative cat [] where
+    fs <*> xs = [ f $ x | f <- fs, x <- xs ]
+    
+instance ConcreteCategory cat => Monad cat [] where
+
+-------------------------------------------------------------------------------
 -- Set
 
 instance Pointed Set.Set where
@@ -33,8 +50,9 @@ instance Monad (Constrained '[P.Ord]) Set.Set where
 
 ---------------------------------------
 
+-- notice that this version is asymptotically faster than above
 instance Functor Monotonic Set.Set where
-    fmap f set =  Set.mapMonotonic (embed f) set
+    fmap f set =  Set.mapMonotonic (embed f) set 
 
 instance Applicative Monotonic Set.Set where
     fs <*> xs = Set.unions [ fmap f xs | f <- Set.toList fs ]
