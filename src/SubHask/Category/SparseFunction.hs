@@ -40,12 +40,6 @@ list2sparseFunction xs = SparseFunction $ Map.fromList $ go xs
         go (y:[]) = [(Index y, Index $ P.head xs)]
         go (y1:y2:ys) = (Index y1,Index y2):go (y2:ys)
 
--- type Sym (n::Nat) = SparseFunction (Z n) (Z n)
--- 
--- instance Finite a => Monoid (SparseFunction a a) where
---     zero = id
---     (+) = (.)
-
 ---------------------------------------
 
 class Finite a where
