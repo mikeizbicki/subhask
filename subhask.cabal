@@ -19,19 +19,22 @@ cabal-version:       >=1.10
 library
     exposed-modules:     
         SubHask.Algebra
+        SubHask.Algebra.Objects
         SubHask.Category
         SubHask.Category.Product
+        SubHask.Category.Polynomial
         SubHask.Category.Slice
         SubHask.Category.SparseFunction
         SubHask.Category.Trans.Bijective
         SubHask.Category.Trans.Constrained
+        SubHask.Category.Trans.Linear
         SubHask.Category.Trans.Monotonic
         SubHask.Functor
         SubHask.Instances
 
     other-modules:       
 
-    extensions:    
+    default-extensions:    
         TypeFamilies,
         ConstraintKinds,
         DataKinds,
@@ -42,7 +45,8 @@ library
         RankNTypes,
         InstanceSigs,
         ScopedTypeVariables,
-        UndecidableInstances
+        UndecidableInstances,
+        PolyKinds
     
     hs-source-dirs:     
         src
@@ -51,3 +55,6 @@ library
         base            >= 4.7 && <4.8,
         ghc-prim,
         containers      >= 0.5
+
+    default-language:
+        Haskell2010
