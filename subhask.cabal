@@ -21,10 +21,10 @@ library
         SubHask.Algebra
         SubHask.Algebra.Objects
         SubHask.Category
+        SubHask.Category.Finite
         SubHask.Category.Product
         SubHask.Category.Polynomial
         SubHask.Category.Slice
-        SubHask.Category.SparseFunction
         SubHask.Category.Trans.Bijective
         SubHask.Category.Trans.Constrained
         SubHask.Category.Trans.Linear
@@ -54,7 +54,8 @@ library
     build-depends:       
         base            >= 4.7 && <4.8,
         ghc-prim,
-        containers      >= 0.5
+        containers      >= 0.5,
+        vector          >= 0.10.0
 
     default-language:
         Haskell2010

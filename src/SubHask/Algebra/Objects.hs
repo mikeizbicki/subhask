@@ -7,7 +7,7 @@ import qualified Prelude as P
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Category.SparseFunction
+import SubHask.Category.Finite
 import SubHask.Category.Trans.Bijective
 
 -------------------------------------------------------------------------------

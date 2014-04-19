@@ -95,7 +95,7 @@ class SubCategory cat subcat where
 instance SubCategory a a where
     embed = id
 
--- | Hask is the category with Haskell types as objects, and functions as arrows.
+-- | The category with Haskell types as objects, and functions as arrows.
 
 type Hask = (->)
 
