@@ -21,13 +21,13 @@ instance Pointed [] where
 instance TypeMonoid [] a where
     join xss = P.concat xss
 
-instance ConcreteCategory cat => Functor cat [] where
+instance Concrete cat => Functor cat [] where
     fmap f xs = P.map (embed f) xs
 
-instance ConcreteCategory cat => Applicative cat [] where
+instance Concrete cat => Applicative cat [] where
     fs <*> xs = [ f $ x | f <- fs, x <- xs ]
     
-instance ConcreteCategory cat => Monad cat [] where
+instance Concrete cat => Monad cat [] where
 
 -------------------------------------------------------------------------------
 -- Set
@@ -40,13 +40,13 @@ instance P.Ord a => TypeMonoid Set.Set a where
 
 ---------------------------------------
 
-instance ConcreteCategory cat => Functor (ConstrainedT '[P.Ord] cat) Set.Set where
+instance Concrete cat => Functor (ConstrainedT '[P.Ord] cat) Set.Set where
     fmap f set =  Set.map (embed f) set
 
-instance ConcreteCategory cat => Applicative (ConstrainedT '[P.Ord] cat) Set.Set where
+instance Concrete cat => Applicative (ConstrainedT '[P.Ord] cat) Set.Set where
     fs <*> xs = Set.unions [ fmap f xs | f <- Set.toList fs ]
 
-instance ConcreteCategory cat => Monad (ConstrainedT '[P.Ord] cat) Set.Set where
+instance Concrete cat => Monad (ConstrainedT '[P.Ord] cat) Set.Set where
 
 ---------------------------------------
 

@@ -1,10 +1,27 @@
 module SubHask.Category
-    where
+    ( 
+    -- * Categories
+    Category (..)
+    , SubCategory (..)
+
+    -- * Hask
+    , Hask
+    , ($)
+    
+    -- * Special types of categories
+    , Concrete (..)
+    , Groupoid (..)
+    , Monoidal (..)
+    ) where
 
 import GHC.Prim
 import qualified Prelude as P
 
 -------------------------------------------------------------------------------
+
+-- | This 'Category' class modifies the one in the Haskell standard to include 
+-- the 'ValidCategory' type constraint.  This constraint let's us make instances 
+-- of arbitrary subcategories of Hask.
 
 class Category cat where
 
@@ -61,41 +78,102 @@ class Category cat where
 
 ---------------------------------------
 
+-- | A subcategory is valid only for some of the arrows and objects.
+-- Intuiitively, elements of a subcategory satisfy additional properties
+-- that elements of the larger category do not necessarily satisfy.
+-- Elements of a subcategory can always be embeded in the larger category.
+-- Going in the other direction, however, requires a proof.  These proofs
+-- can (usually) not be verified by the type system and are therefore labeled
+-- unsafe.
+--
+-- More details available at <http://en.wikipedia.org/wiki/Subcategory wikipedia>
+-- and <http://ncatlab.org/nlab/show/subcategory ncatlab>.
+
 class SubCategory cat subcat where
     embed :: ValidCategory subcat a b => subcat a b -> cat a b
 
 instance SubCategory a a where
     embed = id
 
--------------------
+-- | Hask is the category with Haskell types as objects, and functions as arrows.
 
-class Category cat => Groupoid cat where
-    inverse :: ValidCategory cat a b => cat a b -> cat b a
-
-class SubCategory (->) cat => ConcreteCategory cat 
-
-instance SubCategory (->) cat => ConcreteCategory cat
-
-
--------------------------------------------------------------------------------
-
-class Category cat => Monoidal cat where
-    data Tensor cat a b
-
-    type Unit cat
-    type Unit cat = ()
-
-    associator :: proxy cat -> ((a,b),c) -> (a,(b,c))
-
-
--------------------------------------------------------------------------------
--- example categories
+type Hask = (->)
 
 instance Category (->) where
     id = P.id
     (.) = (P..)
 
+
+-- | We generalize the Prelude's definition of "$" so that it applies to any 
+-- subcategory of 'Hask' (that is, any 'Concrete' 'Category'.  This lets us 
+-- easily use these subcategories as functions. For example, given a polynomial 
+-- function
+--
+-- > f :: Polynomial Double Double
+--
+-- we can evaluate the polynomial at the number 5 by
+--
+-- > f $ 5
+
+($) :: 
+    ( Concrete subcat
+    , ValidCategory subcat a b
+    ) => subcat a b -> a -> b
+($) = embed
+
 infixr 0 $
 
-($) :: (SubCategory (->) subcat, ValidCategory subcat a b) => subcat a b -> a -> b
-($) = embed
+-------------------------------------------------------------------------------
+
+-- | Technicaly, a conrete category is any category equiped with a faithful 
+-- functor to the category of sets.  This is just a little too platonic to 
+-- be represented in Haskell, but 'Hask' makes a pretty good approximation.
+-- So we call any 'SubCategory' of 'Hask' 'Concrete'.  Importantly, not
+-- all categories are concrete.   See the 'SubHask.Category.Slice.Slice'
+-- category for an example. 
+--
+-- More details available at <http://en.wikipedia.org/wiki/Concrete_category wikipedia>
+-- and <http://ncatlab.org/nlab/show/concrete+category ncatlib>.
+class SubCategory (->) cat => Concrete cat 
+
+instance SubCategory (->) cat => Concrete cat
+
+-- | Groupoids are categories where every arrow can be reversed.  This generalizes
+-- bijective and inverse functions.
+--
+-- More details available at <http://en.wikipedia.org/wiki/Groupoid wikipedia>
+-- and <http://ncatlab.org/nlab/show/groupoid ncatlib>.
+class Category cat => Groupoid cat where
+    inverse :: ValidCategory cat a b => cat a b -> cat b a
+
+-- | The intuition behind a monoidal category is similar to the intuition 
+-- behind the 'SubHask.Algebra.Monoid' algebraic structure.  Unfortunately,
+-- there are a number of rather awkward laws to work out the technical details.
+-- Even worse, the types for the tensor product don't work out very nicely
+-- in Haskell syntax.  Anyone have any ideas how to make this prettier?!
+--
+-- More details available at <http://en.wikipedia.org/wiki/Monoidal_category wikipedia>
+-- and <http://ncatlab.org/nlab/show/monoidal+category ncatlab>.
+
+class Category cat => Monoidal cat where
+    type Tensor cat :: * -> * -> *
+    type Tensor cat = (,) 
+
+    type Unit cat :: *
+    type Unit cat = ()
+
+    associatorL :: forall proxy a b c.
+        ( ValidCategory cat a b
+        , ValidCategory cat b c
+        , ValidCategory cat a c
+        ) => proxy cat -> Tensor cat (Tensor cat a b) c -> Tensor cat a (Tensor cat b c)
+
+    associatorR :: 
+        ( ValidCategory cat a b
+        , ValidCategory cat b c
+        , ValidCategory cat a c
+        ) => proxy cat -> Tensor cat a (Tensor cat b c) -> Tensor cat (Tensor cat a b) c
+
+    unitorL :: ValidCategory cat a a => proxy cat -> Tensor cat () a -> a
+    unitorR :: ValidCategory cat a a => proxy cat -> Tensor cat a () -> a
+

@@ -34,11 +34,16 @@ instance SubCategory (->) SparseFunction where
                 P.Just v -> deIndex v
                 P.Nothing -> deIndex $ swapIndex $ index k
 
-list2sparseFunction :: (Finite a, Finite b, Order a ~ Order b) => [Z (Order a)] -> SparseFunction a b
+list2sparseFunction :: ValidCategory SparseFunction a b => [Z (Order a)] -> SparseFunction a b
 list2sparseFunction xs = SparseFunction $ Map.fromList $ go xs 
     where
         go (y:[]) = [(Index y, Index $ P.head xs)]
         go (y1:y2:ys) = (Index y1,Index y2):go (y2:ys)
+
+proveSparseFunction :: ValidCategory SparseFunction a b => (a -> b) -> SparseFunction a b
+proveSparseFunction f = SparseFunction 
+    $ Map.fromList
+    $ P.map (\a -> (index a,index $ f a)) enumerate
 
 ---------------------------------------
 
