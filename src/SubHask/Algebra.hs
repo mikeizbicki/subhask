@@ -1,6 +1,8 @@
 module SubHask.Algebra
     where
 
+import Debug.Trace
+
 import GHC.Prim
 import GHC.TypeLits
 import Data.Proxy
@@ -13,6 +15,8 @@ import SubHask.Category
 
 class Monoid m where
     zero :: m
+
+    infixl 6 +
     (+) :: m -> m -> m
 
 newtype Mon a b = Mon (a -> b)
@@ -35,8 +39,10 @@ embedMon = embed
 
 class Monoid g => Group g where
     negate :: g -> g
+
+    infixl 6 -
     (-) :: g -> g -> g
-    (-) = (+).negate
+    a - b = a + negate b
 
 newtype Grp a b = Grp (a -> b)
 
@@ -65,6 +71,8 @@ class Monoid m => Abelian m
 
 class (Abelian r, Group r) => Ring r where
     one :: r
+
+    infixl 7 *
     (*) :: r -> r -> r
 
 ---------------------------------------
@@ -84,6 +92,7 @@ class Field r => Floating r where
     sqrt :: r -> r
     log :: r -> r
     (**) :: r -> r -> r
+    infixl 8 **
     -- TODO: add rest of Floating functions
 
 ---------------------------------------
@@ -96,6 +105,9 @@ class (Abelian m, Group m, Scalar r~Scalar m) => Module r m where
 
     (*.) :: m -> r -> m
     m *. r  = r .* m
+
+    infixl 7 .*
+    infixl 7 *.
 
 ---------------------------------------
 
@@ -220,27 +232,77 @@ instance VectorSpace P.Rational  P.Rational  where (/.) = (P./)
 newtype Z (n::Nat) = Z P.Integer
     deriving (P.Read,P.Show,P.Eq,P.Ord)
 
+-- | safe constructor that takes the mod of the input
+mkZ :: forall n. KnownNat n => P.Integer -> Z n
+mkZ i = Z $ i `P.mod` n
+    where
+        n = natVal (Proxy :: Proxy n)
+
 instance KnownNat n => Monoid (Z n) where
     zero = Z 0
-    (Z z1) + (Z z2) = Z $ z1 + z2 `P.mod` n
-        where
-            n = natVal (Proxy :: Proxy n)
+    (Z z1) + (Z z2) = mkZ $ z1 + z2 
 
 instance KnownNat n => Group (Z n) where
-    negate (Z i) = Z $ negate i `P.mod` n
-        where
-            n = natVal (Proxy :: Proxy n)
+    negate (Z i) = mkZ $ negate i 
 
 instance KnownNat n => Abelian (Z n) 
 
 instance KnownNat n => Ring (Z n) where
     one = Z 1
-    (Z z1)*(Z z2) = Z $ z1 * z2 `P.mod` n
-        where
-            n = natVal (Proxy :: Proxy n)
+    (Z z1)*(Z z2) = mkZ $ z1 * z2
 
 type instance Scalar (Z n) = P.Integer
 
 instance KnownNat n => Module P.Integer (Z n) where
     i .* z = Z i * z
+
+extendedEuclid a b = go 0 1 1 0 b a
+    where
+        go s1 s0 t1 t0 0  r0 = (s1,s0,t1,t0,0,r0)
+        go s1 s0 t1 t0 r1 r0 = go s1' s0' t1' t0' r1' r0'
+            where
+                q = r0 `P.div` r1
+                (r0', r1') = (r1,r0-q*r1)
+                (s0', s1') = (s1,s0-q*s1)
+                (t0', t1') = (t1,t0-q*t1)
+
+-------------------------------------------------------------------------------
+-- example: Galois field
+
+newtype Galois (p::Nat) (k::Nat) = Galois (Z (p^k))
+    deriving (P.Read,P.Show,P.Eq)
+
+deriving instance KnownNat (p^k) => Monoid (Galois p k)
+deriving instance KnownNat (p^k) => Abelian (Galois p k)
+deriving instance KnownNat (p^k) => Group (Galois p k)
+deriving instance KnownNat (p^k) => Ring (Galois p k)
+
+type instance Scalar (Galois p k) = Scalar (Z (p^k))
+
+instance KnownNat (p^k) => Module (P.Integer) (Galois p k) where
+    i .* z = Galois (Z i) * z
+
+instance (Prime p, KnownNat (p^k)) => Field (Galois p k) where
+    reciprocal (Galois (Z i)) = Galois $ mkZ $ t
+        where
+            (_,_,_,t,_,_) = extendedEuclid n i
+            n = natVal (Proxy::Proxy (p^k))
+
+x = Galois (Z 2) :: Galois 5 1
+y = Galois (Z 2) :: Galois 7 1
+z = Galois (Z 3) :: Galois 7 2
+
+-------------------
+
+class Prime (n::Nat)
+instance Prime 1
+instance Prime 2
+instance Prime 3
+instance Prime 5
+instance Prime 7
+instance Prime 11
+instance Prime 13
+instance Prime 17
+instance Prime 19
+instance Prime 23
 
