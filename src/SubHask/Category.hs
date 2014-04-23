@@ -3,10 +3,13 @@ module SubHask.Category
     -- * Categories
     Category (..)
     , SubCategory (..)
+    , embed2
 
     -- * Hask
     , Hask
     , ($)
+    , embedHask
+    , withCategory
     
     -- * Special types of categories
     , Concrete (..)
@@ -89,11 +92,14 @@ class Category cat where
 -- More details available at <http://en.wikipedia.org/wiki/Subcategory wikipedia>
 -- and <http://ncatlab.org/nlab/show/subcategory ncatlab>.
 
-class SubCategory cat subcat where
+class (Category cat, Category subcat) => SubCategory cat subcat where
     embed :: ValidCategory subcat a b => subcat a b -> cat a b
 
-instance SubCategory a a where
+instance Category c => SubCategory c c where
     embed = id
+
+embed2 :: SubCategory cat subcat => subcat a (subcat a b) -> cat a (cat a b)
+embed2 f = P.undefined
 
 -- | The category with Haskell types as objects, and functions as arrows.
 
@@ -123,6 +129,12 @@ instance Category (->) where
 
 infixr 0 $
 
+embedHask :: (Concrete subcat, ValidCategory subcat a b) => subcat a b -> a -> b
+embedHask = embed
+
+withCategory :: (ValidCategory cat a b, Concrete cat) => proxy cat -> cat a b -> a -> b
+withCategory _ f = embed f
+
 -------------------------------------------------------------------------------
 
 -- | Technicaly, a conrete category is any category equiped with a faithful 
@@ -134,9 +146,7 @@ infixr 0 $
 --
 -- More details available at <http://en.wikipedia.org/wiki/Concrete_category wikipedia>
 -- and <http://ncatlab.org/nlab/show/concrete+category ncatlib>.
-class SubCategory (->) cat => Concrete cat 
-
-instance SubCategory (->) cat => Concrete cat
+type Concrete cat = SubCategory (->) cat
 
 -- | Groupoids are categories where every arrow can be reversed.  This generalizes
 -- bijective and inverse functions.

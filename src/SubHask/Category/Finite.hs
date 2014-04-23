@@ -1,3 +1,10 @@
+{- | 
+Finite categories are categories with a finite number of arrows.
+In our case, this corresponds to functions with finite domains (and hence, ranges).
+These functions have a number of possible representations.
+Which is best will depend on the given function.
+One common property is that these functions support decidable equality.
+-}
 module SubHask.Category.Finite
     (
 
@@ -30,9 +37,14 @@ import SubHask.Algebra
 
 -- | Represents finite functions as a map associating input/output pairs.
 newtype SparseFunction a b = SparseFunction (Map.Map (Index a) (Index b)) 
+    deriving (P.Eq)
 
 instance Category SparseFunction where
-    type ValidCategory SparseFunction a b = (FiniteType a, FiniteType b, Order a ~ Order b)
+    type ValidCategory SparseFunction a b = 
+        ( FiniteType a
+        , FiniteType b
+        , Order a ~ Order b
+        )
 
     id :: forall a. ValidCategory SparseFunction a a => SparseFunction a a
     id = SparseFunction $ Map.empty
@@ -69,12 +81,12 @@ list2sparseFunction xs = SparseFunction $ Map.fromList $ go xs
 
 -- | Represents finite functions as a hash table associating input/output value pairs.
 newtype DenseFunction a b = DenseFunction (VU.Vector P.Int)
+    deriving (P.Eq)
 
 instance Category DenseFunction where
     type ValidCategory DenseFunction a b = 
         ( FiniteType a
         , FiniteType b
-        , Order a ~ Order b
         )
     
     id :: forall a. ValidCategory DenseFunction a a => DenseFunction a a
