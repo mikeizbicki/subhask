@@ -256,6 +256,7 @@ type instance Scalar (Z n) = P.Integer
 instance KnownNat n => Module P.Integer (Z n) where
     i .* z = Z i * z
 
+-- Extended Euclid's algorithm is used to calculate inverses in modular arithmetic
 extendedEuclid a b = go 0 1 1 0 b a
     where
         go s1 s0 t1 t0 0  r0 = (s1,s0,t1,t0,0,r0)
@@ -287,10 +288,6 @@ instance (Prime p, KnownNat (p^k)) => Field (Galois p k) where
         where
             (_,_,_,t,_,_) = extendedEuclid n i
             n = natVal (Proxy::Proxy (p^k))
-
-x = Galois (Z 2) :: Galois 5 1
-y = Galois (Z 2) :: Galois 7 1
-z = Galois (Z 3) :: Galois 7 2
 
 -------------------
 
