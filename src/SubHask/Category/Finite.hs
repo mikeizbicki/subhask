@@ -8,12 +8,16 @@ One common property is that these functions support decidable equality.
 module SubHask.Category.Finite
     (
 
-    -- * Sparse functions
+    -- * Function representations
+    -- ** Sparse permutations
     SparseFunction
     , proveSparseFunction
     , list2sparseFunction
 
-    -- * Dense functions
+    -- ** Sparse monoids
+    , SparseFunctionMonoid
+
+    -- ** Dense functions
     , DenseFunction
     , proveDenseFunction
 
@@ -46,7 +50,6 @@ instance Category SparseFunction where
         , Order a ~ Order b
         )
 
-    id :: forall a. ValidCategory SparseFunction a a => SparseFunction a a
     id = SparseFunction $ Map.empty
 
     (SparseFunction f1).(SparseFunction f2) = SparseFunction
@@ -64,7 +67,7 @@ instance SubCategory (->) SparseFunction where
                 P.Nothing -> deIndex $ swapIndex $ index k
 
 -- | Generates a sparse representation of a 'Hask' function.  
--- This proof will always succeed.
+-- This proof will always succeed, although it may be computationally expensive if the 'Order' of a and b is large.
 proveSparseFunction :: ValidCategory SparseFunction a b => (a -> b) -> SparseFunction a b
 proveSparseFunction f = SparseFunction 
     $ Map.fromList
@@ -76,6 +79,51 @@ list2sparseFunction xs = SparseFunction $ Map.fromList $ go xs
     where
         go (y:[]) = [(Index y, Index $ P.head xs)]
         go (y1:y2:ys) = (Index y1,Index y2):go (y2:ys)
+
+-------------------------------------------------------------------------------
+
+newtype SparseFunctionMonoid a b = SparseFunctionMonoid (Map.Map (Index a) (Index b))
+    deriving (P.Eq)
+
+instance Category SparseFunctionMonoid where
+    type ValidCategory SparseFunctionMonoid a b =
+        ( FiniteType a
+        , FiniteType b
+        , Order a ~ Order b
+        )
+
+    id :: forall a. ValidCategory SparseFunctionMonoid a a => SparseFunctionMonoid a a
+    id = SparseFunctionMonoid $ Map.fromList $ P.zip xs xs
+        where
+            xs = P.map index (enumerate :: [a])
+
+    (SparseFunctionMonoid f1).(SparseFunctionMonoid f2) = SparseFunctionMonoid
+        (Map.map (\a -> find a f1) f2) 
+        where
+            find k map = case Map.lookup k map of
+                P.Just v -> v
+                P.Nothing -> swapIndex k
+
+---------------------------------------
+
+instance (FiniteType b, Monoid b) => Monoid (SparseFunctionMonoid a b) where
+    zero = SparseFunctionMonoid $ Map.empty
+    (SparseFunctionMonoid f1)+(SparseFunctionMonoid f2) = SparseFunctionMonoid $ Map.unionWith go f1 f2
+        where
+            go b1 b2 = index $ deIndex b1 + deIndex b2
+
+instance (FiniteType b, Abelian b) => Abelian (SparseFunctionMonoid a b) 
+
+instance (FiniteType b, Group b) => Group (SparseFunctionMonoid a b) where
+    negate (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.negate.deIndex) f
+
+type instance Scalar (SparseFunctionMonoid a b) = Scalar b
+
+instance (FiniteType b, Module r b) => Module r (SparseFunctionMonoid a b) where
+    r .* (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.(r.*).deIndex) f
+
+instance (FiniteType b, VectorSpace r b) => VectorSpace r (SparseFunctionMonoid a b) where 
+    (SparseFunctionMonoid f) /. r = SparseFunctionMonoid $ Map.map (index.(/.r).deIndex) f
 
 -------------------------------------------------------------------------------
 

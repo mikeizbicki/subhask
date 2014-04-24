@@ -15,9 +15,11 @@ module SubHask.Category
     , Concrete (..)
     , Groupoid (..)
     , Monoidal (..)
+    , (><)
     ) where
 
 import GHC.Prim
+import SubHask.Internal.Prelude
 import qualified Prelude as P
 
 -------------------------------------------------------------------------------
@@ -99,7 +101,7 @@ instance Category c => SubCategory c c where
     embed = id
 
 embed2 :: SubCategory cat subcat => subcat a (subcat a b) -> cat a (cat a b)
-embed2 f = P.undefined
+embed2 f = undefined
 
 -- | The category with Haskell types as objects, and functions as arrows.
 
@@ -129,8 +131,16 @@ instance Category (->) where
 
 infixr 0 $
 
-embedHask :: (Concrete subcat, ValidCategory subcat a b) => subcat a b -> a -> b
+embedHask :: (Concrete cat, ValidCategory cat a b) => cat a b -> a -> b
 embedHask = embed
+
+embedHask2 :: 
+    ( Concrete cat
+    , ValidCategory cat a b
+    , ValidCategory cat b c
+    , ValidCategory cat a (cat b c)
+    ) => cat a (cat b c) -> a -> b -> c
+embedHask2 f = \a b -> (f $ a) $ b
 
 withCategory :: (ValidCategory cat a b, Concrete cat) => proxy cat -> cat a b -> a -> b
 withCategory _ f = embed f
@@ -159,31 +169,56 @@ class Category cat => Groupoid cat where
 -- | The intuition behind a monoidal category is similar to the intuition 
 -- behind the 'SubHask.Algebra.Monoid' algebraic structure.  Unfortunately,
 -- there are a number of rather awkward laws to work out the technical details.
--- Even worse, the types for the tensor product don't work out very nicely
--- in Haskell syntax.  Anyone have any ideas how to make this prettier?!
+-- The associator and unitor functions are provided to demonstrate the 
+-- required isomorphisms.
 --
 -- More details available at <http://en.wikipedia.org/wiki/Monoidal_category wikipedia>
 -- and <http://ncatlab.org/nlab/show/monoidal+category ncatlab>.
 
 class Category cat => Monoidal cat where
-    type Tensor cat :: * -> * -> *
-    type Tensor cat = (,) 
+    data Tensor cat a b :: *
+    data Unit cat :: *
+    
+    tensor :: cat a (cat b (Tensor cat a b)) 
+    unit :: Unit cat
 
-    type Unit cat :: *
-    type Unit cat = ()
-
-    associatorL :: forall proxy a b c.
+    associatorL ::
         ( ValidCategory cat a b
         , ValidCategory cat b c
         , ValidCategory cat a c
-        ) => proxy cat -> Tensor cat (Tensor cat a b) c -> Tensor cat a (Tensor cat b c)
+        ) => Tensor cat (Tensor cat a b) c -> Tensor cat a (Tensor cat b c)
 
-    associatorR :: 
+    associatorR ::
         ( ValidCategory cat a b
         , ValidCategory cat b c
         , ValidCategory cat a c
-        ) => proxy cat -> Tensor cat a (Tensor cat b c) -> Tensor cat (Tensor cat a b) c
+        ) => Tensor cat a (Tensor cat b c) -> Tensor cat (Tensor cat a b) c
 
-    unitorL :: ValidCategory cat a a => proxy cat -> Tensor cat () a -> a
-    unitorR :: ValidCategory cat a a => proxy cat -> Tensor cat a () -> a
+    unitorL :: ValidCategory cat a a => Tensor cat (Unit cat) a -> a
+    unitorR :: ValidCategory cat a a => Tensor cat a (Unit cat) -> a
 
+infixl 7 ><
+(><) :: forall cat a b. 
+    ( Monoidal cat
+    , Concrete cat
+    , ValidCategory cat a b
+    , ValidCategory cat b (Tensor cat a b)
+    , ValidCategory cat a (cat b (Tensor cat a b))
+    ) => a -> b -> Tensor cat a b
+(><) = embedHask2 tensor
+
+instance Monoidal (->) where
+    data Tensor (->) a b = TensorHask a b
+        deriving (Read,Show,Eq,Ord)
+
+    data Unit (->) = UnitHask
+        deriving (Read,Show,Eq,Ord)
+
+    tensor = TensorHask
+    unit = UnitHask
+
+    associatorL (TensorHask (TensorHask a b) c) = TensorHask a (TensorHask b c)
+    associatorR (TensorHask a (TensorHask b c)) = TensorHask (TensorHask a b) c
+
+    unitorL (TensorHask UnitHask a) = a
+    unitorR (TensorHask a UnitHask) = a

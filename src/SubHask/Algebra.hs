@@ -98,6 +98,7 @@ class Field r => Floating r where
 ---------------------------------------
 
 type family Scalar m
+type IsScalar r = Scalar r ~ r
 
 class (Abelian m, Group m, Scalar r~Scalar m) => Module r m where
     (.*) :: r -> m -> m
@@ -125,6 +126,13 @@ innerProductNorm v = sqrt $ v<>v
 
 innerProductDistance :: (Floating (Scalar v), InnerProductSpace v) => v -> v -> Scalar v
 innerProductDistance v1 v2 = innerProductNorm $ v1-v2
+
+---------------------------------------
+
+class VectorSpace (Scalar v) v => OuterProduct v where
+    type Outer v 
+    outerProduct :: v -> v -> Outer v
+--     (><) :: v -> v -> Outer v
 
 ---------------------------------------
 

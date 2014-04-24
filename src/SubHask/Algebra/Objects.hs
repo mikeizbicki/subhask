@@ -39,10 +39,20 @@ instance KnownNat n => Monoid (VedicSquare n) where
     (VedicSquare v1)+(VedicSquare v2) = VedicSquare $ v1*v2 
 
 -------------------------------------------------------------------------------
+-- hask algebra
 
+instance Abelian b => Abelian (a -> b)
 instance Monoid b => Monoid (a -> b) where
     zero = \a -> zero
     f+g = \a -> f a + g a
 
 instance Group b => Group (a -> b) where
     negate f = negate . f
+
+type instance Scalar (a -> b) = Scalar b
+
+instance Module r b => Module r (a -> b) where
+    r .* f = \a -> r .* f a
+
+instance VectorSpace r b => VectorSpace r (a -> b) where
+    f /. r = \a -> f a /. r
