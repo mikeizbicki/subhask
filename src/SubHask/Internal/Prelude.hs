@@ -10,6 +10,8 @@ module SubHask.Internal.Prelude
 
     , Int
     , Integer
+    , fromIntegral
+
     , Float
     , Double
     , Rational
@@ -21,9 +23,11 @@ module SubHask.Internal.Prelude
 
 --     , module Data.Foldable
     , module Data.List
+    , module Data.Maybe
     )
     where
 
 import Data.Foldable
 import Data.List
+import Data.Maybe
 import Data.Traversable

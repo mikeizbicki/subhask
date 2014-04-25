@@ -33,6 +33,7 @@ library
         SubHask.Instances
 
     other-modules:       
+        SubHask.Internal.Prelude
 
     default-extensions:    
         TypeFamilies,
@@ -46,7 +47,9 @@ library
         InstanceSigs,
         ScopedTypeVariables,
         UndecidableInstances,
-        PolyKinds
+        PolyKinds,
+        StandaloneDeriving,
+        GeneralizedNewtypeDeriving
     
     hs-source-dirs:     
         src
