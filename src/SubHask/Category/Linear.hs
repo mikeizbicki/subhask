@@ -13,6 +13,8 @@ import qualified Data.Vector.Storable as VS
 
 -- import qualified Numeric.LinearAlgebra as LA
 
+import Data.Params.Vector.Unboxed
+
 import SubHask.Algebra
 import SubHask.Category
 import SubHask.Category.Finite

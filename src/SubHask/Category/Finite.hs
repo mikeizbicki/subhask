@@ -90,7 +90,7 @@ instance Category SparseFunctionMonoid where
     type ValidCategory SparseFunctionMonoid a b =
         ( FiniteType a
         , FiniteType b
-        , Order a ~ Order b
+        , Monoid b
         )
 
     id :: forall a. ValidCategory SparseFunctionMonoid a a => SparseFunctionMonoid a a
@@ -103,7 +103,14 @@ instance Category SparseFunctionMonoid where
         where
             find k map = case Map.lookup k map of
                 Just v -> v
-                Nothing -> swapIndex k
+                Nothing -> index zero
+
+instance SubCategory (->) SparseFunctionMonoid where
+    embed (SparseFunctionMonoid f) = map2function f
+        where
+            map2function map k = case Map.lookup (index k) map of
+                Just v -> deIndex v
+                Nothing -> zero
 
 ---------------------------------------
 
