@@ -15,6 +15,7 @@ import qualified Data.Vector.Generic.Mutable as VGM
 import qualified Data.Vector.Storable as VS
 
 import Data.Params
+import Data.Params.Vector
 import qualified Data.Params.Vector.Unboxed as PVU
 
 import SubHask.Algebra
@@ -38,24 +39,21 @@ u'' = withParam (PVU.len 10) ( VG.fromList [1..10::Double] :: PVU.Vector RunTime
 v'' = withParam (PVU.len 10) ( VG.fromList [2..11::Double] :: PVU.Vector RunTime Double )
 
 instance 
-    ( VG.Vector (PVU.Vector len) elem
-    , PVU.Param_len (PVU.Vector len elem)
+    ( ValidVector (PVU.Vector len) elem
     , Monoid elem
     ) => Monoid (PVU.Vector len elem) 
         where
 
-    zero = VG.replicate (PVU.param_len (undefined::PVU.Vector len elem)) zero
+    zero = VG.replicate (param_len (undefined::PVU.Vector len elem)) zero
     v1+v2 = VG.zipWith (+) v1 v2
 
 instance
-    ( VG.Vector (PVU.Vector len) elem
-    , PVU.Param_len (PVU.Vector len elem)
+    ( ValidVector (PVU.Vector len) elem
     , Abelian elem
     ) => Abelian (PVU.Vector len elem) 
 
 instance
-    ( VG.Vector (PVU.Vector len) elem
-    , PVU.Param_len (PVU.Vector len elem)
+    ( ValidVector (PVU.Vector len) elem
     , Group elem
     ) => Group (PVU.Vector len elem) 
         where
@@ -64,8 +62,7 @@ instance
 type instance Scalar (PVU.Vector len elem) = Scalar elem
 
 instance
-    ( VG.Vector (PVU.Vector len) elem
-    , PVU.Param_len (PVU.Vector len elem)
+    ( ValidVector (PVU.Vector len) elem
     , Module r elem
     ) => Module r (PVU.Vector len elem) 
         where
@@ -73,8 +70,7 @@ instance
     r .* v = VG.map (r .*) v
 
 instance
-    ( VG.Vector (PVU.Vector len) elem
-    , PVU.Param_len (PVU.Vector len elem)
+    ( ValidVector (PVU.Vector len) elem
     , Module elem elem
     ) => Module (PVU.Vector len elem) (PVU.Vector len elem) 
         where
@@ -100,6 +96,7 @@ instance
     -- TODO: which of these is correct?
 --     v1 <> v2 = VG.foldl' (+) zero $ VG.zipWith (*) v1 v2
 --     v1 <> v2 = VG.foldl' (+) zero $ VG.zipWith (.*) v1 v2
+
 
 -------------------------------------------------------------------------------
 -- sparse free vector space
