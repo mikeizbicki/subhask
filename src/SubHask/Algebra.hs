@@ -8,6 +8,7 @@ import GHC.TypeLits
 import Data.Proxy
 import qualified Prelude as P
 
+import SubHask.Internal.Prelude
 import SubHask.Category
 
 -------------------------------------------------------------------------------
@@ -172,77 +173,77 @@ instance (Group a, Group b, Group c, Group d) => Group (a,b,c,d) where
 -------------------------------------------------------------------------------
 -- standard numbers
 
-instance Monoid P.Int       where  zero = 0; (+) = (P.+)
-instance Monoid P.Integer   where  zero = 0; (+) = (P.+)
-instance Monoid P.Float     where  zero = 0; (+) = (P.+)
-instance Monoid P.Double    where  zero = 0; (+) = (P.+)
-instance Monoid P.Rational  where  zero = 0; (+) = (P.+)
+instance Monoid Int       where  zero = 0; (+) = (+)
+instance Monoid Integer   where  zero = 0; (+) = (+)
+instance Monoid Float     where  zero = 0; (+) = (+)
+instance Monoid Double    where  zero = 0; (+) = (+)
+instance Monoid Rational  where  zero = 0; (+) = (+)
 
-instance Group P.Int        where negate = P.negate
-instance Group P.Integer    where negate = P.negate
-instance Group P.Float      where negate = P.negate
-instance Group P.Double     where negate = P.negate
-instance Group P.Rational   where negate = P.negate
+instance Group Int        where negate = negate
+instance Group Integer    where negate = negate
+instance Group Float      where negate = negate
+instance Group Double     where negate = negate
+instance Group Rational   where negate = negate
 
-instance Abelian P.Int        
-instance Abelian P.Integer    
-instance Abelian P.Float      
-instance Abelian P.Double    
-instance Abelian P.Rational 
-
--------------------
-
-instance Ring P.Int         where one = 1; (*) = (P.*)
-instance Ring P.Integer     where one = 1; (*) = (P.*)
-instance Ring P.Float       where one = 1; (*) = (P.*)
-instance Ring P.Double      where one = 1; (*) = (P.*)
-instance Ring P.Rational    where one = 1; (*) = (P.*)
-
-instance Field P.Float      where (/) = (P./)
-instance Field P.Double     where (/) = (P./)
-instance Field P.Rational   where (/) = (P./)
-
-instance Floating P.Float where
-    pi = P.pi
-    sqrt = P.sqrt
-    log = P.log
-    exp = P.exp
-    (**) = (P.**)
-
-instance Floating P.Double where
-    pi = P.pi
-    sqrt = P.sqrt
-    log = P.log
-    exp = P.exp
-    (**) = (P.**)
+instance Abelian Int        
+instance Abelian Integer    
+instance Abelian Float      
+instance Abelian Double    
+instance Abelian Rational 
 
 -------------------
 
-type instance Scalar P.Int      = P.Int
-type instance Scalar P.Integer  = P.Integer
-type instance Scalar P.Float    = P.Float
-type instance Scalar P.Double   = P.Double
-type instance Scalar P.Rational = P.Rational
+instance Ring Int         where one = 1; (*) = (*)
+instance Ring Integer     where one = 1; (*) = (*)
+instance Ring Float       where one = 1; (*) = (*)
+instance Ring Double      where one = 1; (*) = (*)
+instance Ring Rational    where one = 1; (*) = (*)
 
-instance Module P.Int       P.Int       where (.*) = (P.*)
-instance Module P.Integer   P.Integer   where (.*) = (P.*)
-instance Module P.Float     P.Float     where (.*) = (P.*)
-instance Module P.Double    P.Double    where (.*) = (P.*)
-instance Module P.Rational  P.Rational  where (.*) = (P.*)
+instance Field Float      where (/) = (/)
+instance Field Double     where (/) = (/)
+instance Field Rational   where (/) = (/)
 
-instance VectorSpace P.Float     P.Float     where (/.) = (P./)
-instance VectorSpace P.Double    P.Double    where (/.) = (P./)
-instance VectorSpace P.Rational  P.Rational  where (/.) = (P./)
+instance Floating Float where
+    pi = pi
+    sqrt = sqrt
+    log = log
+    exp = exp
+    (**) = (**)
+
+instance Floating Double where
+    pi = pi
+    sqrt = sqrt
+    log = log
+    exp = exp
+    (**) = (**)
+
+-------------------
+
+type instance Scalar Int      = Int
+type instance Scalar Integer  = Integer
+type instance Scalar Float    = Float
+type instance Scalar Double   = Double
+type instance Scalar Rational = Rational
+
+instance Module Int       Int       where (.*) = (*)
+instance Module Integer   Integer   where (.*) = (*)
+instance Module Float     Float     where (.*) = (*)
+instance Module Double    Double    where (.*) = (*)
+instance Module Rational  Rational  where (.*) = (*)
+
+instance VectorSpace Float     Float     where (/.) = (/)
+instance VectorSpace Double    Double    where (/.) = (/)
+instance VectorSpace Rational  Rational  where (/.) = (/)
 
 -------------------------------------------------------------------------------
 -- example: Z n
 
-newtype Z (n::Nat) = Z P.Integer
-    deriving (P.Read,P.Show,P.Eq,P.Ord)
+newtype Z (n::Nat) = Z Integer
+    deriving (Read,Show,Eq,Ord)
 
 -- | safe constructor that takes the mod of the input
-mkZ :: forall n. KnownNat n => P.Integer -> Z n
-mkZ i = Z $ i `P.mod` n
+mkZ :: forall n. KnownNat n => Integer -> Z n
+mkZ i = Z $ i `mod` n
     where
         n = natVal (Proxy :: Proxy n)
 
@@ -259,9 +260,9 @@ instance KnownNat n => Ring (Z n) where
     one = Z 1
     (Z z1)*(Z z2) = mkZ $ z1 * z2
 
-type instance Scalar (Z n) = P.Integer
+type instance Scalar (Z n) = Integer
 
-instance KnownNat n => Module P.Integer (Z n) where
+instance KnownNat n => Module Integer (Z n) where
     i .* z = Z i * z
 
 -- Extended Euclid's algorithm is used to calculate inverses in modular arithmetic
@@ -270,7 +271,7 @@ extendedEuclid a b = go 0 1 1 0 b a
         go s1 s0 t1 t0 0  r0 = (s1,s0,t1,t0,0,r0)
         go s1 s0 t1 t0 r1 r0 = go s1' s0' t1' t0' r1' r0'
             where
-                q = r0 `P.div` r1
+                q = r0 `div` r1
                 (r0', r1') = (r1,r0-q*r1)
                 (s0', s1') = (s1,s0-q*s1)
                 (t0', t1') = (t1,t0-q*t1)
@@ -279,7 +280,7 @@ extendedEuclid a b = go 0 1 1 0 b a
 -- example: Galois field
 
 newtype Galois (p::Nat) (k::Nat) = Galois (Z (p^k))
-    deriving (P.Read,P.Show,P.Eq)
+    deriving (Read,Show,Eq)
 
 deriving instance KnownNat (p^k) => Monoid (Galois p k)
 deriving instance KnownNat (p^k) => Abelian (Galois p k)
@@ -288,7 +289,7 @@ deriving instance KnownNat (p^k) => Ring (Galois p k)
 
 type instance Scalar (Galois p k) = Scalar (Z (p^k))
 
-instance KnownNat (p^k) => Module (P.Integer) (Galois p k) where
+instance KnownNat (p^k) => Module (Integer) (Galois p k) where
     i .* z = Galois (Z i) * z
 
 instance (Prime p, KnownNat (p^k)) => Field (Galois p k) where

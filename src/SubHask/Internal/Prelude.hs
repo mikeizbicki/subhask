@@ -11,6 +11,8 @@ module SubHask.Internal.Prelude
     , Int
     , Integer
     , fromIntegral
+    , mod
+    , div
 
     , Float
     , Double

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverlappingInstances #-}
+-- {-# LANGUAGE OverlappingInstances #-}
 
 module SubHask.Category.Linear
     where
@@ -35,8 +35,8 @@ v = VG.fromList [2..11] :: PVU.Vector Automatic Double
 u' = VG.fromList [1..10] :: PVU.Vector (Static 10) Double
 v' = VG.fromList [2..11] :: PVU.Vector (Static 10) Double
 
-u'' = withParam (PVU.len 10) ( VG.fromList [1..10::Double] :: PVU.Vector RunTime Double )
-v'' = withParam (PVU.len 10) ( VG.fromList [2..11::Double] :: PVU.Vector RunTime Double )
+u'' = withParam (len 10) ( VG.fromList [1..10::Double] :: PVU.Vector RunTime Double )
+v'' = withParam (len 10) ( VG.fromList [2..11::Double] :: PVU.Vector RunTime Double )
 
 instance 
     ( ValidVector (PVU.Vector len) elem

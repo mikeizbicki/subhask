@@ -38,6 +38,12 @@ instance KnownNat n => Monoid (VedicSquare n) where
     zero = VedicSquare one
     (VedicSquare v1)+(VedicSquare v2) = VedicSquare $ v1*v2 
 
+------------------------------------------------------------------------------
+-- Minkowski addition
+
+-- | TODO: implement
+-- More details available at <https://en.wikipedia.org/wiki/Minkowski_addition wikipedia>.
+
 -------------------------------------------------------------------------------
 -- hask algebra
 
