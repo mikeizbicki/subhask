@@ -26,10 +26,12 @@ module SubHask.Internal.Prelude
 --     , module Data.Foldable
     , module Data.List
     , module Data.Maybe
+    , module Data.Proxy
     )
     where
 
 import Data.Foldable
 import Data.List
 import Data.Maybe
+import Data.Proxy
 import Data.Traversable

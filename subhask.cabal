@@ -25,6 +25,7 @@ library
         SubHask.Category.Product
         SubHask.Category.Polynomial
         SubHask.Category.Slice
+        SubHask.Category.Trans.Algebra
         SubHask.Category.Trans.Bijective
         SubHask.Category.Trans.Constrained
         SubHask.Category.Trans.Linear

@@ -12,6 +12,8 @@ import SubHask.Algebra
 
 -------------------------------------------------------------------------------
 
+class Bijective (cat :: a -> b -> c)
+
 data BijectiveT cat a b = BijectiveT (cat a b) (cat b a)
 
 instance Category cat => Category (BijectiveT cat) where

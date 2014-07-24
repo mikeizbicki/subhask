@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 {- | 
 Finite categories are categories with a finite number of arrows.
 In our case, this corresponds to functions with finite domains (and hence, ranges).
@@ -36,6 +38,7 @@ import qualified Prelude as P
 
 import SubHask.Category
 import SubHask.Algebra
+import SubHask.Algebra.Objects
 import SubHask.Internal.Prelude
 
 -------------------------------------------------------------------------------
@@ -136,7 +139,7 @@ instance (FiniteType b, VectorSpace r b) => VectorSpace r (SparseFunctionMonoid 
 -------------------------------------------------------------------------------
 
 -- | Represents finite functions as a hash table associating input/output value pairs.
-newtype DenseFunction a b = DenseFunction (VU.Vector Int)
+newtype DenseFunction (a :: *) (b :: *) = DenseFunction (VU.Vector Int)
     deriving Eq
 
 instance Category DenseFunction where

@@ -20,22 +20,6 @@ class Monoid m where
     infixl 6 +
     (+) :: m -> m -> m
 
-newtype Mon a b = Mon (a -> b)
-
-instance Category Mon where
-    type ValidCategory Mon a b = (Monoid a, Monoid b)
-    id = Mon id
-    (Mon f).(Mon g) = Mon (f.g)
-
-instance SubCategory (->) Mon where
-    embed (Mon f) = f
-
-embedMon ::
-    ( SubCategory Mon subcat
-    , ValidCategory subcat a b
-    ) => subcat a b -> Mon a b
-embedMon = embed
-
 ---------------------------------------
 
 class Monoid g => Group g where
@@ -44,25 +28,6 @@ class Monoid g => Group g where
     infixl 6 -
     (-) :: g -> g -> g
     a - b = a + negate b
-
-newtype Grp a b = Grp (a -> b)
-
-instance Category Grp where
-    type ValidCategory Grp a b = (Group a, Group b)
-    id = Grp id
-    (Grp f).(Grp g) = Grp (f.g)
-
-instance SubCategory (->) Grp where
-    embed (Grp f) = f
-
-instance SubCategory Mon Grp where
-    embed (Grp f) = Mon f
-
-embedGrp ::
-    ( SubCategory Grp subcat
-    , ValidCategory subcat a b
-    ) => subcat a b -> Grp a b
-embedGrp = embed
 
 ---------------------------------------
 
@@ -234,81 +199,4 @@ instance Module Rational  Rational  where (.*) = (*)
 instance VectorSpace Float     Float     where (/.) = (/)
 instance VectorSpace Double    Double    where (/.) = (/)
 instance VectorSpace Rational  Rational  where (/.) = (/)
-
--------------------------------------------------------------------------------
--- example: Z n
-
-newtype Z (n::Nat) = Z Integer
-    deriving (Read,Show,Eq,Ord)
-
--- | safe constructor that takes the mod of the input
-mkZ :: forall n. KnownNat n => Integer -> Z n
-mkZ i = Z $ i `mod` n
-    where
-        n = natVal (Proxy :: Proxy n)
-
-instance KnownNat n => Monoid (Z n) where
-    zero = Z 0
-    (Z z1) + (Z z2) = mkZ $ z1 + z2 
-
-instance KnownNat n => Group (Z n) where
-    negate (Z i) = mkZ $ negate i 
-
-instance KnownNat n => Abelian (Z n) 
-
-instance KnownNat n => Ring (Z n) where
-    one = Z 1
-    (Z z1)*(Z z2) = mkZ $ z1 * z2
-
-type instance Scalar (Z n) = Integer
-
-instance KnownNat n => Module Integer (Z n) where
-    i .* z = Z i * z
-
--- Extended Euclid's algorithm is used to calculate inverses in modular arithmetic
-extendedEuclid a b = go 0 1 1 0 b a
-    where
-        go s1 s0 t1 t0 0  r0 = (s1,s0,t1,t0,0,r0)
-        go s1 s0 t1 t0 r1 r0 = go s1' s0' t1' t0' r1' r0'
-            where
-                q = r0 `div` r1
-                (r0', r1') = (r1,r0-q*r1)
-                (s0', s1') = (s1,s0-q*s1)
-                (t0', t1') = (t1,t0-q*t1)
-
--------------------------------------------------------------------------------
--- example: Galois field
-
-newtype Galois (p::Nat) (k::Nat) = Galois (Z (p^k))
-    deriving (Read,Show,Eq)
-
-deriving instance KnownNat (p^k) => Monoid (Galois p k)
-deriving instance KnownNat (p^k) => Abelian (Galois p k)
-deriving instance KnownNat (p^k) => Group (Galois p k)
-deriving instance KnownNat (p^k) => Ring (Galois p k)
-
-type instance Scalar (Galois p k) = Scalar (Z (p^k))
-
-instance KnownNat (p^k) => Module (Integer) (Galois p k) where
-    i .* z = Galois (Z i) * z
-
-instance (Prime p, KnownNat (p^k)) => Field (Galois p k) where
-    reciprocal (Galois (Z i)) = Galois $ mkZ $ t
-        where
-            (_,_,_,t,_,_) = extendedEuclid n i
-            n = natVal (Proxy::Proxy (p^k))
-
--------------------
-
-class Prime (n::Nat)
-instance Prime 1
-instance Prime 2
-instance Prime 3
-instance Prime 5
-instance Prime 7
-instance Prime 11
-instance Prime 13
-instance Prime 17
-instance Prime 19
-instance Prime 23
 

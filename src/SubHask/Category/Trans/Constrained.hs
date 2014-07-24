@@ -11,7 +11,7 @@ import SubHask.Category
 
 -------------------------------------------------------------------------------
 
-newtype ConstrainedT (xs :: [* -> Constraint]) cat a b = ConstrainedT (cat a b)
+newtype ConstrainedT (xs :: [* -> Constraint]) cat (a :: *) (b :: *) = ConstrainedT (cat a b)
 
 type family AppConstraints (f :: [* -> Constraint]) (a :: *) :: Constraint
 type instance AppConstraints '[] a = ()

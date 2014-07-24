@@ -31,6 +31,10 @@ module SubHask.Category
     , embedHask2
     , embedHask3
     , withCategory
+
+    -- * Cat
+    , Cat
+    , CatT
     
     -- * Special types of categories
     , Concrete (..)
@@ -56,13 +60,13 @@ import qualified Prelude as P
 -- | This 'Category' class modifies the one in the Haskell standard to include 
 -- the 'ValidCategory' type constraint.  This constraint let's us make instances 
 -- of arbitrary subcategories of Hask.
-class Category cat where
+class Category (cat :: k1 -> k2 -> *) where
 
---     type ValidCategory cat (a :: k) (b :: k) :: Constraint
---     type ValidCategory cat (a :: *)  (b :: *) = ()
+--     type ValidCategory cat a b :: Constraint
+--     type ValidCategory cat a b = ()
 
-    type ValidCategory cat a b :: Constraint
-    type ValidCategory cat a b = ()
+    type ValidCategory cat (a::k1') (b::k2') :: Constraint
+    type ValidCategory cat (a::k1') (b::k2') = ()
 
     id :: ValidCategory cat a a => cat a a
 
@@ -73,36 +77,64 @@ class Category cat where
         , ValidCategory cat a c
         ) => cat b c -> cat a b -> cat a c
 
-
--- data Cat a b cat1 cat2 = Cat (cat1 a b -> cat2 a b)
--- 
--- instance Category (Cat a b) where
---     type ValidCategory (Cat a b) cat1 cat2 =
---         ( ValidCategory cat1 a b
---         , ValidCategory cat2 a b
---         )
--- 
---     id = Cat id
---     (Cat f).(Cat g) = Cat $ f.g
---     
--- 
--- data Linear r a b = Linear (a r -> b r)
--- 
--- instance Category (Linear r) where
---     type ValidCategory (Linear r) (a :: * -> *) (b :: * -> *) = ()
---     id = Linear id
---     (Linear f1).(Linear f2) = Linear $ f1.f2
-
--------------------
-
 -- | The category with Haskell types as objects, and functions as arrows.
+--
+-- More details available at the <http://www.haskell.org/haskellwiki/Hask Haskell wiki>.
 type Hask = (->)
-
--- type instance ValidCategory Hask a b = ()
 
 instance Category (->) where
     id = P.id
     (.) = (P..)
+
+-- | The category with categories as objects and functors as arrows.
+--
+-- More details available at <https://en.wikipedia.org/wiki/Category_of_categories wikipedia>
+-- and <http://ncatlab.org/nlab/show/Cat ncatlab>.
+type Cat cat1 cat2 = forall a b. CatT (->) a b cat1 cat2
+
+newtype CatT 
+    ( cat :: * -> * -> *)
+    ( a :: k )
+    ( b :: k )
+    ( cat1 :: k -> k -> * ) 
+    ( cat2 :: k -> k -> * )
+    = CatT (cat1 a b `cat` cat2 a b)
+
+instance Category cat => Category (CatT cat a b) where
+    type ValidCategory (CatT cat a b) cat1 cat2 =
+        ( ValidCategory cat1 a b
+        , ValidCategory cat2 a b
+        , ValidCategory cat (cat1 a b) (cat2 a b)
+        )
+
+    id = CatT id
+    (CatT f).(CatT g) = CatT $ f.g
+
+-- TODO: We would rather have the definition of CatT not depend on the a and b 
+-- variables, as in the code below.  Unfortunately, GHC 7.8's type checker isn't
+-- strong enough to handle forall inside of a type class.
+-- 
+-- data CatT 
+--     ( cat :: * -> * -> *)
+--     ( cat1 :: * -> * -> * ) 
+--     ( cat2 :: * -> * -> * )
+--     = forall a b. 
+--         ( ValidCategory cat1 a b
+--         , ValidCategory cat2 a b
+--         ) => CatT (cat1 a b `cat` cat2 a b)
+-- 
+-- instance Category cat => Category (CatT cat) where
+--     type ValidCategory (CatT cat) cat1 cat2 = forall a b.
+--         ( ValidCategory cat1 a b
+--         , ValidCategory cat2 a b
+--         , ValidCategory cat (cat1 a b) (cat2 a b)
+--         )
+-- 
+--     id = CatT id
+--     (CatT f).(CatT g) = CatT $ f.g
+    
+-- TODO: can this be extended to functor categories?
+-- http://ncatlab.org/nlab/show/functor+category
 
 ---------------------------------------
 

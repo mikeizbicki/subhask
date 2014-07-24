@@ -30,10 +30,10 @@ instance
 
 -------------------------------------------------------------------------------
 
-data (cat / (obj :: *)) a b = Slice (cat a b) 
+data (cat / (obj :: *)) (a :: *) (b :: *) = Slice (cat a b) 
 
 instance Category cat => Category (cat/obj) where
-    type ValidCategory (cat/obj) a b = 
+    type ValidCategory (cat/obj) (a :: *) (b :: *) = 
         ( ValidCategory cat a obj
         , ValidCategory cat b obj
         , ValidCategory cat a b
