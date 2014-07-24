@@ -25,6 +25,7 @@ class Monoid m where
 class Monoid g => Group g where
     negate :: g -> g
 
+    {-# INLINE (-) #-}
     infixl 6 -
     (-) :: g -> g -> g
     a - b = a + negate b
@@ -44,14 +45,18 @@ class (Abelian r, Group r) => Ring r where
 ---------------------------------------
 
 class Ring r => Field r where
+    {-# INLINE reciprocal #-}
     reciprocal :: r -> r
     reciprocal r = one/r
 
+    {-# INLINE (/) #-}
+    infixl 7 /
     (/) :: r -> r -> r
     n/d = n * reciprocal d
 
 ---------------------------------------
 
+-- | TODO: add rest of Floating functions
 class Field r => Floating r where
     pi :: r
     exp :: r -> r
@@ -59,50 +64,71 @@ class Field r => Floating r where
     log :: r -> r
     (**) :: r -> r -> r
     infixl 8 **
-    -- TODO: add rest of Floating functions
 
 ---------------------------------------
 
 type family Scalar m
-type IsScalar r = Scalar r ~ r
 
-class (Abelian m, Group m, Scalar r~Scalar m) => Module r m where
-    (.*) :: r -> m -> m
-    r .* m = m *. r 
+-- type IsScalar r = Scalar r ~ r
 
-    (*.) :: m -> r -> m
-    m *. r  = r .* m
-
-    infixl 7 .*
-    infixl 7 *.
+class (Scalar r ~ r) => IsScalar r where
+    fromInteger :: Integer -> r
 
 ---------------------------------------
 
-class (Module r v, Field r) => VectorSpace r v where
-    (/.) :: v -> r -> v
+-- class (Abelian m, Group m, Scalar r~Scalar m) => Module r m where
+--     {-# INLINE (.*) #-}
+--     infixl 7 .*
+--     (.*) :: r -> m -> m
+--     r .* m = m *. r 
+-- 
+--     {-# INLINE (*.) #-}
+--     infixl 7 *.
+--     (*.) :: m -> r -> m
+--     m *. r  = r .* m
+
+class (Abelian m, Group m, IsScalar (Scalar m)) => Module m where
+    {-# INLINE (.*) #-}
+    infixl 7 .*
+    (.*) :: Scalar m -> m -> m
+    r .* m = m *. r 
+
+    {-# INLINE (*.) #-}
+    infixl 7 *.
+    (*.) :: m -> Scalar m -> m
+    m *. r  = r .* m
+
+
+---------------------------------------
+
+class (Module v, Field (Scalar v)) => VectorSpace v where
+    {-# INLINE (/.) #-}
+    (/.) :: v -> Scalar v -> v
     v /. r = v *. reciprocal r
 
 ---------------------------------------
 
-class VectorSpace (Scalar v) v => InnerProductSpace v where
+class VectorSpace v => InnerProductSpace v where
     (<>) :: v -> v -> Scalar v
 
-innerProductNorm :: (Floating (Scalar v), InnerProductSpace v) => v -> Scalar v
-innerProductNorm v = sqrt $ v<>v 
+    {-# INLINE innerProductNorm #-}
+    innerProductNorm :: (Floating (Scalar v), InnerProductSpace v) => v -> Scalar v
+    innerProductNorm v = sqrt $ v<>v 
 
-innerProductDistance :: (Floating (Scalar v), InnerProductSpace v) => v -> v -> Scalar v
-innerProductDistance v1 v2 = innerProductNorm $ v1-v2
+    {-# INLINE innerProductDistance #-}
+    innerProductDistance :: (Floating (Scalar v), InnerProductSpace v) => v -> v -> Scalar v
+    innerProductDistance v1 v2 = innerProductNorm $ v1-v2
 
 ---------------------------------------
 
-class VectorSpace (Scalar v) v => OuterProduct v where
+class VectorSpace v => OuterProduct v where
     type Outer v 
     outerProduct :: v -> v -> Outer v
 --     (><) :: v -> v -> Outer v
 
 ---------------------------------------
 
-class MetricSpace v where
+class (Field (Scalar v), IsScalar (Scalar v)) => MetricSpace v where
     distance :: v -> v -> Scalar v
 
 ---------------------------------------
@@ -137,6 +163,14 @@ instance (Group a, Group b, Group c, Group d) => Group (a,b,c,d) where
 
 -------------------------------------------------------------------------------
 -- standard numbers
+
+instance IsScalar Int       where fromInteger = P.fromInteger
+instance IsScalar Integer   where fromInteger = P.fromInteger
+instance IsScalar Float     where fromInteger = P.fromInteger
+instance IsScalar Double    where fromInteger = P.fromInteger
+instance IsScalar Rational  where fromInteger = P.fromInteger
+
+-------------------
 
 instance Monoid Int       where  zero = 0; (+) = (+)
 instance Monoid Integer   where  zero = 0; (+) = (+)
@@ -190,13 +224,23 @@ type instance Scalar Float    = Float
 type instance Scalar Double   = Double
 type instance Scalar Rational = Rational
 
-instance Module Int       Int       where (.*) = (*)
-instance Module Integer   Integer   where (.*) = (*)
-instance Module Float     Float     where (.*) = (*)
-instance Module Double    Double    where (.*) = (*)
-instance Module Rational  Rational  where (.*) = (*)
+instance Module Int       where (.*) = (*)
+instance Module Integer   where (.*) = (*)
+instance Module Float     where (.*) = (*)
+instance Module Double    where (.*) = (*)
+instance Module Rational  where (.*) = (*)
 
-instance VectorSpace Float     Float     where (/.) = (/)
-instance VectorSpace Double    Double    where (/.) = (/)
-instance VectorSpace Rational  Rational  where (/.) = (/)
+instance VectorSpace Float     where (/.) = (/)
+instance VectorSpace Double    where (/.) = (/)
+instance VectorSpace Rational  where (/.) = (/)
+
+-- instance Module Int       Int       where (.*) = (*)
+-- instance Module Integer   Integer   where (.*) = (*)
+-- instance Module Float     Float     where (.*) = (*)
+-- instance Module Double    Double    where (.*) = (*)
+-- instance Module Rational  Rational  where (.*) = (*)
+-- 
+-- instance VectorSpace Float     Float     where (/.) = (/)
+-- instance VectorSpace Double    Double    where (/.) = (/)
+-- instance VectorSpace Rational  Rational  where (/.) = (/)
 

@@ -345,7 +345,8 @@ instance Closed (->) where
 -- Notably, 'Hask' is NOT a Groupoid.
 --
 -- More details available at <http://en.wikipedia.org/wiki/Groupoid wikipedia>
--- and <http://ncatlab.org/nlab/show/groupoid ncatlib>.
+-- <http://ncatlab.org/nlab/show/groupoid ncatlib>, and 
+-- <http://mathoverflow.net/questions/1114/whats-a-groupoid-whats-a-good-example-of-a-groupoid stack overflow>.
 class Category cat => Groupoid cat where
     inverse :: ValidCategory cat a b => cat a b -> cat b a
 

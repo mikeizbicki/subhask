@@ -25,6 +25,7 @@ library
         SubHask.Category.Product
         SubHask.Category.Polynomial
         SubHask.Category.Slice
+        SubHask.Category.Trans.Common
         SubHask.Category.Trans.Algebra
         SubHask.Category.Trans.Bijective
         SubHask.Category.Trans.Constrained
@@ -50,16 +51,20 @@ library
         UndecidableInstances,
         PolyKinds,
         StandaloneDeriving,
-        GeneralizedNewtypeDeriving
+        GeneralizedNewtypeDeriving,
+        TemplateHaskell,
+        RebindableSyntax
     
     hs-source-dirs:     
         src
 
     build-depends:       
         base            >= 4.7 && <4.8,
+        template-haskell,
         ghc-prim,
         containers      >= 0.5,
-        vector          >= 0.10.0
+        vector          >= 0.10.0,
+        hmatrix         == 0.15.2.0
 
     default-language:
         Haskell2010

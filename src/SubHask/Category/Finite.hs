@@ -130,10 +130,10 @@ instance (FiniteType b, Group b) => Group (SparseFunctionMonoid a b) where
 
 type instance Scalar (SparseFunctionMonoid a b) = Scalar b
 
-instance (FiniteType b, Module r b) => Module r (SparseFunctionMonoid a b) where
+instance (FiniteType b, Module b) => Module (SparseFunctionMonoid a b) where
     r .* (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.(r.*).deIndex) f
 
-instance (FiniteType b, VectorSpace r b) => VectorSpace r (SparseFunctionMonoid a b) where 
+instance (FiniteType b, VectorSpace b) => VectorSpace (SparseFunctionMonoid a b) where 
     (SparseFunctionMonoid f) /. r = SparseFunctionMonoid $ Map.map (index.(/.r).deIndex) f
 
 -------------------------------------------------------------------------------

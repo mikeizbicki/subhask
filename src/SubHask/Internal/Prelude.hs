@@ -5,6 +5,8 @@ module SubHask.Internal.Prelude
     , Read (..)
     , Show (..)
 
+    , Monad (..)
+
     , String
     , Char
 
@@ -35,3 +37,4 @@ import Data.List
 import Data.Maybe
 import Data.Proxy
 import Data.Traversable
+import Prelude

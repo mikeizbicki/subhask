@@ -39,10 +39,11 @@ instance KnownNat n => Ring (Z n) where
 
 type instance Scalar (Z n) = Integer
 
-instance KnownNat n => Module Integer (Z n) where
+instance KnownNat n => Module (Z n) where
     i .* z = Z i * z
 
 -- | Extended Euclid's algorithm is used to calculate inverses in modular arithmetic
+extendedEuclid :: Integer -> Integer -> (Integer,Integer,Integer,Integer,Integer,Integer)
 extendedEuclid a b = go 0 1 1 0 b a
     where
         go s1 s0 t1 t0 0  r0 = (s1,s0,t1,t0,0,r0)
@@ -70,7 +71,7 @@ deriving instance KnownNat (p^k) => Ring (Galois p k)
 
 type instance Scalar (Galois p k) = Scalar (Z (p^k))
 
-instance KnownNat (p^k) => Module (Integer) (Galois p k) where
+instance KnownNat (p^k) => Module  (Galois p k) where
     i .* z = Galois (Z i) * z
 
 instance (Prime p, KnownNat (p^k)) => Field (Galois p k) where
@@ -131,6 +132,7 @@ instance KnownNat n => Monoid (VedicSquare n) where
 -------------------------------------------------------------------------------
 -- hask algebra
 
+{-
 instance Abelian b => Abelian (a -> b)
 instance Monoid b => Monoid (a -> b) where
     zero = \a -> zero
@@ -141,8 +143,9 @@ instance Group b => Group (a -> b) where
 
 type instance Scalar (a -> b) = Scalar b
 
-instance Module r b => Module r (a -> b) where
+instance Module b => Module (a -> b) where
     r .* f = \a -> r .* f a
 
-instance VectorSpace r b => VectorSpace r (a -> b) where
+instance VectorSpace b => VectorSpace (a -> b) where
     f /. r = \a -> f a /. r
+-}

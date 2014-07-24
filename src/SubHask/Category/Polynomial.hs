@@ -6,6 +6,7 @@ import Data.List
 import qualified Prelude as P
 import Prelude (Show (..),(++),concat,replicate)
 
+import SubHask.Internal.Prelude
 import SubHask.Category
 import SubHask.Algebra
 import SubHask.Category.Trans.Linear as Linear
@@ -27,7 +28,7 @@ instance Show r => Show (Polynomial r r) where
 pow :: Ring r => r -> P.Int -> r
 pow r i = P.foldl (*) one $ P.replicate i r
 
-evalPolynomial :: (Ring m, Module r m) => Polynomial r r -> m -> m
+evalPolynomial :: (Ring m, Module m) => Polynomial (Scalar m) (Scalar m) -> m -> m
 evalPolynomial (Polynomial xs) m = P.foldl1 (+) $ P.map (\(i,c) -> c.*(pow m i)) $ P.zip [0..] xs 
 
 ---------------------------------------
@@ -50,7 +51,7 @@ instance Ring r => Ring (Polynomial r r) where
             go []     i = []
             go (x:xs) i = (replicate i zero ++ P.map (*x) p2):go xs (i+one)
 
-instance Ring r => Module r (Polynomial r r) where
+instance (IsScalar r, Ring r) => Module (Polynomial r r) where
     r .* (Polynomial xs) = Polynomial $ P.map (*r) xs
 
 sumList [] ys = ys
@@ -60,7 +61,7 @@ sumList (x:xs) (y:ys) = x+y:sumList xs ys
 ---------------------------------------
 
 instance Category Polynomial where
-    type ValidCategory Polynomial a b = (a~b, Ring a, Module a a)
+    type ValidCategory Polynomial a b = (a~b, Ring a, Module a, IsScalar a)
     id = Polynomial [zero, one]
     p1.p2 = evalPolynomial p1 p2 
 
