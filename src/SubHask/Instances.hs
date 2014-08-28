@@ -12,11 +12,12 @@ import SubHask.Category.Trans.Constrained
 import SubHask.Category.Trans.Monotonic
 import SubHask.Functor
 
+
 -------------------------------------------------------------------------------
 -- []
 
-instance Pointed [] where
-    point a = [a]
+-- instance Pointed [] where
+--     point a = [a]
 
 -- instance TypeMonoid [] a where
 --     join xss = P.concat xss
@@ -27,28 +28,35 @@ instance Pointed [] where
 -- instance Concrete cat => Applicative cat [] where
 --     ap fs xs = [ f $ x | f <- fs, x <- xs ]
     
-{-
 
 -------------------------------------------------------------------------------
 -- Set
 
-instance Pointed Set.Set where
-    point = Set.singleton
+-- instance Pointed Set.Set where
+--     point = Set.singleton
 
 -- instance P.Ord a => TypeMonoid Set.Set a where
 --     join set = Set.unions $ Set.toList set
 
 ---------------------------------------
 
-instance Concrete cat => EndoFunctor (ConstrainedT '[P.Ord] cat) Set.Set where
-    efmap f set =  Set.map (embed f) set
+-- instance EndoFunctor (ConstrainedT '[P.Ord] (->)) Set.Set where
+--     efmap f = constrain $ \set -> Set.map (f $) set
 
-instance Concrete cat => Applicative (ConstrainedT '[P.Ord] cat) Set.Set where
-    ap fs xs = Set.unions [ efmap f xs | f <- Set.toList fs ]
+-- instance Applicative (ConstrainedT '[P.Ord] (->)) Set.Set where
+--     ap fs = constrain $ \xs -> Set.unions [ Set.map (f$) xs | f <- Set.toList fs ]
+-- 
+-- instance Monad (ConstrainedT '[P.Ord] (->)) Set.Set where
+--     join = constrain $ \set -> Set.unions $ Set.toList set
 
-instance Concrete cat => Monad (ConstrainedT '[P.Ord] cat) Set.Set where
-    join set = Set.unions $ Set.toList set
+-- instance Concrete cat => Applicative (ConstrainedT '[P.Ord] cat) Set.Set where
+--     ap fs xs = Set.unions [ efmap f xs | f <- Set.toList fs ]
 
+-- instance Concrete cat => Monad (ConstrainedT '[P.Ord] cat) Set.Set where
+--     join set = Set.unions $ Set.toList set
+
+
+{-
 ---------------------------------------
 
 -- notice that this version is asymptotically faster than above

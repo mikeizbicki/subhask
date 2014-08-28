@@ -3,6 +3,7 @@ module SubHask.Algebra
 
 import Debug.Trace
 
+import Data.Ratio
 import GHC.Prim
 import GHC.TypeLits
 import Data.Proxy
@@ -14,11 +15,24 @@ import SubHask.Category
 -------------------------------------------------------------------------------
 -- type classes
 
-class Monoid m where
-    zero :: m
-
+class Semigroup g where
     infixl 6 +
-    (+) :: m -> m -> m
+    (+) :: g -> g -> g
+
+class Semigroup g => Monoid g where
+    zero :: g
+
+data AddUnit' g = Unit' | AddUnit' !g
+    deriving (Read,Show,Eq,Ord)
+
+instance Semigroup g => Semigroup (AddUnit' g) where
+    Unit' + Unit' = Unit'
+    Unit' + (AddUnit' g2) = AddUnit' g2
+    (AddUnit' g1) + Unit' = AddUnit' g1
+    (AddUnit' g1) + (AddUnit' g2) = AddUnit' $ g1 + g2
+
+instance Semigroup g => Monoid (AddUnit' g) where
+    zero = Unit'
 
 ---------------------------------------
 
@@ -36,11 +50,26 @@ class Monoid m => Abelian m
 
 ---------------------------------------
 
-class (Abelian r, Group r) => Ring r where
-    one :: r
+class (Abelian g, Group g) => Normed g where
+    abs :: g -> g
 
+---------------------------------------
+
+class (Abelian r, Group r) => Rng r where
     infixl 7 *
     (*) :: r -> r -> r
+
+---------------------------------------
+
+class Rng r => Ring r where
+    one :: r
+
+    -- | NOTE: The default definition is extremely inefficient for most types
+    -- and should be specialized to something better.
+    fromInteger :: Integer -> r
+    fromInteger i = if i>0
+        then          foldl' (+) zero $ map (const (one::r)) [1..        i] 
+        else negate $ foldl' (+) zero $ map (const (one::r)) [1.. negate i]
 
 ---------------------------------------
 
@@ -53,6 +82,10 @@ class Ring r => Field r where
     infixl 7 /
     (/) :: r -> r -> r
     n/d = n * reciprocal d
+
+    {-# INLINE fromRational #-}
+    fromRational :: Rational -> r
+    fromRational r = fromInteger (numerator r) / fromInteger (denominator r) 
 
 ---------------------------------------
 
@@ -69,25 +102,13 @@ class Field r => Floating r where
 
 type family Scalar m
 
--- type IsScalar r = Scalar r ~ r
+type IsScalar r = Scalar r ~ r
 
-class (Scalar r ~ r) => IsScalar r where
-    fromInteger :: Integer -> r
+type HasScalar a = IsScalar (Scalar a)
 
 ---------------------------------------
 
--- class (Abelian m, Group m, Scalar r~Scalar m) => Module r m where
---     {-# INLINE (.*) #-}
---     infixl 7 .*
---     (.*) :: r -> m -> m
---     r .* m = m *. r 
--- 
---     {-# INLINE (*.) #-}
---     infixl 7 *.
---     (*.) :: m -> r -> m
---     m *. r  = r .* m
-
-class (Abelian m, Group m, IsScalar (Scalar m)) => Module m where
+class (Abelian m, Group m, HasScalar m, Ring (Scalar m)) => Module m where
     {-# INLINE (.*) #-}
     infixl 7 .*
     (.*) :: Scalar m -> m -> m
@@ -98,26 +119,31 @@ class (Abelian m, Group m, IsScalar (Scalar m)) => Module m where
     (*.) :: m -> Scalar m -> m
     m *. r  = r .* m
 
-
 ---------------------------------------
 
 class (Module v, Field (Scalar v)) => VectorSpace v where
     {-# INLINE (/.) #-}
+    infixl 7 /.
     (/.) :: v -> Scalar v -> v
     v /. r = v *. reciprocal r
 
 ---------------------------------------
 
 class VectorSpace v => InnerProductSpace v where
+    infix 8 <>
     (<>) :: v -> v -> Scalar v
 
-    {-# INLINE innerProductNorm #-}
-    innerProductNorm :: (Floating (Scalar v), InnerProductSpace v) => v -> Scalar v
-    innerProductNorm v = sqrt $ v<>v 
+{-# INLINE innerProductNorm #-}
+innerProductNorm :: (Floating (Scalar v), InnerProductSpace v) => v -> Scalar v
+innerProductNorm = sqrt . squaredInnerProductNorm
 
-    {-# INLINE innerProductDistance #-}
-    innerProductDistance :: (Floating (Scalar v), InnerProductSpace v) => v -> v -> Scalar v
-    innerProductDistance v1 v2 = innerProductNorm $ v1-v2
+{-# INLINE squaredInnerProductNorm #-}
+squaredInnerProductNorm :: (Floating (Scalar v), InnerProductSpace v) => v -> Scalar v
+squaredInnerProductNorm v = sqrt $ v<>v 
+
+{-# INLINE innerProductDistance #-}
+innerProductDistance :: (Floating (Scalar v), InnerProductSpace v) => v -> v -> Scalar v
+innerProductDistance v1 v2 = innerProductNorm $ v1-v2
 
 ---------------------------------------
 
@@ -138,17 +164,25 @@ class (InnerProductSpace v, MetricSpace v) => HilbertSpace v
 -------------------------------------------------------------------------------
 -- generic structures
 
+instance (Semigroup a, Semigroup b) => Semigroup (a,b) where
+    (a1,b1)+(a2,b2) = (a1+a2,b1+b2)
+    
+instance (Semigroup a, Semigroup b, Semigroup c) => Semigroup (a,b,c) where
+    (a1,b1,c1)+(a2,b2,c2) = (a1+a2,b1+b2,c1+c2)
+    
+instance (Semigroup a, Semigroup b, Semigroup c, Semigroup d) => Semigroup (a,b,c,d) where
+    (a1,b1,c1,d1)+(a2,b2,c2,d2) = (a1+a2,b1+b2,c1+c2,d1+d2)
+    
+---------------------------------------
+
 instance (Monoid a, Monoid b) => Monoid (a,b) where
     zero = (zero,zero)
-    (a1,b1)+(a2,b2) = (a1+a2,b1+b2)
 
 instance (Monoid a, Monoid b, Monoid c) => Monoid (a,b,c) where
     zero = (zero,zero,zero)
-    (a1,b1,c1)+(a2,b2,c2) = (a1+a2,b1+b2,c1+c2)
 
 instance (Monoid a, Monoid b, Monoid c, Monoid d) => Monoid (a,b,c,d) where
     zero = (zero,zero,zero,zero)
-    (a1,b1,c1,d1)+(a2,b2,c2,d2) = (a1+a2,b1+b2,c1+c2,d1+d2)
 
 ---------------------------------------
 
@@ -164,25 +198,23 @@ instance (Group a, Group b, Group c, Group d) => Group (a,b,c,d) where
 -------------------------------------------------------------------------------
 -- standard numbers
 
-instance IsScalar Int       where fromInteger = P.fromInteger
-instance IsScalar Integer   where fromInteger = P.fromInteger
-instance IsScalar Float     where fromInteger = P.fromInteger
-instance IsScalar Double    where fromInteger = P.fromInteger
-instance IsScalar Rational  where fromInteger = P.fromInteger
+instance Semigroup Int      where (+) = (P.+)
+instance Semigroup Integer  where (+) = (P.+)
+instance Semigroup Float    where (+) = (P.+)
+instance Semigroup Double   where (+) = (P.+)
+instance Semigroup Rational where (+) = (P.+)
 
--------------------
+instance Monoid Int       where  zero = 0 
+instance Monoid Integer   where  zero = 0
+instance Monoid Float     where  zero = 0
+instance Monoid Double    where  zero = 0
+instance Monoid Rational  where  zero = 0
 
-instance Monoid Int       where  zero = 0; (+) = (+)
-instance Monoid Integer   where  zero = 0; (+) = (+)
-instance Monoid Float     where  zero = 0; (+) = (+)
-instance Monoid Double    where  zero = 0; (+) = (+)
-instance Monoid Rational  where  zero = 0; (+) = (+)
-
-instance Group Int        where negate = negate
-instance Group Integer    where negate = negate
-instance Group Float      where negate = negate
-instance Group Double     where negate = negate
-instance Group Rational   where negate = negate
+instance Group Int        where negate = P.negate
+instance Group Integer    where negate = P.negate
+instance Group Float      where negate = P.negate
+instance Group Double     where negate = P.negate
+instance Group Rational   where negate = P.negate
 
 instance Abelian Int        
 instance Abelian Integer    
@@ -192,29 +224,35 @@ instance Abelian Rational
 
 -------------------
 
-instance Ring Int         where one = 1; (*) = (*)
-instance Ring Integer     where one = 1; (*) = (*)
-instance Ring Float       where one = 1; (*) = (*)
-instance Ring Double      where one = 1; (*) = (*)
-instance Ring Rational    where one = 1; (*) = (*)
+instance Rng Int         where (*) = (P.*)
+instance Rng Integer     where (*) = (P.*)
+instance Rng Float       where (*) = (P.*)
+instance Rng Double      where (*) = (P.*)
+instance Rng Rational    where (*) = (P.*)
 
-instance Field Float      where (/) = (/)
-instance Field Double     where (/) = (/)
-instance Field Rational   where (/) = (/)
+instance Ring Int         where one = 1; fromInteger = P.fromInteger
+instance Ring Integer     where one = 1; fromInteger = P.fromInteger
+instance Ring Float       where one = 1; fromInteger = P.fromInteger
+instance Ring Double      where one = 1; fromInteger = P.fromInteger
+instance Ring Rational    where one = 1; fromInteger = P.fromInteger
+
+instance Field Float      where (/) = (P./)
+instance Field Double     where (/) = (P./)
+instance Field Rational   where (/) = (P./)
 
 instance Floating Float where
-    pi = pi
-    sqrt = sqrt
-    log = log
-    exp = exp
-    (**) = (**)
+    pi = P.pi
+    sqrt = P.sqrt
+    log = P.log
+    exp = P.exp
+    (**) = (P.**)
 
 instance Floating Double where
-    pi = pi
-    sqrt = sqrt
-    log = log
-    exp = exp
-    (**) = (**)
+    pi = P.pi
+    sqrt = P.sqrt
+    log = P.log
+    exp = P.exp
+    (**) = (P.**)
 
 -------------------
 
@@ -230,6 +268,12 @@ instance Module Float     where (.*) = (*)
 instance Module Double    where (.*) = (*)
 instance Module Rational  where (.*) = (*)
 
+instance Normed Int       where abs = P.abs 
+instance Normed Integer   where abs = P.abs 
+instance Normed Float     where abs = P.abs 
+instance Normed Double    where abs = P.abs 
+instance Normed Rational  where abs = P.abs 
+
 instance VectorSpace Float     where (/.) = (/)
 instance VectorSpace Double    where (/.) = (/)
 instance VectorSpace Rational  where (/.) = (/)
@@ -243,4 +287,3 @@ instance VectorSpace Rational  where (/.) = (/)
 -- instance VectorSpace Float     Float     where (/.) = (/)
 -- instance VectorSpace Double    Double    where (/.) = (/)
 -- instance VectorSpace Rational  Rational  where (/.) = (/)
-

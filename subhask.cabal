@@ -18,9 +18,13 @@ cabal-version:       >=1.10
 
 library
     exposed-modules:     
+        SubHask
         SubHask.Algebra
         SubHask.Algebra.Objects
         SubHask.Category
+        SubHask.Category.Algebra.TypeParams
+        SubHask.Category.Algebra.HMatrix
+        SubHask.Category.Algebra.Vector
         SubHask.Category.Finite
         SubHask.Category.Product
         SubHask.Category.Polynomial
@@ -29,13 +33,16 @@ library
         SubHask.Category.Trans.Algebra
         SubHask.Category.Trans.Bijective
         SubHask.Category.Trans.Constrained
+        SubHask.Category.Trans.Derivative
         SubHask.Category.Trans.Linear
         SubHask.Category.Trans.Monotonic
         SubHask.Functor
         SubHask.Instances
+        SubHask.Internal.Prelude
+        SubHask.Quotient
 
     other-modules:       
-        SubHask.Internal.Prelude
+--         SubHask.Internal.Prelude
 
     default-extensions:    
         TypeFamilies,
@@ -53,7 +60,9 @@ library
         StandaloneDeriving,
         GeneralizedNewtypeDeriving,
         TemplateHaskell,
-        RebindableSyntax
+
+        RebindableSyntax,
+        OverloadedLists
     
     hs-source-dirs:     
         src
@@ -64,7 +73,9 @@ library
         ghc-prim,
         containers      >= 0.5,
         vector          >= 0.10.0,
-        hmatrix         == 0.15.2.0
+
+        hmatrix         == 0.15.2.2,
+        typeparams      >= 0.0.5
 
     default-language:
         Haskell2010

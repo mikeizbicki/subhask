@@ -36,8 +36,9 @@ import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as VU
 import qualified Prelude as P
 
-import SubHask.Category
 import SubHask.Algebra
+import SubHask.Category
+import SubHask.Quotient
 import SubHask.Algebra.Objects
 import SubHask.Internal.Prelude
 
@@ -117,11 +118,13 @@ instance SubCategory (->) SparseFunctionMonoid where
 
 ---------------------------------------
 
-instance (FiniteType b, Monoid b) => Monoid (SparseFunctionMonoid a b) where
-    zero = SparseFunctionMonoid $ Map.empty
+instance (FiniteType b, Semigroup b) => Semigroup (SparseFunctionMonoid a b) where
     (SparseFunctionMonoid f1)+(SparseFunctionMonoid f2) = SparseFunctionMonoid $ Map.unionWith go f1 f2
         where
             go b1 b2 = index $ deIndex b1 + deIndex b2
+
+instance (FiniteType b, Monoid b) => Monoid (SparseFunctionMonoid a b) where
+    zero = SparseFunctionMonoid $ Map.empty
 
 instance (FiniteType b, Abelian b) => Abelian (SparseFunctionMonoid a b) 
 
@@ -182,7 +185,7 @@ instance KnownNat n => FiniteType (Z n) where
     type Order (Z n) = n
     index i = Index i
     deIndex (Index i) = i
-    enumerate = [ Z i | i <- [0..n - 1] ]
+    enumerate = [ quotient i | i <- [0..n - 1] ]
         where
             n = natVal (Proxy :: Proxy n)
     getOrder z = natVal (Proxy :: Proxy n)
@@ -200,7 +203,7 @@ swapIndex (Index i) = Index i
 -- internal functions only
 
 int2index :: Int -> Index a
-int2index i = Index $ Z $ fromIntegral i
+int2index i = Index $ Mod $ fromIntegral i
 
 index2int :: Index a -> Int
-index2int (Index (Z i)) = fromIntegral i
+index2int (Index (Mod i)) = fromIntegral i

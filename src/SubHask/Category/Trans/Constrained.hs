@@ -1,6 +1,11 @@
 module SubHask.Category.Trans.Constrained
     ( ConstrainedT
+    , constrain
     , proveConstrained
+
+    -- ** Common type synonyms
+    , EqHask
+    , OrdHask
     )
     where
 
@@ -10,6 +15,11 @@ import qualified Prelude as P
 import SubHask.Category
 
 -------------------------------------------------------------------------------
+
+type EqHask  = ConstrainedT '[P.Eq ] Hask
+type OrdHask = ConstrainedT '[P.Ord] Hask
+
+---------
 
 newtype ConstrainedT (xs :: [* -> Constraint]) cat (a :: *) (b :: *) = ConstrainedT (cat a b)
 
@@ -32,6 +42,11 @@ instance Category cat => Category (ConstrainedT xs cat) where
 
 instance SubCategory cat subcat => SubCategory cat (ConstrainedT xs subcat) where
     embed (ConstrainedT f) = embed f
+
+constrain ::
+    ( ValidCategory (ConstrainedT xs cat) a b
+    ) => cat a b -> ConstrainedT xs cat a b
+constrain = ConstrainedT
 
 proveConstrained :: 
     ( ValidCategory (ConstrainedT xs cat) a b

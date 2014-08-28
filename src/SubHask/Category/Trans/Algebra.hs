@@ -120,7 +120,7 @@ instance Category cat => Category (LipT cat) where
         )
 
     {-# INLINE id #-}
-    id = LipT 1 id
+    id = LipT one id
 
     {-# INLINE (.) #-}
     (LipT m1 f1).(LipT m2 f2) = LipT (m1*m2) (f1.f2)
@@ -143,4 +143,4 @@ mkCatTrans ''MetT ''MetricSpace
 instance Category cat => Short (MetT cat)
 instance Category cat => Lipschitz (MetT cat) where
     {-# INLINE lipschitzModulus #-}
-    lipschitzModulus _ = 1
+    lipschitzModulus _ = one

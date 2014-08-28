@@ -22,15 +22,16 @@ module SubHask.Category
     -- * Categories
     Category (..)
     , SubCategory (..)
-    , embed2
+
+--     , Functor
 
     -- * Hask
     , Hask
     , ($)
     , embedHask
     , embedHask2
-    , embedHask3
     , withCategory
+    , embed2
 
     -- * Cat
     , Cat
@@ -83,6 +84,7 @@ class Category (cat :: k1 -> k2 -> *) where
 type Hask = (->)
 
 instance Category (->) where
+    type ValidCategory (->) (a :: *) (b :: *) = ()
     id = P.id
     (.) = (P..)
 
@@ -148,16 +150,29 @@ instance Category cat => Category (CatT cat a b) where
 -- More details available at <http://en.wikipedia.org/wiki/Subcategory wikipedia>
 -- and <http://ncatlab.org/nlab/show/subcategory ncatlab>.
 
-class (Category cat, Category subcat) => SubCategory cat subcat where
+class 
+    ( Category cat
+    , Category subcat
+    ) => SubCategory 
+        (subcat :: k1 -> k1 -> *) 
+        (cat    :: k0 -> k0 -> *) 
+        where
+
     embed :: ValidCategory subcat a b => subcat a b -> cat a b
 
 instance Category c => SubCategory c c where
     embed = id
 
--- | This would be a useful function to have, but I'm not sure how to implement it yet!
-embed2 :: SubCategory cat subcat => subcat a (subcat a b) -> cat a (cat a b)
-embed2 f = undefined
-
+-- | Technicaly, a conrete category is any category equiped with a faithful 
+-- functor to the category of sets.  This is just a little too platonic to 
+-- be represented in Haskell, but 'Hask' makes a pretty good approximation.
+-- So we call any 'SubCategory' of 'Hask' 'Concrete'.  Importantly, not
+-- all categories are concrete.   See the 'SubHask.Category.Slice.Slice'
+-- category for an example. 
+--
+-- More details available at <http://en.wikipedia.org/wiki/Concrete_category wikipedia>
+-- and <http://ncatlab.org/nlab/show/concrete+category ncatlib>.
+type Concrete cat = SubCategory cat (->) 
 
 -- | We generalize the Prelude's definition of "$" so that it applies to any 
 -- subcategory of 'Hask' (that is, any 'Concrete' 'Category'.  This lets us 
@@ -180,48 +195,59 @@ infixr 0 $
 
 -- | Embeds a unary function into 'Hask'
 embedHask :: 
-    ( Concrete cat
-    , ValidCategory cat a b
-    ) => cat a b -> a -> b
+    ( Concrete subcat
+    , ValidCategory subcat a b
+    ) => subcat a b -> a -> b
 embedHask = embed
 
 -- | Embeds a binary function into 'Hask'
 embedHask2 :: 
-    ( Concrete cat
-    , ValidCategory cat b c
-    , ValidCategory cat a (cat b c)
-    ) => cat a (cat b c) -> a -> b -> c
+    ( Concrete subcat
+    , ValidCategory subcat b c
+    , ValidCategory subcat a (subcat b c)
+    ) => subcat a (subcat b c) 
+      -> a 
+      -> b 
+      -> c 
 embedHask2 f = \a b -> (f $ a) $ b
 
--- | Embeds a trinary function into 'Hask'
-embedHask3 ::
-    ( Concrete cat
-    , ValidCategory cat c d
-    , ValidCategory cat b (cat c d)
-    , ValidCategory cat a (cat b (cat c d))
-    ) => cat a (cat b (cat c d)) -> a -> b -> c -> d
-embedHask3 f = \a b c -> ((f $ a) $ b) $ c
 
 -- | This is a special form of the 'embed' function which can make specifying the 
 -- category we are embedding into easier.
 withCategory :: 
-    ( ValidCategory cat a b
-    , Concrete cat
-    ) => proxy cat -> cat a b -> a -> b
+    ( ValidCategory subcat a b
+    , Concrete subcat
+    ) => proxy subcat -> subcat a b -> a -> b
 withCategory _ f = embed f
+
+-- | This would be a useful function to have, but I'm not sure how to implement it yet!
+embed2 :: SubCategory cat subcat => subcat a (subcat a b) -> cat a (cat a b)
+embed2 f = undefined
 
 -------------------------------------------------------------------------------
 
--- | Technicaly, a conrete category is any category equiped with a faithful 
--- functor to the category of sets.  This is just a little too platonic to 
--- be represented in Haskell, but 'Hask' makes a pretty good approximation.
--- So we call any 'SubCategory' of 'Hask' 'Concrete'.  Importantly, not
--- all categories are concrete.   See the 'SubHask.Category.Slice.Slice'
--- category for an example. 
+type Functor c d = forall a b. 
+    ( ValidCategory c a b
+    , ValidCategory d a b
+    ) => c a b 
+      -> d a b
+
+type EndoFunctor c = Functor c c
+
+type NaturalTransformation = forall c d. Functor c d -> Functor c d
+
+-- | Constructable categories let us construct arrows in the subcategory
+-- from the supercategory.  It is usually difficult to write the "construct"
+-- function in a way that is both safe and efficient.
 --
--- More details available at <http://en.wikipedia.org/wiki/Concrete_category wikipedia>
--- and <http://ncatlab.org/nlab/show/concrete+category ncatlib>.
-type Concrete cat = SubCategory (->) cat
+-- Note: Constructable is not a name normally associated with category theory.
+-- More formally, "construct" and "embed" are adjoint functors.
+--
+-- FIXME: There is probably a better way to do this
+class SubCategory supercat cat => Constructable supercat cat where
+    construct :: Functor supercat cat
+
+-------------------------------------------------------------------------------
 
 -- | The intuition behind a monoidal category is similar to the intuition 
 -- behind the 'SubHask.Algebra.Monoid' algebraic structure.  Unfortunately,
@@ -234,66 +260,71 @@ type Concrete cat = SubCategory (->) cat
 
 class 
     ( Category cat 
-    ) => Monoidal cat 
+    ) => Monoidal cat
         where
 
-    data Tensor cat a b :: *
-    data Unit cat :: *
+    type ValidMonoidal' cat a b :: Constraint
+    type ValidMonoidal' cat a b = ValidCategory cat a b
+
+    type Tensor cat :: k -> k -> k
+    type Unit cat :: k
     
-    tensor :: cat a (cat b (Tensor cat a b)) 
+--     tensor :: (cat :: k -> * -> *) (a::k) (cat (b::k) (Tensor cat (a::k) (b::k) ::k))
+    tensor :: ValidMonoidal cat a b => cat a (cat b (Tensor cat a b)) 
 
-    associatorL ::
-        ( ValidCategory cat a b
-        , ValidCategory cat b c
-        , ValidCategory cat a c
-        ) => Tensor cat (Tensor cat a b) c -> Tensor cat a (Tensor cat b c)
+--     associatorL ::
+--         ( ValidCategory cat a b
+--         , ValidCategory cat b c
+--         , ValidCategory cat a c
+--         ) => Tensor cat (Tensor cat a b) c -> Tensor cat a (Tensor cat b c)
+-- 
+--     associatorR ::
+--         ( ValidCategory cat a b
+--         , ValidCategory cat b c
+--         , ValidCategory cat a c
+--         ) => Tensor cat a (Tensor cat b c) -> Tensor cat (Tensor cat a b) c
+-- 
+--     unitorL :: ValidCategory cat a a => Tensor cat (Unit cat) a -> a
+--     unitorR :: ValidCategory cat a a => Tensor cat a (Unit cat) -> a
 
-    associatorR ::
-        ( ValidCategory cat a b
-        , ValidCategory cat b c
-        , ValidCategory cat a c
-        ) => Tensor cat a (Tensor cat b c) -> Tensor cat (Tensor cat a b) c
-
-    unitorL :: ValidCategory cat a a => Tensor cat (Unit cat) a -> a
-    unitorR :: ValidCategory cat a a => Tensor cat a (Unit cat) -> a
+type ValidMonoidal cat a b = 
+    ( ValidCategory cat a b
+    , ValidMonoidal' cat a b
+    )
 
 -- | This is a convenient and (hopefully) suggestive shortcut for constructing
--- tensor cartesianProducts in 'Concrete' categories.
+-- tensor products in 'Concrete' categories.
 infixl 7 ><
 (><) :: forall cat a b. 
     ( Monoidal cat
     , Concrete cat
-    , ValidCategory cat a b
-    , ValidCategory cat b (Tensor cat a b)
-    , ValidCategory cat a (cat b (Tensor cat a b))
-    ) => a -> b -> Tensor cat a b
-(><) = embedHask2 tensor
+    , ValidMonoidal cat a b
+    , ValidMonoidal cat b (Tensor cat a b)
+    , ValidMonoidal cat a (cat b (Tensor cat a b))
+    ) => a -> b -> Proxy cat -> Tensor cat a b
+(a >< b) _ = embedHask2 (tensor::cat a (cat b (Tensor cat a b))) a b
 
 instance Monoidal (->) where
-    data Tensor (->) a b = TensorHask a b
-        deriving (Read,Show,Eq,Ord)
+    type Tensor (->) = (,) 
+    type Unit (->) = ()
+--     tensor = \a b -> (a,b)
 
-    data Unit (->) = UnitHask
-        deriving (Read,Show,Eq,Ord)
-
-    tensor = TensorHask
-
-    associatorL (TensorHask (TensorHask a b) c) = TensorHask a (TensorHask b c)
-    associatorR (TensorHask a (TensorHask b c)) = TensorHask (TensorHask a b) c
-
-    unitorL (TensorHask UnitHask a) = a
-    unitorR (TensorHask a UnitHask) = a
+--     associatorL (TensorHask (TensorHask a b) c) = TensorHask a (TensorHask b c)
+--     associatorR (TensorHask a (TensorHask b c)) = TensorHask (TensorHask a b) c
+-- 
+--     unitorL (TensorHask UnitHask a) = a
+--     unitorR (TensorHask a UnitHask) = a
 
 -- | Braided categories let us switch the order of tensored objects.
 --
 -- More details available at <https://en.wikipedia.org/wiki/Braided_monoidal_category wikipedia> 
 -- and <http://ncatlab.org/nlab/show/braided+monoidal+category ncatlab>
 class Monoidal cat => Braided cat where
-    braid :: Tensor cat a b -> Tensor cat b a
-    unbraid :: Tensor cat b a -> Tensor cat a b
+    braid :: Proxy cat -> Tensor cat a b -> Tensor cat b a
+    unbraid :: Proxy cat -> Tensor cat b a -> Tensor cat a b
 
 instance Braided (->) where
-    braid (TensorHask a b) = TensorHask b a
+    braid _ (a,b) = (b,a)
     unbraid = braid
 
 -- | In a symmetric braided category, 'braid' and 'unbraid' are inverses of each other.
@@ -314,11 +345,11 @@ class Symmetric cat => Cartesian cat where
     cartesianProduct :: cat a b -> cat a c -> cat a (Tensor cat b c)
     terminal :: a -> cat a (Unit cat)
 
-instance Cartesian (->) where 
-    fst (TensorHask a b) = a
-    snd (TensorHask a b) = b
-    cartesianProduct f g = \a -> TensorHask (f a) (g a)
-    terminal a = \_ -> UnitHask
+instance Cartesian ((->) :: * -> * -> *) where 
+    fst (a,b) = a
+    snd (a,b) = b
+    cartesianProduct f g = \a -> (f a, g a)
+    terminal a _ = ()
 
 -- | In a 'Cartesian' category, we can duplicate information.
 duplicate :: 
@@ -337,8 +368,8 @@ class Monoidal cat => Closed cat where
     uncurry :: cat a (cat b c) -> cat (Tensor cat a b) c
 
 instance Closed (->) where
-    curry f = \a b -> f (TensorHask a b)
-    uncurry f = \(TensorHask a b) -> f a b
+    curry f = \a b -> f (a,b)
+    uncurry f = \(a,b) -> f a b
 
 -- | Groupoids are categories where every arrow can be reversed.  
 -- This generalizes bijective and inverse functions.
@@ -369,4 +400,4 @@ class Closed cat => Compact cat where
 -- More details avalable at <https://en.wikipedia.org/wiki/Dagger_category wikipedia> 
 -- and <http://ncatlab.org/nlab/show/dagger-category ncatlab>
 class Category cat => Dagger cat where
-    dagger :: cat a b -> cat b a
+    dagger :: ValidCategory cat a b => cat a b -> cat b a

@@ -3,6 +3,7 @@ module SubHask.Category.Trans.Common
 
 import Prelude 
 import Language.Haskell.TH.Syntax
+import GHC.Exts
 
 -- import SubHask.Internal.Prelude
 -- import SubHask.Category

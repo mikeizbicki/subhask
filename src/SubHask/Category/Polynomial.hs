@@ -35,21 +35,25 @@ evalPolynomial (Polynomial xs) m = P.foldl1 (+) $ P.map (\(i,c) -> c.*(pow m i))
 
 type instance Scalar (Polynomial r r) = Scalar r
 
+instance Ring r => Semigroup (Polynomial r r) where
+    (Polynomial p1)+(Polynomial p2) = Polynomial $ sumList p1 p2
+
 instance Ring r => Monoid (Polynomial r r) where
     zero = Polynomial []
-    (Polynomial p1)+(Polynomial p2) = Polynomial $ sumList p1 p2
 
 instance Ring r => Group (Polynomial r r) where
     negate (Polynomial p) = Polynomial $ P.map negate p
 
 instance Ring r => Abelian (Polynomial r r)
 
-instance Ring r => Ring (Polynomial r r) where
-    one = Polynomial [one]
+instance Ring r => Rng (Polynomial r r) where
     (Polynomial p1)*(Polynomial p2) = Polynomial $ P.foldl sumList [] $ go p1 zero 
         where
             go []     i = []
             go (x:xs) i = (replicate i zero ++ P.map (*x) p2):go xs (i+one)
+
+instance Ring r => Ring (Polynomial r r) where
+    one = Polynomial [one]
 
 instance (IsScalar r, Ring r) => Module (Polynomial r r) where
     r .* (Polynomial xs) = Polynomial $ P.map (*r) xs
