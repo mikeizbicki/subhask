@@ -25,7 +25,7 @@ instance Category cat => Category (MonT cat) where
     id = MonT id
     (MonT f) . (MonT g) = MonT (f.g)
 
-instance SubCategory cat subcat => SubCategory cat (MonT subcat) where
+instance SubCategory subcat cat => SubCategory (MonT subcat) cat where
     embed (MonT f) = embed f
 
 unsafeProveMon :: 

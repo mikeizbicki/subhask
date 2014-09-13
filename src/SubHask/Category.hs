@@ -40,7 +40,7 @@ module SubHask.Category
     -- * Special types of categories
     , Concrete (..)
     , Monoidal (..)
-    , (><)
+--     , (><)
     , Braided (..)
     , Symmetric (..)
     , Cartesian (..)
@@ -72,11 +72,13 @@ class Category (cat :: k1 -> k2 -> *) where
     id :: ValidCategory cat a a => cat a a
 
     infixr 9 .
-    (.) :: 
-        ( ValidCategory cat b c
-        , ValidCategory cat a b
-        , ValidCategory cat a c
-        ) => cat b c -> cat a b -> cat a c
+    (.) :: cat b c -> cat a b -> cat a c
+
+--     (.) :: 
+--         ( ValidCategory cat b c
+--         , ValidCategory cat a b
+--         , ValidCategory cat a c
+--         ) => cat b c -> cat a b -> cat a c
 
 -- | The category with Haskell types as objects, and functions as arrows.
 --

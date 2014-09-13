@@ -5,6 +5,8 @@ import GHC.Prim
 import qualified Prelude as P
 
 import SubHask.Category
+import SubHask.Internal.Prelude
+import GHC.Exts
 
 -------------------------------------------------------------------------------
 

@@ -24,6 +24,7 @@ import qualified Prelude as P
 
 import SubHask.Category
 import SubHask.Algebra
+import SubHask.Internal.Prelude
 
 -------------------------------------------------------------------------------
 
@@ -40,7 +41,7 @@ instance Category cat => Category (InjectiveT cat) where
     id = InjectiveT id
     (InjectiveT f).(InjectiveT g) = InjectiveT (f.g)
 
-instance SubCategory supercat cat => SubCategory supercat (InjectiveT cat) where
+instance SubCategory subcat cat => SubCategory (InjectiveT subcat) cat where
     embed (InjectiveT f) = embed f
 
 unsafeProveInjective :: Concrete cat => cat a b -> InjectiveT cat a b
@@ -61,7 +62,7 @@ instance Category cat => Category (SurjectiveT cat) where
     id = SurjectiveT id
     (SurjectiveT f).(SurjectiveT g) = SurjectiveT (f.g)
 
-instance SubCategory supercat cat => SubCategory supercat (SurjectiveT cat) where
+instance SubCategory subcat cat => SubCategory (SurjectiveT subcat) cat where
     embed (SurjectiveT f) = embed f
 
 unsafeProveSurjective :: Concrete cat => cat a b -> SurjectiveT cat a b
@@ -84,7 +85,7 @@ instance Category cat => Category (BijectiveT cat) where
     id = BijectiveT id 
     (BijectiveT f).(BijectiveT g) = BijectiveT (f.g)
 
-instance SubCategory supercat cat => SubCategory supercat (BijectiveT cat) where
+instance SubCategory subcat cat => SubCategory (BijectiveT subcat) cat where
     embed (BijectiveT f) = embed f
 
 proveBijective :: (Injective cat, Surjective cat) => cat a b -> BijectiveT cat a b

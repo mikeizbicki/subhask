@@ -62,13 +62,15 @@ instance KnownNat n => Ring (Integer/n) where one = Mod 1; fromInteger i = quoti
 type instance Scalar (Int    /n) = Int    
 type instance Scalar (Integer/n) = Integer
 
-instance KnownNat n => Module (Int    /n) where x .* (Mod a) = quotient $ x .* a
-instance KnownNat n => Module (Integer/n) where x .* (Mod a) = quotient $ x .* a
+instance KnownNat n => Module (Int    /n) where x        *. (Mod a) = quotient $ x  *. a
+                                                (Mod b) .*. (Mod a) = quotient $ b .*. a
+instance KnownNat n => Module (Integer/n) where x        *. (Mod a) = quotient $ x  *. a
+                                                (Mod b) .*. (Mod a) = quotient $ b .*. a
 
 -- | Extended Euclid's algorithm is used to calculate inverses in modular arithmetic
 --
 -- FIXME: need another implementation of 
-extendedEuclid :: (Ring t, P.Integral t) => t -> t -> (t,t,t,t,t,t)
+extendedEuclid :: (Eq t, Integral t) => t -> t -> (t,t,t,t,t,t)
 extendedEuclid a b = go zero one one zero b a
     where
         go s1 s0 t1 t0 r1 r0 = if r1==zero
@@ -104,13 +106,15 @@ deriving instance KnownNat (p^k) => Ring (Galois p k)
 type instance Scalar (Galois p k) = Scalar (Z (p^k))
 
 instance KnownNat (p^k) => Module  (Galois p k) where
-    i .* z = Galois (Mod i) * z
+    i   *. z  = Galois (Mod i) * z
+    z1 .*. z2 = z1 * z2
 
 instance (Prime p, KnownNat (p^k)) => Field (Galois p k) where
     reciprocal (Galois (Mod i)) = Galois $ mkZ $ t
         where
             (_,_,_,t,_,_) = extendedEuclid n i
             n = natVal (Proxy::Proxy (p^k))
+
 
 -------------------
 

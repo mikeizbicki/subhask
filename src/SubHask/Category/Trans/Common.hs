@@ -16,26 +16,26 @@ mkCatTrans cat constraint = do
 
 -- | Given a transformer name, construct a "SubCategory" insance of the form:
 --
--- > instance SubCategory supercat cat => SubCategory supercat (MonT cat) where
+-- > instance SubCategory cat supercat => SubCategory (MonT cat) supercat where
 -- >     embed (MonT f) = embed f
 deriveSubCategory :: Name -> Q [Dec]
 deriveSubCategory cat = return
     [ InstanceD
         [ ClassP 
             (mkName "SubCategory")
-            [ VarT $ mkName "supercat" 
-            , VarT $ mkName "cat"
+            [ VarT $ mkName "cat" 
+            , VarT $ mkName "supercat"
             ]
         ]
         ( AppT
             ( AppT
                 ( ConT $ mkName "SubCategory" )
-                ( VarT $ mkName "supercat" )
+                ( AppT
+                    ( ConT cat )
+                    ( VarT $ mkName "cat" )
+                )
             )
-            ( AppT
-                ( ConT cat )
-                ( VarT $ mkName "cat" )
-            )
+            ( VarT $ mkName "supercat" )
         )
         [ FunD
             ( mkName "embed" )

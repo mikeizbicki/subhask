@@ -2,7 +2,9 @@ module SubHask.Internal.Prelude
     (
     Eq (..)
     , Ord (..)
+    , Enum (..)
     , Read (..)
+    , read
     , Show (..)
 
     , Monad (..)
@@ -12,21 +14,22 @@ module SubHask.Internal.Prelude
 
 --     , Int
     , Integer
-    , fromIntegral
-    , mod
-    , div
 
 --     , Float
 --     , Double
     , Rational
 
     , Bool (..)
-    , (||), (&&)
+--     , (||), (&&)
+
+    , Maybe (..)
+    , Either (..)
 
     , ifThenElse
     , undefined
     , error
     , const
+    , flip
 
 --     , module Data.Foldable
     , module Data.List

@@ -1,5 +1,5 @@
-module SubHask.Category.Algebra.Vector
-    (
+module SubHask.Algebra.Vector
+    ( VS.Vector
     )
     where
 
@@ -41,14 +41,51 @@ instance (Storable r, Group r) => Group (VS.Vector r) where
 type instance Scalar (VS.Vector r) = Scalar r
 
 instance (Storable r, Module r, IsScalar (Scalar r)) => Module (VS.Vector r) where
-    {-# INLINE (.*) #-}
-    r .* v = VG.map (r.*) v
+    {-# INLINE (*.) #-}
+    r *. v = VG.map (r*.) v
+
+    {-# INLINE (.*.) #-}
+    u .*. v = if VG.length u == VG.length v
+        then VG.zipWith (.*.) u v
+        else error "(.*.): u and v have different lengths"
 
 instance (Storable r, VectorSpace r, IsScalar (Scalar r)) => VectorSpace (VS.Vector r) where
-    {-# INLINE (/.) #-}
-    v /. r = VG.map (/.r) v
+    {-# INLINE (./) #-}
+    v ./ r = VG.map (./r) v
 
-instance (IsScalar r, VectorSpace r, Field r, VS.Storable r) => InnerProductSpace (VS.Vector r) where
+    {-# INLINE (./.) #-}
+    u ./. v = if VG.length u == VG.length v
+        then VG.zipWith (./.) u v
+        else error "(./.): u and v have different lengths"
+
+instance 
+    ( IsScalar r
+    , Normed r
+    , VectorSpace r
+    , Floating r
+    , VS.Storable r
+    ) => Normed (VS.Vector r) 
+        where
+    abs = innerProductNorm
+
+instance 
+    ( IsScalar r
+    , Normed r
+    , VectorSpace r
+    , Floating r
+    , VS.Storable r
+    ) => MetricSpace (VS.Vector r) 
+        where
+    distance = innerProductDistance
+
+instance    
+    ( IsScalar r
+    , Normed r
+    , VectorSpace r
+    , Floating r
+    , VS.Storable r
+    ) => InnerProductSpace (VS.Vector r) 
+        where
     v1 <> v2 = if VG.length v1 == 0
         then zero
         else if VG.length v2 == 0

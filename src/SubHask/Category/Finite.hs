@@ -64,7 +64,7 @@ instance Category SparseFunction where
                 Just v -> v
                 Nothing -> swapIndex k
 
-instance SubCategory (->) SparseFunction where
+instance SubCategory SparseFunction (->) where
     embed (SparseFunction f) = map2function f
         where
             map2function map k = case Map.lookup (index k) map of
@@ -109,7 +109,7 @@ instance Category SparseFunctionMonoid where
                 Just v -> v
                 Nothing -> index zero
 
-instance SubCategory (->) SparseFunctionMonoid where
+instance SubCategory SparseFunctionMonoid (->) where
     embed (SparseFunctionMonoid f) = map2function f
         where
             map2function map k = case Map.lookup (index k) map of
@@ -134,10 +134,10 @@ instance (FiniteType b, Group b) => Group (SparseFunctionMonoid a b) where
 type instance Scalar (SparseFunctionMonoid a b) = Scalar b
 
 instance (FiniteType b, Module b) => Module (SparseFunctionMonoid a b) where
-    r .* (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.(r.*).deIndex) f
+    r *. (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.(r*.).deIndex) f
 
 instance (FiniteType b, VectorSpace b) => VectorSpace (SparseFunctionMonoid a b) where 
-    (SparseFunctionMonoid f) /. r = SparseFunctionMonoid $ Map.map (index.(/.r).deIndex) f
+    (SparseFunctionMonoid f) ./ r = SparseFunctionMonoid $ Map.map (index.(./r).deIndex) f
 
 -------------------------------------------------------------------------------
 
@@ -158,7 +158,7 @@ instance Category DenseFunction where
 
     (DenseFunction f).(DenseFunction g) = DenseFunction $ VU.map (f VU.!) g
 
-instance SubCategory (->) DenseFunction where
+instance SubCategory DenseFunction (->) where
     embed (DenseFunction f) = \x -> deIndex $ int2index $ f VU.! (index2int $ index x)
 
 -- | Generates a dense representation of a 'Hask' function.  

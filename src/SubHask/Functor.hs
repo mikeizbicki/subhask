@@ -9,6 +9,7 @@ import Data.Proxy
 import qualified Prelude as P
 
 import SubHask.Category
+import GHC.Exts
 
 import SubHask.Category.Trans.Constrained
 import SubHask.Category.Trans.Monotonic

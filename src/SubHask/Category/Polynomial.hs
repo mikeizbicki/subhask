@@ -28,8 +28,8 @@ instance Show r => Show (Polynomial r r) where
 pow :: Ring r => r -> P.Int -> r
 pow r i = P.foldl (*) one $ P.replicate i r
 
-evalPolynomial :: (Ring m, Module m) => Polynomial (Scalar m) (Scalar m) -> m -> m
-evalPolynomial (Polynomial xs) m = P.foldl1 (+) $ P.map (\(i,c) -> c.*(pow m i)) $ P.zip [0..] xs 
+-- evalPolynomial :: (Ring m, Module m) => Polynomial m m -> m -> m
+-- evalPolynomial (Polynomial xs) m = P.foldl1 (+) $ P.map (\(i,c) -> c.*(pow m i)) $ P.zip [0..] xs 
 
 ---------------------------------------
 
@@ -56,7 +56,8 @@ instance Ring r => Ring (Polynomial r r) where
     one = Polynomial [one]
 
 instance (IsScalar r, Ring r) => Module (Polynomial r r) where
-    r .* (Polynomial xs) = Polynomial $ P.map (*r) xs
+    r *. (Polynomial xs) = Polynomial $ P.map (*r) xs
+    (Polynomial xs) .*. (Polynomial ys) = Polynomial $ zipWith (*) xs ys
 
 sumList [] ys = ys
 sumList xs [] = xs
@@ -64,25 +65,25 @@ sumList (x:xs) (y:ys) = x+y:sumList xs ys
 
 ---------------------------------------
 
-instance Category Polynomial where
-    type ValidCategory Polynomial a b = (a~b, Ring a, Module a, IsScalar a)
-    id = Polynomial [zero, one]
-    p1.p2 = evalPolynomial p1 p2 
-
-instance SubCategory (->) Polynomial where
-    embed = evalPolynomial
+-- instance Category Polynomial where
+--     type ValidCategory Polynomial a b = (a~b, Ring a, Module a, IsScalar a)
+--     id = Polynomial [zero, one]
+--     p1.p2 = evalPolynomial p1 p2 
+-- 
+-- instance SubCategory Polynomial (->) where
+--     embed = evalPolynomial
 
 -------------------------------------------------------------------------------
 
-class Category cat => Smooth cat where
-    derivative :: ValidCategory cat a b => cat a b Linear.+> cat a b
-
-instance Smooth Polynomial where
-    derivative = unsafeProveLinear go
-        where
-            go (Polynomial xs) =  Polynomial $ P.tail $ P.zipWith (*) (inflist zero one) xs
-            inflist xs x = xs : inflist (xs+x) x
-
-data MonoidT c a b = MonoidT (c a)
+-- class Category cat => Smooth cat where
+--     derivative :: ValidCategory cat a b => cat a b Linear.+> cat a b
+-- 
+-- instance Smooth Polynomial where
+--     derivative = unsafeProveLinear go
+--         where
+--             go (Polynomial xs) =  Polynomial $ P.tail $ P.zipWith (*) (inflist zero one) xs
+--             inflist xs x = xs : inflist (xs+x) x
+-- 
+-- data MonoidT c a b = MonoidT (c a)
 
 

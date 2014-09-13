@@ -20,11 +20,11 @@ library
     exposed-modules:     
         SubHask
         SubHask.Algebra
+        SubHask.Algebra.HMatrix
         SubHask.Algebra.Objects
+        SubHask.Algebra.Vector
         SubHask.Category
-        SubHask.Category.Algebra.TypeParams
-        SubHask.Category.Algebra.HMatrix
-        SubHask.Category.Algebra.Vector
+--         SubHask.Category.Algebra.TypeParams
         SubHask.Category.Finite
         SubHask.Category.Product
         SubHask.Category.Polynomial
@@ -61,6 +61,7 @@ library
         GeneralizedNewtypeDeriving,
         TemplateHaskell,
 
+        AutoDeriveTypeable,
         RebindableSyntax,
         OverloadedLists
     
@@ -74,8 +75,10 @@ library
         containers      >= 0.5,
         vector          >= 0.10.0,
 
+        deepseq         >= 1.3,
         hmatrix         == 0.15.2.2,
-        typeparams      >= 0.0.5
+        typeparams      >= 0.0.5,
+        strict          >= 0.3.2
 
     default-language:
         Haskell2010
