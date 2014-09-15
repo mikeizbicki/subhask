@@ -29,6 +29,7 @@ module SubHask.Category.Finite
     )
     where
 
+import Control.Monad
 import GHC.Prim
 import GHC.TypeLits
 import Data.Proxy
@@ -45,14 +46,16 @@ import SubHask.Internal.Prelude
 -------------------------------------------------------------------------------
 
 -- | Represents finite functions as a map associating input/output pairs.
-newtype SparseFunction a b = SparseFunction (Map.Map (Index a) (Index b)) 
-    deriving (Eq)
-
-instance Category SparseFunction where
-    type ValidCategory SparseFunction a b = 
+data SparseFunction a b where
+    SparseFunction :: 
         ( FiniteType a
         , FiniteType b
-        , Order a ~ Order b
+        , Order a ~ Order b 
+        ) => Map.Map (Index a) (Index b) -> SparseFunction a b
+
+instance Category SparseFunction where
+    type ValidCategory SparseFunction a = 
+        ( FiniteType a
         )
 
     id = SparseFunction $ Map.empty
@@ -73,13 +76,21 @@ instance SubCategory SparseFunction (->) where
 
 -- | Generates a sparse representation of a 'Hask' function.  
 -- This proof will always succeed, although it may be computationally expensive if the 'Order' of a and b is large.
-proveSparseFunction :: ValidCategory SparseFunction a b => (a -> b) -> SparseFunction a b
+proveSparseFunction :: 
+    ( ValidCategory SparseFunction a 
+    , ValidCategory SparseFunction b
+    , Order a ~ Order b
+    ) => (a -> b) -> SparseFunction a b
 proveSparseFunction f = SparseFunction 
     $ Map.fromList
     $ map (\a -> (index a,index $ f a)) enumerate
 
 -- | Generate sparse functions on some subset of the domain.
-list2sparseFunction :: ValidCategory SparseFunction a b => [Z (Order a)] -> SparseFunction a b
+list2sparseFunction :: 
+    ( ValidCategory SparseFunction a 
+    , ValidCategory SparseFunction b
+    , Order a ~ Order b
+    ) => [Z (Order a)] -> SparseFunction a b
 list2sparseFunction xs = SparseFunction $ Map.fromList $ go xs 
     where
         go (y:[]) = [(Index y, Index $ head xs)]
@@ -87,17 +98,22 @@ list2sparseFunction xs = SparseFunction $ Map.fromList $ go xs
 
 -------------------------------------------------------------------------------
 
-newtype SparseFunctionMonoid a b = SparseFunctionMonoid (Map.Map (Index a) (Index b))
-    deriving (Eq)
-
-instance Category SparseFunctionMonoid where
-    type ValidCategory SparseFunctionMonoid a b =
+data SparseFunctionMonoid a b where
+    SparseFunctionMonoid :: 
         ( FiniteType a
         , FiniteType b
+        , Monoid a
         , Monoid b
+        , Order a ~ Order b 
+        ) => Map.Map (Index a) (Index b) -> SparseFunctionMonoid a b
+
+instance Category SparseFunctionMonoid where
+    type ValidCategory SparseFunctionMonoid a =
+        ( FiniteType a
+        , Monoid a
         )
 
-    id :: forall a. ValidCategory SparseFunctionMonoid a a => SparseFunctionMonoid a a
+    id :: forall a. ValidCategory SparseFunctionMonoid a => SparseFunctionMonoid a a
     id = SparseFunctionMonoid $ Map.fromList $ zip xs xs
         where
             xs = map index (enumerate :: [a])
@@ -118,15 +134,25 @@ instance SubCategory SparseFunctionMonoid (->) where
 
 ---------------------------------------
 
+{-
 instance (FiniteType b, Semigroup b) => Semigroup (SparseFunctionMonoid a b) where
     (SparseFunctionMonoid f1)+(SparseFunctionMonoid f2) = SparseFunctionMonoid $ Map.unionWith go f1 f2
         where
             go b1 b2 = index $ deIndex b1 + deIndex b2
 
-instance (FiniteType b, Monoid b) => Monoid (SparseFunctionMonoid a b) where
+instance 
+    ( FiniteType a
+    , FiniteType b
+    , Monoid a
+    , Monoid b
+    , Order a ~ Order b
+    ) => Monoid (SparseFunctionMonoid a b) where
     zero = SparseFunctionMonoid $ Map.empty
 
-instance (FiniteType b, Abelian b) => Abelian (SparseFunctionMonoid a b) 
+instance 
+    ( FiniteType b
+    , Abelian b
+    ) => Abelian (SparseFunctionMonoid a b) 
 
 instance (FiniteType b, Group b) => Group (SparseFunctionMonoid a b) where
     negate (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.negate.deIndex) f
@@ -138,20 +164,23 @@ instance (FiniteType b, Module b) => Module (SparseFunctionMonoid a b) where
 
 instance (FiniteType b, VectorSpace b) => VectorSpace (SparseFunctionMonoid a b) where 
     (SparseFunctionMonoid f) ./ r = SparseFunctionMonoid $ Map.map (index.(./r).deIndex) f
+-}
 
 -------------------------------------------------------------------------------
 
 -- | Represents finite functions as a hash table associating input/output value pairs.
-newtype DenseFunction (a :: *) (b :: *) = DenseFunction (VU.Vector Int)
-    deriving Eq
-
-instance Category DenseFunction where
-    type ValidCategory DenseFunction (a :: *) (b :: *) = 
+data DenseFunction (a :: *) (b :: *) where
+    DenseFunction ::
         ( FiniteType a
         , FiniteType b
+        ) => VU.Vector Int ->  DenseFunction a b
+
+instance Category DenseFunction where
+    type ValidCategory DenseFunction (a :: *) =
+        ( FiniteType a
         )
 
-    id :: forall a. ValidCategory DenseFunction a a => DenseFunction a a
+    id :: forall a. ValidCategory DenseFunction a => DenseFunction a a
     id = DenseFunction $ VU.generate n id
         where
             n = fromIntegral $ natVal (Proxy :: Proxy (Order a))
@@ -165,7 +194,10 @@ instance SubCategory DenseFunction (->) where
 -- This proof will always succeed; however, if the 'Order' of the finite types  
 -- are very large, it may take a long time.  
 -- In that case, a `SparseFunction` is probably the better representation.
-proveDenseFunction :: forall a b. ValidCategory DenseFunction a b => (a -> b) -> DenseFunction a b
+proveDenseFunction :: forall a b. 
+    ( ValidCategory DenseFunction a 
+    , ValidCategory DenseFunction b 
+    ) => (a -> b) -> DenseFunction a b
 proveDenseFunction f = DenseFunction $ VU.generate n (index2int . index . f . deIndex . int2index)
     where
         n = fromIntegral $ natVal (Proxy :: Proxy (Order a))

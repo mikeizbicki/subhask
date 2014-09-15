@@ -3,6 +3,7 @@
 module SubHask.Algebra
     where
 
+import Control.Monad -- required for deriving clauses
 import Debug.Trace
 
 import Data.Ratio
@@ -171,8 +172,6 @@ class (Abelian m, Group m, HasScalar m, Ring (Scalar m)) => Module m where
 
     infixl 7 .*.
     (.*.) :: m -> m -> m
-
-    basis :: m
 
 {-# INLINE (.*) #-}
 infixl 7 .*

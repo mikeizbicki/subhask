@@ -7,7 +7,7 @@ module SubHask.Internal.Prelude
     , read
     , Show (..)
 
-    , Monad (..)
+--     , Monad (..)
 
     , String
 --     , Char
@@ -28,7 +28,7 @@ module SubHask.Internal.Prelude
     , ifThenElse
     , undefined
     , error
-    , const
+--     , const
     , flip
 
 --     , module Data.Foldable

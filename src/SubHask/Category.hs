@@ -33,9 +33,11 @@ module SubHask.Category
     , withCategory
     , embed2
 
+    {-
     -- * Cat
     , Cat
     , CatT
+    -}
     
     -- * Special types of categories
     , Concrete (..)
@@ -44,7 +46,9 @@ module SubHask.Category
     , Braided (..)
     , Symmetric (..)
     , Cartesian (..)
-    , duplicate
+    , const
+    , const2
+--     , duplicate
     , Closed (..)
 
     , Groupoid (..)
@@ -61,24 +65,14 @@ import qualified Prelude as P
 -- | This 'Category' class modifies the one in the Haskell standard to include 
 -- the 'ValidCategory' type constraint.  This constraint let's us make instances 
 -- of arbitrary subcategories of Hask.
-class Category (cat :: k1 -> k2 -> *) where
+class Category (cat :: k -> k -> *) where
 
---     type ValidCategory cat a b :: Constraint
---     type ValidCategory cat a b = ()
+    type ValidCategory cat (a::k) :: Constraint
 
-    type ValidCategory cat (a::k1') (b::k2') :: Constraint
-    type ValidCategory cat (a::k1') (b::k2') = ()
-
-    id :: ValidCategory cat a a => cat a a
+    id :: ValidCategory cat a => cat a a
 
     infixr 9 .
     (.) :: cat b c -> cat a b -> cat a c
-
---     (.) :: 
---         ( ValidCategory cat b c
---         , ValidCategory cat a b
---         , ValidCategory cat a c
---         ) => cat b c -> cat a b -> cat a c
 
 -- | The category with Haskell types as objects, and functions as arrows.
 --
@@ -86,7 +80,7 @@ class Category (cat :: k1 -> k2 -> *) where
 type Hask = (->)
 
 instance Category (->) where
-    type ValidCategory (->) (a :: *) (b :: *) = ()
+    type ValidCategory (->) (a :: *) = ()
     id = P.id
     (.) = (P..)
 
@@ -94,9 +88,15 @@ instance Category (->) where
 --
 -- More details available at <https://en.wikipedia.org/wiki/Category_of_categories wikipedia>
 -- and <http://ncatlab.org/nlab/show/Cat ncatlab>.
+--
+-- ---
+--
+-- TODO: can this be extended to functor categories?
+-- http://ncatlab.org/nlab/show/functor+category
+
 type Cat cat1 cat2 = forall a b. CatT (->) a b cat1 cat2
 
-newtype CatT 
+data CatT 
     ( cat :: * -> * -> *)
     ( a :: k )
     ( b :: k )
@@ -105,16 +105,16 @@ newtype CatT
     = CatT (cat1 a b `cat` cat2 a b)
 
 instance Category cat => Category (CatT cat a b) where
-    type ValidCategory (CatT cat a b) cat1 cat2 =
-        ( ValidCategory cat1 a b
-        , ValidCategory cat2 a b
-        , ValidCategory cat (cat1 a b) (cat2 a b)
+    type ValidCategory (CatT cat a b) cat1 =
+        ( ValidCategory cat1 a
+        , ValidCategory cat1 b
+        , ValidCategory cat (cat1 a b) 
         )
 
     id = CatT id
     (CatT f).(CatT g) = CatT $ f.g
 
--- TODO: We would rather have the definition of CatT not depend on the a and b 
+-- NOTE: We would rather have the definition of CatT not depend on the a and b 
 -- variables, as in the code below.  Unfortunately, GHC 7.8's type checker isn't
 -- strong enough to handle forall inside of a type class.
 -- 
@@ -123,23 +123,22 @@ instance Category cat => Category (CatT cat a b) where
 --     ( cat1 :: * -> * -> * ) 
 --     ( cat2 :: * -> * -> * )
 --     = forall a b. 
---         ( ValidCategory cat1 a b
---         , ValidCategory cat2 a b
+--         ( ValidCategory cat1 a 
+--         , ValidCategory cat2 a 
+--         , ValidCategory cat1 b 
+--         , ValidCategory cat2 b 
 --         ) => CatT (cat1 a b `cat` cat2 a b)
 -- 
 -- instance Category cat => Category (CatT cat) where
---     type ValidCategory (CatT cat) cat1 cat2 = forall a b.
---         ( ValidCategory cat1 a b
---         , ValidCategory cat2 a b
---         , ValidCategory cat (cat1 a b) (cat2 a b)
+--     type ValidCategory (CatT cat) cat1 = forall a b.
+--         ( ValidCategory cat1 a 
+--         , ValidCategory cat1 b 
+--         , ValidCategory cat (cat1 a b) 
 --         )
 -- 
 --     id = CatT id
 --     (CatT f).(CatT g) = CatT $ f.g
     
--- TODO: can this be extended to functor categories?
--- http://ncatlab.org/nlab/show/functor+category
-
 ---------------------------------------
 
 -- | Intuiitively, arrows and objects in a subcategory satisfy additional properties
@@ -160,7 +159,7 @@ class
         (cat    :: k0 -> k0 -> *) 
         where
 
-    embed :: ValidCategory subcat a b => subcat a b -> cat a b
+    embed :: subcat a b -> cat a b
 
 instance Category c => SubCategory c c where
     embed = id
@@ -189,7 +188,6 @@ type Concrete cat = SubCategory cat (->)
 
 ($) :: 
     ( Concrete subcat
-    , ValidCategory subcat a b
     ) => subcat a b -> a -> b
 ($) = embed
 
@@ -198,15 +196,12 @@ infixr 0 $
 -- | Embeds a unary function into 'Hask'
 embedHask :: 
     ( Concrete subcat
-    , ValidCategory subcat a b
     ) => subcat a b -> a -> b
 embedHask = embed
 
 -- | Embeds a binary function into 'Hask'
 embedHask2 :: 
     ( Concrete subcat
-    , ValidCategory subcat b c
-    , ValidCategory subcat a (subcat b c)
     ) => subcat a (subcat b c) 
       -> a 
       -> b 
@@ -217,8 +212,7 @@ embedHask2 f = \a b -> (f $ a) $ b
 -- | This is a special form of the 'embed' function which can make specifying the 
 -- category we are embedding into easier.
 withCategory :: 
-    ( ValidCategory subcat a b
-    , Concrete subcat
+    ( Concrete subcat
     ) => proxy subcat -> subcat a b -> a -> b
 withCategory _ f = embed f
 
@@ -228,15 +222,15 @@ embed2 f = undefined
 
 -------------------------------------------------------------------------------
 
-type Functor c d = forall a b. 
-    ( ValidCategory c a b
-    , ValidCategory d a b
-    ) => c a b 
-      -> d a b
-
-type EndoFunctor c = Functor c c
-
-type NaturalTransformation = forall c d. Functor c d -> Functor c d
+-- type Functor c d = forall a b. 
+--     ( ValidCategory c a b
+--     , ValidCategory d a b
+--     ) => c a b 
+--       -> d a b
+-- 
+-- type EndoFunctor c = Functor c c
+-- 
+-- type NaturalTransformation = forall c d. Functor c d -> Functor c d
 
 -- | Constructable categories let us construct arrows in the subcategory
 -- from the supercategory.  It is usually difficult to write the "construct"
@@ -246,8 +240,8 @@ type NaturalTransformation = forall c d. Functor c d -> Functor c d
 -- More formally, "construct" and "embed" are adjoint functors.
 --
 -- FIXME: There is probably a better way to do this
-class SubCategory supercat cat => Constructable supercat cat where
-    construct :: Functor supercat cat
+-- class SubCategory supercat cat => Constructable supercat cat where
+--     construct :: Functor supercat cat
 
 -------------------------------------------------------------------------------
 
@@ -261,38 +255,26 @@ class SubCategory supercat cat => Constructable supercat cat where
 -- and <http://ncatlab.org/nlab/show/monoidal+category ncatlab>.
 
 class 
-    ( Category cat 
-    ) => Monoidal cat
+    ( Category cat
+    , ValidCategory cat (TUnit cat)
+    ) => Monoidal cat 
         where
 
-    type ValidMonoidal' cat a b :: Constraint
-    type ValidMonoidal' cat a b = ValidCategory cat a b
-
     type Tensor cat :: k -> k -> k
-    type Unit cat :: k
-    
---     tensor :: (cat :: k -> * -> *) (a::k) (cat (b::k) (Tensor cat (a::k) (b::k) ::k))
-    tensor :: ValidMonoidal cat a b => cat a (cat b (Tensor cat a b)) 
+    tensor :: 
+        ( ValidCategory cat a 
+        , ValidCategory cat b 
+        ) => cat a (cat b (Tensor cat a b)) 
 
---     associatorL ::
---         ( ValidCategory cat a b
---         , ValidCategory cat b c
---         , ValidCategory cat a c
---         ) => Tensor cat (Tensor cat a b) c -> Tensor cat a (Tensor cat b c)
--- 
---     associatorR ::
---         ( ValidCategory cat a b
---         , ValidCategory cat b c
---         , ValidCategory cat a c
---         ) => Tensor cat a (Tensor cat b c) -> Tensor cat (Tensor cat a b) c
--- 
---     unitorL :: ValidCategory cat a a => Tensor cat (Unit cat) a -> a
---     unitorR :: ValidCategory cat a a => Tensor cat a (Unit cat) -> a
+    type TUnit cat :: k
+    tunit :: proxy cat -> TUnit cat
 
-type ValidMonoidal cat a b = 
-    ( ValidCategory cat a b
-    , ValidMonoidal' cat a b
-    )
+instance Monoidal (->) where
+    type Tensor (->) = (,) 
+    tensor = \a b -> (a,b)
+
+    type TUnit (->) = (() :: *)
+    tunit _ = ()
 
 -- | This is a convenient and (hopefully) suggestive shortcut for constructing
 -- tensor products in 'Concrete' categories.
@@ -300,16 +282,11 @@ infixl 7 ><
 (><) :: forall cat a b. 
     ( Monoidal cat
     , Concrete cat
-    , ValidMonoidal cat a b
-    , ValidMonoidal cat b (Tensor cat a b)
-    , ValidMonoidal cat a (cat b (Tensor cat a b))
+    , ValidCategory cat a
+    , ValidCategory cat b
     ) => a -> b -> Proxy cat -> Tensor cat a b
 (a >< b) _ = embedHask2 (tensor::cat a (cat b (Tensor cat a b))) a b
 
-instance Monoidal (->) where
-    type Tensor (->) = (,) 
-    type Unit (->) = ()
---     tensor = \a b -> (a,b)
 
 --     associatorL (TensorHask (TensorHask a b) c) = TensorHask a (TensorHask b c)
 --     associatorR (TensorHask a (TensorHask b c)) = TensorHask (TensorHask a b) c
@@ -335,31 +312,63 @@ instance Braided (->) where
 class Braided cat => Symmetric cat
 instance Symmetric (->)
 
--- | In a cartesian monoidal category, the monoid object acts in a particularly nice way
--- where we can compose and decompose it.
--- Intuitively, we can delete informationusing the 'fst' and 'snd' arrows, as well as 
+-- | In a cartesian monoidal category, the monoid object acts in a particularly nice way where we can compose and decompose it.
+-- Intuitively, we can delete information using the 'fst' and 'snd' arrows, as well as 
 -- duplicate information using the 'duplicate' arrow.
 --
 -- More details available at <http://ncatlab.org/nlab/show/cartesian+monoidal+category ncatlab>
 class Symmetric cat => Cartesian cat where
-    fst :: cat (Tensor cat a b) a
-    snd :: cat (Tensor cat a b) b
-    cartesianProduct :: cat a b -> cat a c -> cat a (Tensor cat b c)
-    terminal :: a -> cat a (Unit cat)
+    fst :: 
+        ( ValidCategory cat a
+        , ValidCategory cat b
+        , ValidCategory cat (Tensor cat a b)
+        ) => cat (Tensor cat a b) a
+
+    snd :: 
+        ( ValidCategory cat a
+        , ValidCategory cat b
+        , ValidCategory cat (Tensor cat a b)
+        ) => cat (Tensor cat a b) b
+
+    terminal :: 
+        ( ValidCategory cat a
+        ) => a -> cat a (TUnit cat)
+
+    initial :: 
+        ( ValidCategory cat a
+        ) => a -> cat (TUnit cat) a
+
+-- | Creates an arrow that ignores its first parameter.
+const :: 
+    ( Cartesian cat
+    , ValidCategory cat a
+    , ValidCategory cat b
+    ) => a -> cat b a
+const a = const2 a undefined
+
+-- | Based on the type signature, this looks like it should be the inverse of "embed" function.
+-- But it's not.
+-- This function completely ignores its second argument!
+const2 :: 
+    ( Cartesian cat
+    , ValidCategory cat a
+    , ValidCategory cat b
+    ) => a -> b -> cat b a
+const2 a b = initial a . terminal b
 
 instance Cartesian ((->) :: * -> * -> *) where 
     fst (a,b) = a
     snd (a,b) = b
-    cartesianProduct f g = \a -> (f a, g a)
     terminal a _ = ()
+    initial a _ = a
 
 -- | In a 'Cartesian' category, we can duplicate information.
-duplicate :: 
-    ( ValidCategory cat a (Tensor cat a a)
-    , ValidCategory cat a a
-    , Cartesian cat
-    ) => cat a (Tensor cat a a)
-duplicate = cartesianProduct id id 
+-- duplicate :: 
+--     ( ValidCategory cat a (Tensor cat a a)
+--     , ValidCategory cat a a
+--     , Cartesian cat
+--     ) => cat a (Tensor cat a a)
+-- duplicate = cartesianProduct id id 
 
 -- | Closed categories allow currying.
 --
@@ -381,7 +390,7 @@ instance Closed (->) where
 -- <http://ncatlab.org/nlab/show/groupoid ncatlib>, and 
 -- <http://mathoverflow.net/questions/1114/whats-a-groupoid-whats-a-good-example-of-a-groupoid stack overflow>.
 class Category cat => Groupoid cat where
-    inverse :: ValidCategory cat a b => cat a b -> cat b a
+    inverse :: cat a b -> cat b a
 
 -- | Compact categories are another generalization from linear algebra.
 -- In a compact category, we can dualize any object in the same way that we 
@@ -402,4 +411,4 @@ class Closed cat => Compact cat where
 -- More details avalable at <https://en.wikipedia.org/wiki/Dagger_category wikipedia> 
 -- and <http://ncatlab.org/nlab/show/dagger-category ncatlab>
 class Category cat => Dagger cat where
-    dagger :: ValidCategory cat a b => cat a b -> cat b a
+    dagger :: cat a b -> cat b a

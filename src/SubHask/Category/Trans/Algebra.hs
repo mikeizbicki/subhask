@@ -26,7 +26,7 @@ class Category cat => MonoidHom cat
 
 newtype MonT cat (a :: *) (b :: *) = MonT (cat a b)
 
-mkCatTrans ''MonT ''Monoid
+-- mkCatTrans ''MonT ''Monoid
 
 
 instance Category cat => MonoidHom (MonT cat)
@@ -46,7 +46,7 @@ class MonoidHom cat => GroupHom cat
 
 newtype GrpT cat (a :: *) (b :: *) = GrpT (cat a b)
 
-mkCatTrans ''GrpT ''Group
+-- mkCatTrans ''GrpT ''Group
 
 instance Category cat => MonoidHom (GrpT cat)
 instance Category cat => GroupHom (GrpT cat)
@@ -65,7 +65,7 @@ class GroupHom cat => ModuleHom cat
 
 newtype ModT cat (a :: *) (b :: *) = ModT (cat a b)
 
-mkCatTrans ''ModT ''Module
+-- mkCatTrans ''ModT ''Module
 
 instance Category cat => MonoidHom (ModT cat)
 instance Category cat => GroupHom (ModT cat)
@@ -85,7 +85,7 @@ class ModuleHom cat => Linear cat
 
 newtype LinearT cat (a :: *) (b :: *) = LinearT (cat a b)
 
-mkCatTrans ''LinearT ''VectorSpace
+-- mkCatTrans ''LinearT ''VectorSpace
 
 instance Category cat => MonoidHom (LinearT cat)
 instance Category cat => GroupHom (LinearT cat)
@@ -105,18 +105,16 @@ type Lip a b = LipT (->) a b
 
 -- | See <http://ncatlab.org/nlab/show/Lipschitz+map ncatlab> for more details.
 class Category cat => Lipschitz cat where
-    lipschitzModulus :: ValidCategory cat a b => cat a b -> Scalar b
+    lipschitzModulus :: cat a b -> Scalar b
 
 data LipT cat (a :: *) (b :: *) = LipT !(Scalar b) !(cat a b)
 
 --mkCatTrans ''LipT ''MetricSpace
 
 instance Category cat => Category (LipT cat) where
-    type ValidCategory (LipT cat) a b = 
-        ( Scalar a~Scalar b
-        , MetricSpace a
-        , MetricSpace b
-        , ValidCategory cat a b
+    type ValidCategory (LipT cat) a = 
+        ( MetricSpace a
+        , ValidCategory cat a 
         )
 
     {-# INLINE id #-}
@@ -138,7 +136,7 @@ class Category cat => Short cat
 
 newtype MetT cat (a :: *) (b :: *) = MetT (cat a b)
 
-mkCatTrans ''MetT ''MetricSpace
+-- mkCatTrans ''MetT ''MetricSpace
 
 instance Category cat => Short (MetT cat)
 instance Category cat => Lipschitz (MetT cat) where

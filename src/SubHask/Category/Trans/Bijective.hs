@@ -37,7 +37,7 @@ newtype InjectiveT cat a b = InjectiveT (cat a b)
 instance Concrete cat => Injective (InjectiveT cat)
 
 instance Category cat => Category (InjectiveT cat) where
-    type ValidCategory (InjectiveT cat) a b = (ValidCategory cat a b, ValidCategory cat b a)
+    type ValidCategory (InjectiveT cat) a = (ValidCategory cat a) 
     id = InjectiveT id
     (InjectiveT f).(InjectiveT g) = InjectiveT (f.g)
 
@@ -58,7 +58,7 @@ newtype SurjectiveT cat a b = SurjectiveT (cat a b)
 instance Concrete cat => Surjective (SurjectiveT cat)
 
 instance Category cat => Category (SurjectiveT cat) where
-    type ValidCategory (SurjectiveT cat) a b = (ValidCategory cat a b, ValidCategory cat b a)
+    type ValidCategory (SurjectiveT cat) a = (ValidCategory cat a)
     id = SurjectiveT id
     (SurjectiveT f).(SurjectiveT g) = SurjectiveT (f.g)
 
@@ -81,7 +81,7 @@ instance Concrete cat => Injective (BijectiveT cat)
 instance Concrete cat => Bijective (BijectiveT cat)
 
 instance Category cat => Category (BijectiveT cat) where
-    type ValidCategory (BijectiveT cat) a b = (ValidCategory cat a b, ValidCategory cat b a)
+    type ValidCategory (BijectiveT cat) a = (ValidCategory cat a)
     id = BijectiveT id 
     (BijectiveT f).(BijectiveT g) = BijectiveT (f.g)
 

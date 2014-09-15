@@ -18,9 +18,6 @@ import SubHask.Category.Trans.Common
 import SubHask.Internal.Prelude
 import GHC.Exts
 
-import Data.Constraint
-import Data.Constraint.Forall
-
 import qualified Prelude as P
 
 import SubHask.Algebra.Vector
@@ -73,16 +70,20 @@ box _ _ _ _ f g = undefined
 
 ----
 
+{-
 data CT a (r::Nat) (s::Nat) where
-    CT :: !(Rank r a -> Rank s a) 
-       -> !(Rank r a -> Rank (r+s) a)
-       -> CT a r s
-
-instance Category (CT a) where
-    type ValidCategory (CT a) r s =
+    CT :: 
         ( VectorSpace (Rank r a)
         , VectorSpace (Rank s a)
         , VectorSpace (Rank (r+s) a)
+        ) => !(Rank r a -> Rank s a) 
+          -> !(Rank r a -> Rank (r+s) a)
+          -> CT a r s
+
+instance Category (CT a) where
+    type ValidCategory (CT a) r =
+        ( VectorSpace (Rank r a)
+        , VectorSpace (Rank (r+r) a)
         )
 
     id = CT id zero 
@@ -109,13 +110,14 @@ dot ( CT
             (Proxy::Proxy b)
             (Proxy::Proxy c)
             (Proxy::Proxy t)
+-}
 
 -------------------
 
 data Cask a b = Cask (a -> b) (a -> a -> b)
 
 instance Category Cask where
-    type ValidCategory Cask a b = ()
+    type ValidCategory Cask a = ()
 
     id = Cask id (const id)
 
@@ -129,9 +131,9 @@ data C1T cat a b where
     C1T :: Rng (cat a a) => cat a a -> cat a a -> C1T cat a a
 
 instance Category cat => Category (C1T cat) where
-    type ValidCategory (C1T cat) a b = 
-        ( ValidCategory cat a b
-        , Rng (cat a b)
+    type ValidCategory (C1T cat) a = 
+        ( ValidCategory cat a 
+        , Rng (cat a a)
         )
     
     id = C1T id id

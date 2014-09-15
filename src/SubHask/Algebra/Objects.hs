@@ -3,7 +3,9 @@
 module SubHask.Algebra.Objects
     where
 
+import Control.Monad
 import GHC.Prim
+import Control.Monad
 import GHC.TypeLits
 import qualified Prelude as P
 

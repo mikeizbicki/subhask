@@ -17,7 +17,7 @@ import SubHask.Internal.Prelude
 data LinearT cat a b = LinearT (cat a b)
 
 instance Category cat => Category (LinearT cat) where
-    type ValidCategory (LinearT cat) a b = ( ValidCategory cat a b )
+    type ValidCategory (LinearT cat) a = ( ValidCategory cat a )
     id = LinearT id
     (LinearT f).(LinearT g) = LinearT $ f.g
 

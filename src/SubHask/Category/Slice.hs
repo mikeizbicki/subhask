@@ -18,9 +18,9 @@ instance
     ) => Category (Comma cat1 cat2 cat3) 
         where
 
-    type ValidCategory (Comma cat1 cat2 cat3) a b = 
-        ( ValidCategory cat1 a b
-        , ValidCategory cat2 a b
+    type ValidCategory (Comma cat1 cat2 cat3) a = 
+        ( ValidCategory cat1 a 
+        , ValidCategory cat2 a 
         )
 
     id = Comma id id
@@ -34,16 +34,17 @@ instance
 data (cat / (obj :: *)) (a :: *) (b :: *) = Slice (cat a b) 
 
 instance Category cat => Category (cat/obj) where
-    type ValidCategory (cat/obj) (a :: *) (b :: *) = 
-        ( ValidCategory cat a obj
-        , ValidCategory cat b obj
-        , ValidCategory cat a b
+    type ValidCategory (cat/obj) (a :: *) = 
+        ( ValidCategory cat a 
         , Category cat
         )
 
     id = Slice id
     (Slice f).(Slice g) = Slice $ f.g
 
-runSlice :: ValidCategory (cat/obj) a b => (cat/obj) a b -> (cat b obj) -> (cat a obj)
+runSlice :: 
+    ( ValidCategory (cat/obj) a 
+    , ValidCategory (cat/obj) b
+    ) => (cat/obj) a b -> (cat b obj) -> (cat a obj)
 runSlice (Slice cat1) cat2 = cat2.cat1
 

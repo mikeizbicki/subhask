@@ -4,6 +4,7 @@ module SubHask.Quotient
     where
 
 import qualified Prelude as P
+import Control.Monad
 
 import SubHask.Algebra
 import SubHask.Category
