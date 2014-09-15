@@ -186,62 +186,27 @@ type Concrete cat = SubCategory cat (->)
 --
 -- > f $ 5
 
-($) :: 
-    ( Concrete subcat
-    ) => subcat a b -> a -> b
+($) :: Concrete subcat => subcat a b -> a -> b
 ($) = embed
 
 infixr 0 $
 
 -- | Embeds a unary function into 'Hask'
-embedHask :: 
-    ( Concrete subcat
-    ) => subcat a b -> a -> b
+embedHask :: Concrete subcat => subcat a b -> a -> b
 embedHask = embed
 
 -- | Embeds a binary function into 'Hask'
-embedHask2 :: 
-    ( Concrete subcat
-    ) => subcat a (subcat b c) 
-      -> a 
-      -> b 
-      -> c 
+embedHask2 ::  Concrete subcat => subcat a (subcat b c)  -> a -> b -> c 
 embedHask2 f = \a b -> (f $ a) $ b
-
 
 -- | This is a special form of the 'embed' function which can make specifying the 
 -- category we are embedding into easier.
-withCategory :: 
-    ( Concrete subcat
-    ) => proxy subcat -> subcat a b -> a -> b
+withCategory :: Concrete subcat => proxy subcat -> subcat a b -> a -> b
 withCategory _ f = embed f
 
--- | This would be a useful function to have, but I'm not sure how to implement it yet!
+-- | FIXME: This would be a useful function to have, but I'm not sure how to implement it yet!
 embed2 :: SubCategory cat subcat => subcat a (subcat a b) -> cat a (cat a b)
 embed2 f = undefined
-
--------------------------------------------------------------------------------
-
--- type Functor c d = forall a b. 
---     ( ValidCategory c a b
---     , ValidCategory d a b
---     ) => c a b 
---       -> d a b
--- 
--- type EndoFunctor c = Functor c c
--- 
--- type NaturalTransformation = forall c d. Functor c d -> Functor c d
-
--- | Constructable categories let us construct arrows in the subcategory
--- from the supercategory.  It is usually difficult to write the "construct"
--- function in a way that is both safe and efficient.
---
--- Note: Constructable is not a name normally associated with category theory.
--- More formally, "construct" and "embed" are adjoint functors.
---
--- FIXME: There is probably a better way to do this
--- class SubCategory supercat cat => Constructable supercat cat where
---     construct :: Functor supercat cat
 
 -------------------------------------------------------------------------------
 
@@ -285,14 +250,7 @@ infixl 7 ><
     , ValidCategory cat a
     , ValidCategory cat b
     ) => a -> b -> Proxy cat -> Tensor cat a b
-(a >< b) _ = embedHask2 (tensor::cat a (cat b (Tensor cat a b))) a b
-
-
---     associatorL (TensorHask (TensorHask a b) c) = TensorHask a (TensorHask b c)
---     associatorR (TensorHask a (TensorHask b c)) = TensorHask (TensorHask a b) c
--- 
---     unitorL (TensorHask UnitHask a) = a
---     unitorR (TensorHask a UnitHask) = a
+(><) a b _ = embedHask2 (tensor::cat a (cat b (Tensor cat a b))) a b
 
 -- | Braided categories let us switch the order of tensored objects.
 --
