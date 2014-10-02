@@ -38,7 +38,7 @@ module SubHask.Category
     , Cat
     , CatT
     -}
-    
+
     -- * Special types of categories
     , Concrete (..)
     , Monoidal (..)
@@ -141,7 +141,7 @@ instance Category cat => Category (CatT cat a b) where
     
 ---------------------------------------
 
--- | Intuiitively, arrows and objects in a subcategory satisfy additional properties
+-- | Intuitively, arrows and objects in a subcategory satisfy additional properties
 -- that elements of the larger category do not necessarily satisfy.
 -- Elements of a subcategory can always be embeded in the larger category.
 -- Going in the other direction, however, requires a proof.  These proofs
@@ -164,8 +164,8 @@ class
 instance Category c => SubCategory c c where
     embed = id
 
--- | Technicaly, a conrete category is any category equiped with a faithful 
--- functor to the category of sets.  This is just a little too platonic to 
+-- | Technicaly, a concrete category is any category equiped with a faithful
+-- functor to the category of sets.  This is just a little too platonic to
 -- be represented in Haskell, but 'Hask' makes a pretty good approximation.
 -- So we call any 'SubCategory' of 'Hask' 'Concrete'.  Importantly, not
 -- all categories are concrete.   See the 'SubHask.Category.Slice.Slice'
@@ -180,7 +180,7 @@ type Concrete cat = SubCategory cat (->)
 -- easily use these subcategories as functions. For example, given a polynomial 
 -- function
 --
--- > f :: Polynomial Double Double
+-- > f :: Polynomial Double 
 --
 -- we can evaluate the polynomial at the number 5 by
 --
@@ -319,14 +319,6 @@ instance Cartesian ((->) :: * -> * -> *) where
     snd (a,b) = b
     terminal a _ = ()
     initial a _ = a
-
--- | In a 'Cartesian' category, we can duplicate information.
--- duplicate :: 
---     ( ValidCategory cat a (Tensor cat a a)
---     , ValidCategory cat a a
---     , Cartesian cat
---     ) => cat a (Tensor cat a a)
--- duplicate = cartesianProduct id id 
 
 -- | Closed categories allow currying.
 --

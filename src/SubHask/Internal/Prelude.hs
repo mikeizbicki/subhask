@@ -1,8 +1,8 @@
 module SubHask.Internal.Prelude
     (
-    Eq (..)
-    , Ord (..)
-    , Enum (..)
+--     Eq (..)
+--     , Ord (..)
+    Enum (..)
     , Read (..)
     , read
     , Show (..)
@@ -41,7 +41,7 @@ module SubHask.Internal.Prelude
     where
 
 import Data.Foldable
-import Data.List
+import Data.List (foldl, foldl', foldr, foldl1, foldl1', foldr1, map, (++), intersectBy, unionBy )
 import Data.Maybe
 import Data.Proxy
 import Data.Traversable

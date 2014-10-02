@@ -1,3 +1,4 @@
+{-# LANGUAGE ImplicitParams #-}
 -- | 
 --
 -- ---
@@ -43,20 +44,26 @@ class Functor cat f => Monad cat f where
 
     join :: ValidCategory cat a => cat (f (f a)) (f a)
 
-    (>>=) :: 
-        ( ValidCategory cat b 
-        , Concrete cat
-        ) => f a -> (cat a (f b)) -> proxy cat -> f b
-    (>>=) a f _ = (join . fmap f) $ a
-
-    (>>) :: 
+    (>>=) ::
         ( ValidCategory cat b
-        , ValidCategory cat a
-        , ValidCategory cat (f b)
         , Concrete cat
-        , Cartesian cat
-        ) => f a -> f b -> proxy cat -> f b
-    (>>) a b p = (a >>= const b) p 
+        ) => f a -> (cat a (f b)) -> f b
+    (>>=) a f = (join . fmap f) $ a
+
+--     (>>=) ::
+--         ( ValidCategory cat b
+--         , Concrete cat
+--         ) => f a -> (cat a (f b)) -> proxy cat -> f b
+--     (>>=) a f _ = (join . fmap f) $ a
+--
+--     (>>) ::
+--         ( ValidCategory cat b
+--         , ValidCategory cat a
+--         , ValidCategory cat (f b)
+--         , Concrete cat
+--         , Cartesian cat
+--         ) => f a -> f b -> proxy cat -> f b
+--     (>>) a b p = (a >>= const b) p
 
 class Functor cat f => Comonad cat f where
     coreturn :: ValidCategory cat a => cat (f a) a
@@ -70,6 +77,80 @@ class Functor cat f => Comonad cat f where
 
 -------------------------------------------------------------------------------
 
+instance Functor Hask [] where
+    fmap = map
+
+instance Monad Hask [] where
+    return a = [a]
+    join = concat 
+
+---------
+
+instance Functor Mon [] where
+    fmap (MonT f) = unsafeProveMon $ map f
+
+instance Monad Mon [] where
+    return = unsafeProveMon $ \a -> [a]
+    join = unsafeProveMon concat 
+
+---------------------------------------
+
+instance Functor Hask (Hask a) where
+    fmap f g = f.g
+
+instance Monad Hask (Hask a) where  
+    return b = \_ -> b
+    join f = \s -> f s $ s
+
+-------------------------------------------------------------------------------
+
+instance Functor Mon Set.Set where
+    fmap (MonT f) = unsafeProveMon $ Set.mapMonotonic f 
+
+instance Monad Mon Set.Set where
+    return = unsafeProveMon $ Set.singleton
+    join = unsafeProveMon $ Set.unions . Set.toList
+
+---------------------------------------
+
+instance Ord a => Functor Mon ((,) a) where
+    fmap (MonT f) = unsafeProveMon $ \(a,b) -> (a, f b)
+
+instance Ord a => Comonad Mon ((,) a) where
+    coreturn = snd
+    cojoin = unsafeProveMon $ \a -> (fst a , a)
+
+-------------------------------------------------------------------------------
+
+return' ::  
+    ( Monad cat f
+    , ValidCategory cat a
+    ) => proxy cat -> cat a (f a)
+return' _ = return
+
+glurgList :: Mon String [String]
+glurgList = unsafeProveMon $ \x -> [x,x++" glurg!"]
+
+glurgSet :: Mon String (Set.Set String)
+glurgSet = unsafeProveMon $ \x -> Set.fromList[x,x++" glurg!"]
+
+testList :: [String]
+testList = (return' (Proxy::Proxy Mon) $ "test")
+    >>= glurgList
+    >>= glurgList
+    >>= glurgList
+    >>= glurgList
+
+testSet :: Set.Set String
+testSet = (return' (Proxy::Proxy Mon) $ "test")
+    >>= glurgSet
+    >>= glurgSet
+    >>= glurgSet
+    >>= glurgSet
+
+-------------------------------------------------------------------------------
+
+{-
 instance Functor Mon Set.Set where
     fmap (MonT (ConstrainedT f)) = unsafeProveMon $ Set.mapMonotonic f 
 
@@ -101,15 +182,10 @@ instance Functor Mon (Mon a) where
     fmap (MonT (ConstrainedT f)) = undefined -- MonT $ ConstrainedT $ undefined
 
 readmap :: Mon b c -> Mon (Mon a b) (Mon a c)
-readmap (MonT (ConstrainedT f)) = undefined
+-- readmap (MonT (ConstrainedT f)) = (MonT (ConstrainedT $ \g -> f.g))
+readmap f = (MonT (ConstrainedT $ \g -> f.g))
 
 -------------------------------------------------------------------------------
-
-return' ::  
-    ( Monad cat f
-    , ValidCategory cat a
-    ) => proxy cat -> cat a (f a)
-return' _ = return
 
 glurg :: Mon String (Set.Set String)
 glurg = unsafeProveMon $ \x -> Set.fromList [x,x++" glurg!"]
@@ -130,5 +206,6 @@ settest = withMon $ do
 -- --     glurg "test"
 -- --     return' (Proxy::Proxy Mon) $ "bye"
 
-fail = error
+-}
 
+fail = error

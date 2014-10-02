@@ -65,7 +65,7 @@ library
         AutoDeriveTypeable,
         RebindableSyntax,
         OverloadedLists
-    
+
     hs-source-dirs:     
         src
 
