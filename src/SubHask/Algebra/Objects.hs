@@ -33,35 +33,41 @@ mkZ i = Mod $ i `mod` n
 
 
 instance KnownNat n => CanonicalEq (Int/n)
-    where 
+    where
         canonicalize (Mod i) = Mod $ i `P.mod` (fromIntegral $ natVal (Proxy::Proxy n))
 
-instance KnownNat n => CanonicalEq (Integer/n) 
-    where 
+instance KnownNat n => CanonicalEq (Integer/n)
+    where
         canonicalize (Mod i) = Mod $ i `P.mod` (natVal (Proxy::Proxy n))
 
 -------------------
 -- algebra
 
-instance KnownNat n => Semigroup (Int    /n) where (Mod z1) + (Mod z2) = quotient $ z1 + z2 
-instance KnownNat n => Semigroup (Integer/n) where (Mod z1) + (Mod z2) = quotient $ z1 + z2 
+instance KnownNat n => Semigroup (Int    /n) where (Mod z1) + (Mod z2) = quotient $ z1 + z2
+instance KnownNat n => Semigroup (Integer/n) where (Mod z1) + (Mod z2) = quotient $ z1 + z2
 
 instance KnownNat n => Monoid (Int    /n) where zero = Mod 0
 instance KnownNat n => Monoid (Integer/n) where zero = Mod 0
 
-instance KnownNat n => Group (Int    /n) where negate (Mod i) = quotient $ negate i 
-instance KnownNat n => Group (Integer/n) where negate (Mod i) = quotient $ negate i 
+instance KnownNat n => Cancellative (Int    /n) where (Mod i1)-(Mod i2) = quotient $ i1-i2
+instance KnownNat n => Cancellative (Integer/n) where (Mod i1)-(Mod i2) = quotient $ i1-i2
 
-instance KnownNat n => Abelian (Int    /n) 
-instance KnownNat n => Abelian (Integer/n) 
+instance KnownNat n => Group (Int    /n) where negate (Mod i) = quotient $ negate i
+instance KnownNat n => Group (Integer/n) where negate (Mod i) = quotient $ negate i
 
-instance KnownNat n => Rng (Int    /n) where (Mod z1)*(Mod z2) = quotient $ z1 * z2
-instance KnownNat n => Rng (Integer/n) where (Mod z1)*(Mod z2) = quotient $ z1 * z2
+instance KnownNat n => Abelian (Int    /n)
+instance KnownNat n => Abelian (Integer/n)
 
-instance KnownNat n => Ring (Int    /n) where one = Mod 1; fromInteger i = quotient $ fromInteger i
-instance KnownNat n => Ring (Integer/n) where one = Mod 1; fromInteger i = quotient $ fromInteger i
+instance KnownNat n => Rg (Int    /n) where (Mod z1)*(Mod z2) = quotient $ z1 * z2
+instance KnownNat n => Rg (Integer/n) where (Mod z1)*(Mod z2) = quotient $ z1 * z2
 
-type instance Scalar (Int    /n) = Int    
+instance KnownNat n => Rig (Int    /n) where one = Mod 1
+instance KnownNat n => Rig (Integer/n) where one = Mod 1
+
+instance KnownNat n => Ring (Int    /n) where fromInteger i = quotient $ fromInteger i
+instance KnownNat n => Ring (Integer/n) where fromInteger i = quotient $ fromInteger i
+
+type instance Scalar (Int    /n) = Int
 type instance Scalar (Integer/n) = Integer
 
 instance KnownNat n => Module (Int    /n) where x        *. (Mod a) = quotient $ x  *. a
@@ -71,7 +77,7 @@ instance KnownNat n => Module (Integer/n) where x        *. (Mod a) = quotient $
 
 -- | Extended Euclid's algorithm is used to calculate inverses in modular arithmetic
 --
--- FIXME: need another implementation of 
+-- FIXME: need another implementation of
 extendedEuclid :: (Eq t, Integral t) => t -> t -> (t,t,t,t,t,t)
 extendedEuclid a b = go zero one one zero b a
     where
@@ -92,8 +98,8 @@ extendedEuclid a b = go zero one one zero b a
 --
 -- See wikipedia <https://en.wikipedia.org/wiki/Finite_field> for more details.
 --
--- FIXME: Many arithmetic operations over Galois Fields can be implemented more 
--- efficiently than the standard operations.  See 
+-- FIXME: Many arithmetic operations over Galois Fields can be implemented more
+-- efficiently than the standard operations.  See
 -- <http://en.wikipedia.org/wiki/Finite_field_arithmetic>.
 newtype Galois (p::Nat) (k::Nat) = Galois (Z (p^k))
     deriving (Read,Show,Eq)
@@ -101,8 +107,10 @@ newtype Galois (p::Nat) (k::Nat) = Galois (Z (p^k))
 deriving instance KnownNat (p^k) => Semigroup (Galois p k)
 deriving instance KnownNat (p^k) => Monoid (Galois p k)
 deriving instance KnownNat (p^k) => Abelian (Galois p k)
+deriving instance KnownNat (p^k) => Cancellative (Galois p k)
 deriving instance KnownNat (p^k) => Group (Galois p k)
-deriving instance KnownNat (p^k) => Rng (Galois p k)
+deriving instance KnownNat (p^k) => Rg (Galois p k)
+deriving instance KnownNat (p^k) => Rig (Galois p k)
 deriving instance KnownNat (p^k) => Ring (Galois p k)
 
 type instance Scalar (Galois p k) = Scalar (Z (p^k))
@@ -140,25 +148,26 @@ instance Prime 23
 -- See <https://en.wikipedia.org/wiki/Symmetric_group>
 
 -- newtype Sym (n::Nat) = Sym (BijectiveT SparseFunction (Z n) (Z n))
--- 
+--
 -- instance KnownNat n => Monoid (Sym n) where
 --     zero = Sym id
 --     (Sym s1)+(Sym s2) = Sym $ s1.s2
--- 
+--
 -- instance KnownNat n => Group (Sym n) where
 --     negate (Sym s) = Sym $ inverse s
 
 -------------------------------------------------------------------------------
 -- the vedic square
 
--- | The Vedic Square always forms a monoid, and sometimes forms a group 
+-- | The Vedic Square always forms a monoid, and sometimes forms a group
 -- depending on the value of "n".  (The type system isn't powerful enough to
 -- encode these special cases.)  See Wikipedia for more details
 -- <https://en.wikipedia.org/wiki/Vedic_square>
 newtype VedicSquare (n::Nat) = VedicSquare (Z n)
+    deriving (Eq)
 
 instance KnownNat n => Semigroup (VedicSquare n) where
-    (VedicSquare v1)+(VedicSquare v2) = VedicSquare $ v1*v2 
+    (VedicSquare v1)+(VedicSquare v2) = VedicSquare $ v1*v2
 
 instance KnownNat n => Monoid (VedicSquare n) where
     zero = VedicSquare one

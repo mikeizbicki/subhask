@@ -12,11 +12,11 @@ module SubHask.Algebra.HMatrix
 --     ( VS.Vector
 --     , (+>)
 --     , mkMatrix
--- 
+--
 --     , GL
 --     , unsafeProveGL
 --     , proveGL
--- 
+--
 --     , SO
 --     , O
 --     , Sp
@@ -45,7 +45,7 @@ import Debug.Trace
 
 -------------------------------------------------------------------------------
 
-data Matrix r 
+data Matrix r
     = Zero
     | One !r
     | Matrix !(HM.Matrix r)
@@ -60,7 +60,16 @@ instance (Storable r, NFData r) => NFData (Matrix r) where
 
 ---------
 
-instance HM.Container HM.Matrix r => Semigroup (Matrix r) where
+instance (P.Eq r, HM.Container HM.Matrix r) => Eq (Matrix r) where
+    Zero == Zero = True
+    Zero == _    = False
+    _    == Zero = False
+    (One r1) == (One r2) = r1 P.== r2
+    (One r1) == _        = False
+    _        == (One r2) = False
+    (Matrix m1) == (Matrix m2) = m1 P.== m2
+
+instance (P.Eq r, HM.Container HM.Matrix r) => Semigroup (Matrix r) where
     Zero + x = x
     x + Zero = x
     (One r1) + (One r2) = One $ r1 P.+ r2
@@ -68,60 +77,69 @@ instance HM.Container HM.Matrix r => Semigroup (Matrix r) where
     (Matrix m1) + (One r2) = Matrix $ m1 `HM.add` (HM.scale r2 $ HM.ident (HM.rows m1))
     (Matrix m1) + (Matrix m2) = Matrix $ m1 `HM.add` m2
 
-instance HM.Container HM.Matrix r => Monoid (Matrix r) where
+instance (P.Eq r, HM.Container HM.Matrix r) => Monoid (Matrix r) where
     zero = Zero
 
-instance HM.Container HM.Matrix r => Group (Matrix r) where
+instance (P.Eq r, HM.Container HM.Matrix r) => Cancellative (Matrix r) where
+    m1-m2 = m1 + negate m2
+
+instance (P.Eq r, HM.Container HM.Matrix r) => Group (Matrix r) where
     negate Zero = Zero
     negate (One r) = One (-r)
     negate (Matrix m) = Matrix $ HM.scale (-1) m
 
-instance HM.Container HM.Matrix r => Abelian (Matrix r) where
+instance (P.Eq r, HM.Container HM.Matrix r) => Abelian (Matrix r) where
 
-instance (HM.Container HM.Matrix r, HM.Product r) => Rng (Matrix r) where   
+instance (P.Eq r, HM.Container HM.Matrix r, HM.Product r) => Rg (Matrix r) where
     Zero * _ = Zero
     _ * Zero = Zero
     (One r) * (Matrix m) = Matrix $ HM.scale r m
     (Matrix m) * (One r) = Matrix $ HM.scale r m
     (Matrix m1) * (Matrix m2) = Matrix $ m1 HM.<> m2
 
-instance (HM.Container HM.Matrix r, HM.Product r) => Ring (Matrix r) where   
+instance (P.Eq r, HM.Container HM.Matrix r, HM.Product r) => Rig (Matrix r) where
     one = One 1
 
-instance (HM.Container HM.Matrix r, HM.Field r) => Field (Matrix r) where
+instance (P.Eq r, HM.Container HM.Matrix r, HM.Product r) => Ring (Matrix r) where
+    fromInteger i = One $ P.fromInteger i
+
+instance (P.Eq r, HM.Container HM.Matrix r, HM.Field r) => Field (Matrix r) where
     reciprocal Zero = error "recip zero"
     reciprocal (One r) = One $ 1 P./ r
     reciprocal (Matrix m) = Matrix $ HM.inv m
 
-instance 
+instance
     ( HM.Container HM.Matrix r
     , HM.Product r
+    , P.Eq r
     , IsScalar r
     , Ring r
-    ) => Module (Matrix r) 
-        where   
+    ) => Module (Matrix r)
+        where
     r *. (Matrix m) = Matrix $ HM.scale r m
     r *. (One r2) = One $ r*r2
     r *. Zero = Zero
 
     (Matrix m1) .*. (Matrix m2) = Matrix $ HM.mul m1 m2
 
-instance 
+instance
     ( HM.Container HM.Matrix r
     , HM.Product r
+    , P.Eq r
     , IsScalar r
     , Field r
-    ) => VectorSpace (Matrix r) 
+    ) => VectorSpace (Matrix r)
         where
     (Matrix m1) ./. (Matrix m2) = Matrix $ HM.divide m1 m2
 
 instance
     ( HM.Container HM.Matrix r
     , HM.Product r
+    , P.Eq r
     , IsScalar r
     , Floating r
     , Normed r
-    ) => InnerProductSpace (Matrix r) 
+    ) => InnerProductSpace (Matrix r)
         where
     Zero <> _ = 0
     _ <> Zero = 0
@@ -133,32 +151,35 @@ instance
 instance
     ( HM.Container HM.Matrix r
     , HM.Product r
+    , P.Eq r
     , IsScalar r
     , Floating r
     , Normed r
-    ) => MetricSpace (Matrix r) 
+    ) => MetricSpace (Matrix r)
         where
     distance m1 m2 = innerProductDistance m2 m2
 
 instance
     ( HM.Container HM.Matrix r
     , HM.Product r
+    , P.Eq r
     , IsScalar r
     , Floating r
     , Normed r
-    ) => Normed (Matrix r) 
+    ) => Normed (Matrix r)
         where
-    abs = innerProductNorm 
+    abs = innerProductNorm
 
 ---------
 
-instance 
+instance
     ( HM.Container HM.Matrix r
     , HM.Product r
+    , P.Eq r
     , IsScalar r
     , Field r
     , VectorSpace r
-    ) => OuterProductSpace (Vector r)   
+    ) => OuterProductSpace (Vector r)
         where
     type Outer (Vector r) = Matrix r
     v1 >< v2 = Matrix $ HM.outer v1 v2
@@ -166,6 +187,7 @@ instance
 instance
     ( HM.Container HM.Matrix r
     , HM.Product r
+    , P.Eq r
     , IsScalar r
     , Field r
     , VectorSpace r
@@ -182,7 +204,7 @@ trans :: Matrix r -> Matrix r
 trans (Matrix m) = Matrix $ HM.trans m
 trans m = m
 
-toSingleton :: (HM.Container HM.Matrix r, Field r) => Matrix r -> r 
+toSingleton :: (HM.Container HM.Matrix r, Field r) => Matrix r -> r
 toSingleton (Matrix m) = if HM.rows m == 1 && HM.cols m == 1
     then HM.sumElements m
     else error "toSingleton on non singleton matrix"
@@ -214,20 +236,20 @@ fromHMatrix = Matrix
 mkMatrix :: Storable r => Int -> Int -> [r] -> Matrix r
 mkMatrix r c xs = Matrix $ (r HM.>< c) xs
 
-x = mkMatrix 3 3 [1,2,3,2,2,3,1,1,1] :: Matrix Double 
-y = mkMatrix 3 3 [2..10] :: Matrix Double 
-z = mkMatrix 3 2 [2..10] :: Matrix Double 
-t = mkMatrix 2 2 [2..10] :: Matrix Double 
+x = mkMatrix 3 3 [1,2,3,2,2,3,1,1,1] :: Matrix Double
+y = mkMatrix 3 3 [2..10] :: Matrix Double
+z = mkMatrix 3 2 [2..10] :: Matrix Double
+t = mkMatrix 2 2 [2..10] :: Matrix Double
 
 {-
 -------------------
 
 data family a +> b
 
-newtype instance (VS.Vector r) +> (VS.Vector r) 
+newtype instance (VS.Vector r) +> (VS.Vector r)
     = Linear1 (AddUnit' (HM.Matrix r))
 
-newtype instance (VS.Vector r) +> (a +> b) 
+newtype instance (VS.Vector r) +> (a +> b)
     = Linear2 (V.Vector (a +> b))
 
 newtype instance (a +> b) +> c
@@ -257,7 +279,7 @@ instance DotLinear (VS.Vector r) (a +> b) (VS.Vector r) where
 -------------------
 
 instance Category (+>) where
-    type ValidCategory (+>) a b = 
+    type ValidCategory (+>) a b =
         ( IdLinear a
         )
 
@@ -271,12 +293,12 @@ instance Category (+>) where
 -- instance SubCategory Linear (->) where
 --     {-# INLINE embed #-}
 --     embed (Linear f) = f
--- 
+--
 -- instance Monoidal Linear where
 --     type ValidMonoidal' Linear a b = MkLinearTensor a b
 --     type Tensor Linear = (><)
 --     type Unit Linear = ()
--- 
+--
 --     {-# INLINE tensor #-}
 --     tensor = mkLinearTensor
 
@@ -286,7 +308,7 @@ instance Category (+>) where
 --     dagger (Matrix (AddUnit' m)) = Matrix $ AddUnit' $ HM.trans m
 
 -- {-# INLINE trans #-}
--- trans :: 
+-- trans ::
 --     ( IsScalar r
 --     , HM.Container HM.Vector r
 --     , HM.Product r
@@ -297,9 +319,9 @@ instance Category (+>) where
 
 -- class MkLinearTensor a b where
 --     mkLinearTensor :: Linear a (Linear b (a><b))
--- 
+--
 -- type Matrix r = VS.Vector r >< VS.Vector r
--- 
--- data family (a><b) 
+--
+-- data family (a><b)
 -- newtype instance (VS.Vector r >< VS.Vector r) = Matrix (AddUnit' (HM.Matrix r))
 -}

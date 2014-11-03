@@ -2,7 +2,7 @@ module SubHask.Category.Trans.Constrained
 --     ( ConstrainedT
 --     , constrain
 --     , proveConstrained
--- 
+--
 --     -- ** Common type synonyms
 --     , EqHask
 --     , OrdHask
@@ -12,13 +12,14 @@ module SubHask.Category.Trans.Constrained
 import GHC.Prim
 import qualified Prelude as P
 
+import SubHask.Algebra
 import SubHask.Category
 import SubHask.Internal.Prelude
 
 -------------------------------------------------------------------------------
 
-type EqHask  = ConstrainedT '[P.Eq ] Hask
-type OrdHask = ConstrainedT '[P.Ord] Hask
+type EqHask  = ConstrainedT '[Eq ] Hask
+type OrdHask = ConstrainedT '[Ord] Hask
 
 type family AppConstraints (f :: [* -> Constraint]) (a :: *) :: Constraint
 type instance AppConstraints '[] a = ()
@@ -27,24 +28,24 @@ type instance AppConstraints (x ': xs) a = (x a, AppConstraints xs a)
 ---------
 
 data ConstrainedT (xs :: [* -> Constraint]) cat (a :: *) (b :: *) where
-    ConstrainedT :: 
+    ConstrainedT ::
         ( AppConstraints xs a
         , AppConstraints xs b
-        , ValidCategory cat a 
-        , ValidCategory cat b 
+        , ValidCategory cat a
+        , ValidCategory cat b
         ) => cat a b -> ConstrainedT xs cat a b
 
 proveConstrained ::
-    ( ValidCategory (ConstrainedT xs cat) a 
-    , ValidCategory (ConstrainedT xs cat) b 
+    ( ValidCategory (ConstrainedT xs cat) a
+    , ValidCategory (ConstrainedT xs cat) b
     ) => cat a b -> ConstrainedT xs cat a b
 proveConstrained = ConstrainedT
 
 ---------
 
 instance Category cat => Category (ConstrainedT xs cat) where
-    
-    type ValidCategory (ConstrainedT xs cat) (a :: *) = 
+
+    type ValidCategory (ConstrainedT xs cat) (a :: *) =
         ( AppConstraints xs a
         , ValidCategory cat a
         )

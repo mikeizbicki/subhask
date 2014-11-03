@@ -16,7 +16,6 @@ import SubHask.Algebra
 import SubHask.Category
 import SubHask.Category.Trans.Common
 import SubHask.Internal.Prelude
-import GHC.Exts
 
 import qualified Prelude as P
 
@@ -72,11 +71,11 @@ box _ _ _ _ f g = undefined
 
 {-
 data CT a (r::Nat) (s::Nat) where
-    CT :: 
+    CT ::
         ( VectorSpace (Rank r a)
         , VectorSpace (Rank s a)
         , VectorSpace (Rank (r+s) a)
-        ) => !(Rank r a -> Rank s a) 
+        ) => !(Rank r a -> Rank s a)
           -> !(Rank r a -> Rank (r+s) a)
           -> CT a r s
 
@@ -86,23 +85,23 @@ instance Category (CT a) where
         , VectorSpace (Rank (r+r) a)
         )
 
-    id = CT id zero 
+    id = CT id zero
 
     (.) = dot
 
 dot :: forall a b c t.
-    ( 
+    (
     ) => CT t b c -> CT t a b -> CT t a c
-dot ( CT 
+dot ( CT
         ( f  :: Rank b t -> Rank c t)
         ( f' :: Rank b t -> Rank (b+c) t)
-    ) 
-    ( CT 
+    )
+    ( CT
         ( g  :: Rank a t -> Rank b t)
         ( g' :: Rank a t -> Rank (a+b) t)
-    ) 
-    = CT 
-        ( f.g :: Rank a t -> Rank c t ) 
+    )
+    = CT
+        ( f.g :: Rank a t -> Rank c t )
         ( (f'.g) `box'` g' :: Rank a t -> Rank (a+c) t )
     where
         box' = box
@@ -121,9 +120,9 @@ instance Category Cask where
 
     id = Cask id (const id)
 
-    (Cask f f').(Cask g g') = Cask (f.g) (\a -> (f'.g) a . g' a) 
---     (Cask f f').(Cask g g') = Cask (f.g) (fmap (.) $ (f'.g) g') 
---     (Cask f f').(Cask g g') = Cask (f.g) ((f'.g) <=< g') 
+    (Cask f f').(Cask g g') = Cask (f.g) (\a -> (f'.g) a . g' a)
+--     (Cask f f').(Cask g g') = Cask (f.g) (fmap (.) $ (f'.g) g')
+--     (Cask f f').(Cask g g') = Cask (f.g) ((f'.g) <=< g')
 
 -------------------
 
@@ -131,11 +130,11 @@ data C1T cat a b where
     C1T :: Rng (cat a a) => cat a a -> cat a a -> C1T cat a a
 
 instance Category cat => Category (C1T cat) where
-    type ValidCategory (C1T cat) a = 
-        ( ValidCategory cat a 
+    type ValidCategory (C1T cat) a =
+        ( ValidCategory cat a
         , Rng (cat a a)
         )
-    
+
     id = C1T id id
 
     (C1T f f').(C1T g g') = C1T (f.g) ( (f'.g)*g )
@@ -149,21 +148,27 @@ instance Category cat => Diff (C1T cat) where
 
 ---------
 
-instance Rng (cat a a) => Semigroup (C1T cat a a) where
+instance Eq (cat a a) => Eq (C1T cat a a) where
+    (C1T f f')==(C1T g g') = f==g && f'==g'
+
+instance Ring (cat a a) => Semigroup (C1T cat a a) where
     (C1T f f')+(C1T g g') = C1T (f+g) (f'+g')
 
-instance Rng (cat a a) => Monoid (C1T cat a a) where
+instance Ring (cat a a) => Monoid (C1T cat a a) where
     zero = C1T zero zero
 
-instance Rng (cat a a) => Group (C1T cat a a) where
+instance Ring (cat a a) => Cancellative (C1T cat a a) where
+    (C1T f f')-(C1T g g') = C1T (f-g) (f'-g')
+
+instance Ring (cat a a) => Group (C1T cat a a) where
     negate (C1T f f') = C1T (negate f) (negate f')
 
-instance Rng (cat a a) => Abelian (C1T cat a a) 
+instance Ring (cat a a) => Abelian (C1T cat a a)
 
-instance Rng (cat a a) => Rng (C1T cat a a) where
+instance Ring (cat a a) => Rg (C1T cat a a) where
     (C1T f f')*(C1T g g') = C1T (f*g) (f'*g + f*g')
 
-instance Ring (cat a a) => Ring (C1T cat a a) where
+instance Ring (cat a a) => Rig (C1T cat a a) where
     one = C1T one one
 
 ---------
@@ -184,27 +189,27 @@ type instance Rank 2 (Vector r) = Matrix r
 class Category cat => Differentiable cat where
     type Derivative cat :: k -> k -> *
 
-    derivative 
-        :: Proxy (n :: Nat) 
-        -> Proxy (b :: *) 
-        -> cat a (Rank n     b) 
+    derivative
+        :: Proxy (n :: Nat)
+        -> Proxy (b :: *)
+        -> cat a (Rank n     b)
         -> cat a (Rank (n+1) b)
 
 -------------------
 
-newtype C0 a (r1::Nat) (r2::Nat) = C0 (Rank r1 a -> Rank r2 a) 
+newtype C0 a (r1::Nat) (r2::Nat) = C0 (Rank r1 a -> Rank r2 a)
 
 instance Category (C0 a) where
     type ValidCategory (C0 a) r1 r2 = ()
     id = C0 id
     (C0 f).(C0 g) = C0 $ f.g
 
-data C1 a (r1::Nat) (r2::Nat) = C1 
-    (Rank r1 a -> Rank r2 a) 
+data C1 a (r1::Nat) (r2::Nat) = C1
+    (Rank r1 a -> Rank r2 a)
     (Rank r1 a -> Rank (r2+1) a)
 
 instance Category (C1 a) where
-    type ValidCategory (C1 a) r1 r2 = 
+    type ValidCategory (C1 a) r1 r2 =
         ( Rng (Rank r1 a)
         , Rng (Rank r2 a)
         , Rng (Rank (r2+1) a)
@@ -214,31 +219,31 @@ instance Category (C1 a) where
     id = C1 id zero
 -}
 
--- tensorMult 
---     :: Proxy r1 
---     -> Proxy r2 
---     -> Proxy r3 
---     -> Proxy a 
---     -> Rank r1 a 
---     -> Rank r2 a 
+-- tensorMult
+--     :: Proxy r1
+--     -> Proxy r2
+--     -> Proxy r3
+--     -> Proxy a
+--     -> Rank r1 a
+--     -> Rank r2 a
 --     -> Rank r3 a
 -- tensorMult _ _ _ _ m1 m2 = undefined
--- 
+--
 -- c1dot :: forall r1 r2 r3 a.
 --     ( Rank r2 a ~ Rank (r3+1) a
 --     , Rng (Rank r2 a)
 --     ) => C1 a r2 r3 -> C1 a r1 r2 -> C1 a r1 r3
--- c1dot (C1 f f') (C1 g g') = C1 
---     (f.g) 
---     ( tensorMult 
+-- c1dot (C1 f f') (C1 g g') = C1
+--     (f.g)
+--     ( tensorMult
 --         ( undefined :: Proxy r1 )
 --         ( undefined :: Proxy r2 )
 --         ( undefined :: Proxy r3 )
 --         ( undefined :: Proxy a )
---         (f'.g) 
---         g 
+--         (f'.g)
+--         g
 --     )
-        
+
 
 {-
 newtype C0 a b = C0 (a -> b)
@@ -293,14 +298,14 @@ type family C (n::Nat) (cat :: * -> * -> *) :: Constraint where
 
 newtype DerivativeT (n::Nat) (cat :: k -> k -> *) a b = DerivativeT (V.Vector (cat a b))
 
-instance 
+instance
     ( KnownNat n
     , 1 <= n
     , Category cat
-    ) => Category (DerivativeT n cat) 
+    ) => Category (DerivativeT n cat)
         where
 
-    type ValidCategory (DerivativeT n cat) a b = 
+    type ValidCategory (DerivativeT n cat) a b =
         ( ValidCategory cat a b
         , Rng (cat a b)
         , a ~ b
@@ -308,9 +313,9 @@ instance
 
     id = DerivativeT $ V.replicate n id
         where n = fromInteger $ natVal (Proxy::Proxy n)
-            
+
     (DerivativeT v1).(DerivativeT v2) = DerivativeT $ V.generate n go
-        where 
+        where
             go i = case i of
                 0 -> f 0 . g 0
                 1 -> g 1 . g 0 * g 1
@@ -320,7 +325,7 @@ instance
             g i = v1 V.! i
             n = fromInteger $ natVal (Proxy::Proxy n)
 
-instance 
+instance
     ( KnownNat n
     , 1 <= n
     , SubCategory cat supercat
@@ -329,14 +334,14 @@ instance
 
     embed (DerivativeT v) = embed $ V.head v
 
-instance 
+instance
     ( KnownNat n
     , 1 <= n
     , Category cat
-    ) => Differentiable (DerivativeT n cat) 
+    ) => Differentiable (DerivativeT n cat)
         where
     type Derivative (DerivativeT n cat) = DerivativeT (n-1) cat
-    derivative (DerivativeT v) = DerivativeT $ V.tail v 
+    derivative (DerivativeT v) = DerivativeT $ V.tail v
 
 unsafeProveDerivative :: Proxy n -> V.Vector (cat a b) -> DerivativeT n cat a b
 unsafeProveDerivative _ = DerivativeT

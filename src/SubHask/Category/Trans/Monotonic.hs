@@ -19,11 +19,11 @@ import SubHask.Category.Trans.Constrained
 type Mon = MonT Hask
 
 type family ValidMon a :: Constraint where
-    ValidMon a = Ord a
+    ValidMon a = POrd a
 --     ValidMon (MonT (->) b c) = (ValidMon b, ValidMon c)
 --     ValidMon a = Ord a
 
-data MonT cat a b where 
+data MonT cat a b where
 --     MonT :: (Ord a, Ord b) => cat a b -> MonT cat a b
     MonT :: (ValidMon a, ValidMon b) => cat a b -> MonT cat a b
 
@@ -67,7 +67,7 @@ type Mon = MonT Hask
 
 newtype MonT cat a b = MonT (ConstrainedT '[P.Ord] cat a b)
 
-unsafeProveMon :: 
+unsafeProveMon ::
     ( Ord b
     , Ord a
     , ValidCategory cat a
@@ -78,7 +78,7 @@ unsafeProveMon f = MonT $ proveConstrained f
 -------------------
 
 instance Category cat => Category (MonT cat) where
-    type ValidCategory (MonT cat) a = ValidCategory (ConstrainedT '[P.Ord] cat) a 
+    type ValidCategory (MonT cat) a = ValidCategory (ConstrainedT '[P.Ord] cat) a
     id = MonT id
     (MonT f) . (MonT g) = MonT (f.g)
 

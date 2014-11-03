@@ -1,20 +1,20 @@
 {-# LANGUAGE ImplicitParams #-}
--- | 
+-- |
 --
 -- ---
 --
--- NOTE: The current Functor instances require that we expose the constructors of our category GADTs.  
+-- NOTE: The current Functor instances require that we expose the constructors of our category GADTs.
 -- This makes our code much less modular than we would like.
 -- We could fix this problem by using a helper function like:
 --
--- > mapWithMon :: (forall f c. Ord c => Ord (f c)) 
--- >     => ( ( Ord a 
+-- > mapWithMon :: (forall f c. Ord c => Ord (f c))
+-- >     => ( ( Ord a
 -- >          , Ord b
 -- >          ) => (a -> b) -> f a -> f b
 -- >        )
 -- >     -> Mon a b -> Mon (f a) (f b)
 -- > mapWithMon f (MonT (ConstrainedT g)) = unsafeProveMon $ f g
--- >  
+-- >
 -- > instance Functor Mon Set.Set where
 -- >     fmap = mapWithMon Set.mapMonotonic
 --
@@ -23,8 +23,10 @@
 module SubHask.Functor
     where
 
+import qualified Prelude as P
 import SubHask.Internal.Prelude
 import SubHask.Category
+import SubHask.Algebra
 
 import SubHask.Category.Trans.Constrained
 import SubHask.Category.Trans.Monotonic
@@ -69,7 +71,7 @@ class Functor cat f => Comonad cat f where
     coreturn :: ValidCategory cat a => cat (f a) a
     cojoin :: ValidCategory cat a => cat (f a) (f (f a))
 
-    extend :: 
+    extend ::
         ( ValidCategory cat a
         , Concrete cat
         ) => cat (f a) b -> f a -> f b
@@ -78,81 +80,84 @@ class Functor cat f => Comonad cat f where
 -------------------------------------------------------------------------------
 
 instance Functor Hask [] where
-    fmap = map
+    fmap = P.map
 
 instance Monad Hask [] where
     return a = [a]
-    join = concat 
+    join = P.concat
 
 ---------
 
-instance Functor Mon [] where
-    fmap (MonT f) = unsafeProveMon $ map f
-
-instance Monad Mon [] where
-    return = unsafeProveMon $ \a -> [a]
-    join = unsafeProveMon concat 
+-- FIXME: MonT instances broken due to standard library using a different Ord than subhask.
+-- I need to add a compatibility layer converting standard library functions to use subhask.
+--
+-- instance Functor Mon [] where
+--     fmap (MonT f) = unsafeProveMon $ map f
+--
+-- instance Monad Mon [] where
+--     return = unsafeProveMon $ \a -> [a]
+--     join = unsafeProveMon P.concat
 
 ---------------------------------------
 
 instance Functor Hask (Hask a) where
     fmap f g = f.g
 
-instance Monad Hask (Hask a) where  
+instance Monad Hask (Hask a) where
     return b = \_ -> b
     join f = \s -> f s $ s
 
 -------------------------------------------------------------------------------
 
-instance Functor Mon Set.Set where
-    fmap (MonT f) = unsafeProveMon $ Set.mapMonotonic f 
-
-instance Monad Mon Set.Set where
-    return = unsafeProveMon $ Set.singleton
-    join = unsafeProveMon $ Set.unions . Set.toList
+-- instance Functor Mon Set.Set where
+--     fmap (MonT f) = unsafeProveMon $ Set.mapMonotonic f
+--
+-- instance Monad Mon Set.Set where
+--     return = unsafeProveMon $ Set.singleton
+--     join = unsafeProveMon $ Set.unions . Set.toList
 
 ---------------------------------------
 
-instance Ord a => Functor Mon ((,) a) where
-    fmap (MonT f) = unsafeProveMon $ \(a,b) -> (a, f b)
-
-instance Ord a => Comonad Mon ((,) a) where
-    coreturn = snd
-    cojoin = unsafeProveMon $ \a -> (fst a , a)
+-- instance Ord a => Functor Mon ((,) a) where
+--     fmap (MonT f) = unsafeProveMon $ \(a,b) -> (a, f b)
+--
+-- instance Ord a => Comonad Mon ((,) a) where
+--     coreturn = snd
+--     cojoin = unsafeProveMon $ \a -> (fst a , a)
 
 -------------------------------------------------------------------------------
 
-return' ::  
-    ( Monad cat f
-    , ValidCategory cat a
-    ) => proxy cat -> cat a (f a)
-return' _ = return
-
-glurgList :: Mon String [String]
-glurgList = unsafeProveMon $ \x -> [x,x++" glurg!"]
-
-glurgSet :: Mon String (Set.Set String)
-glurgSet = unsafeProveMon $ \x -> Set.fromList[x,x++" glurg!"]
-
-testList :: [String]
-testList = (return' (Proxy::Proxy Mon) $ "test")
-    >>= glurgList
-    >>= glurgList
-    >>= glurgList
-    >>= glurgList
-
-testSet :: Set.Set String
-testSet = (return' (Proxy::Proxy Mon) $ "test")
-    >>= glurgSet
-    >>= glurgSet
-    >>= glurgSet
-    >>= glurgSet
+-- return' ::
+--     ( Monad cat f
+--     , ValidCategory cat a
+--     ) => proxy cat -> cat a (f a)
+-- return' _ = return
+--
+-- glurgList :: Mon String [String]
+-- glurgList = unsafeProveMon $ \x -> [x,x++" glurg!"]
+--
+-- glurgSet :: Mon String (Set.Set String)
+-- glurgSet = unsafeProveMon $ \x -> Set.fromList[x,x++" glurg!"]
+--
+-- testList :: [String]
+-- testList = (return' (Proxy::Proxy Mon) $ "test")
+--     >>= glurgList
+--     >>= glurgList
+--     >>= glurgList
+--     >>= glurgList
+--
+-- testSet :: Set.Set String
+-- testSet = (return' (Proxy::Proxy Mon) $ "test")
+--     >>= glurgSet
+--     >>= glurgSet
+--     >>= glurgSet
+--     >>= glurgSet
 
 -------------------------------------------------------------------------------
 
 {-
 instance Functor Mon Set.Set where
-    fmap (MonT (ConstrainedT f)) = unsafeProveMon $ Set.mapMonotonic f 
+    fmap (MonT (ConstrainedT f)) = unsafeProveMon $ Set.mapMonotonic f
 
 instance Monad Mon Set.Set where
     return = unsafeProveMon $ Set.singleton
