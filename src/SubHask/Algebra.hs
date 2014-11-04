@@ -35,6 +35,7 @@ module SubHask.Algebra
     , law_Boolean_supcomplement
     , law_Boolean_infdistributivity
     , law_Boolean_supdistributivity
+    , BooleanRing (..)
 
     , POrd (..)
     , law_POrd_reflexivity
@@ -134,6 +135,8 @@ module SubHask.Algebra
     , fromIntegral
     , Field(..)
     , BoundedField(..)
+    , infinity
+    , negInfinity
     , Floating (..)
     , QuotientField(..)
 
@@ -266,6 +269,17 @@ instance Semigroup POrdering where
     PLT + _ = PLT
     PGT + _ = PGT
     PNA + _ = PNA
+
+instance Semigroup Ordering where
+    EQ + x = x
+    LT + _ = LT
+    GT + _ = GT
+
+instance Monoid POrdering where
+    zero = PEQ
+
+instance Monoid Ordering where
+    zero = EQ
 
 --  | Old instance below; I hope nothing relied on this
 --     PLT + PLT = PLT
@@ -621,8 +635,8 @@ disjoint b1 b2 = (inf b1 b2) == minBound
 instance MinBound Bool where minBound = False
 instance MinBound Char where minBound = P.minBound
 instance MinBound Int where minBound = P.minBound
-instance MinBound Float where minBound = negInfinity
-instance MinBound Double where minBound = negInfinity
+instance MinBound Float where minBound = -1/0 -- FIXME: should be a primop for this
+instance MinBound Double where minBound = -1/0
 
 instance MinBound b => MinBound (a -> b) where minBound = \x -> minBound
 instance POrd a => MinBound [a] where minBound = []
@@ -646,8 +660,8 @@ true = maxBound
 instance MaxBound Bool where maxBound = True
 instance MaxBound Char where maxBound = P.maxBound
 instance MaxBound Int where maxBound = P.maxBound
-instance MaxBound Float where maxBound = infinity
-instance MaxBound Double where maxBound = infinity
+instance MaxBound Float where maxBound = 1/0 -- FIXME: should be a primop for infinity
+instance MaxBound Double where maxBound = 1/0
 instance MaxBound b => MaxBound (a -> b) where maxBound = \x -> maxBound
 
 -------------------
@@ -734,16 +748,36 @@ instance Boolean b => Boolean (a -> b) where not f = \x -> not $ f x
 -- | A Boolean algebra is a special type of Ring.
 -- Their applications (set-like operations) tend to be very different than Rings, so it makes sense for the class hierarchies to be completely unrelated.
 -- The "BooleanRing" type, however, provides the correct transformation.
-data BooleanRing b where
-    BooleanRing :: Boolean b => b -> BooleanRing b
+newtype BooleanRing b = BooleanRing b
+    deriving (Read,Show,Arbitrary,NFData,Eq)
 
 mkBooleanRing :: Boolean b => b -> BooleanRing b
 mkBooleanRing = BooleanRing
 
-instance Semigroup (BooleanRing b) where
-    (BooleanRing b1)+(BooleanRing b2) = BooleanRing $ inf b1 b2
+instance Boolean b => Semigroup (BooleanRing b) where
+--     (BooleanRing b1)+(BooleanRing b2) = BooleanRing $ (b1 && not b2) || (not b1 && b2)
+    (BooleanRing b1)+(BooleanRing b2) = BooleanRing $ (b1 || b2) && not (b1 && b2)
 
--- FIXME: add the other instances
+instance Boolean b => Abelian (BooleanRing b)
+
+instance Boolean b => Monoid (BooleanRing b) where
+    zero = BooleanRing $ false
+
+instance Boolean b => Cancellative (BooleanRing b) where
+    (-)=(+)
+--     b1-b2 = b1+negate b2
+
+instance Boolean b => Group (BooleanRing b) where
+    negate = id
+--     negate (BooleanRing b) = BooleanRing $ not b
+
+instance Boolean b => Rg (BooleanRing b) where
+    (BooleanRing b1)*(BooleanRing b2) = BooleanRing $ b1 && b2
+
+instance Boolean b => Rig (BooleanRing b) where
+    one = BooleanRing $ true
+
+instance Boolean b => Ring (BooleanRing b)
 
 -------------------------------------------------------------------------------
 -- numeric classes
@@ -1073,6 +1107,7 @@ instance (Rg r, Group r) => Rng r
 -- for more details.
 class (Rng r, Rig r) => Ring r where
     fromInteger :: Integer -> r
+    fromInteger = slowFromInteger
 
 defn_Ring_fromInteger :: (Eq r, Ring r) => r -> Integer -> Bool
 defn_Ring_fromInteger r i = fromInteger i `asTypeOf` r

@@ -22,6 +22,9 @@ import SubHask.Internal.Prelude
 -- | The type of integers modulo n
 type Z (n::Nat) = Integer/n
 
+instance KnownNat n => Arbitrary (Integer / n) where
+    arbitrary = liftM mkZ arbitrary
+
 -- newtype Z (n::Nat) = Z Integer
 --     deriving (Read,Show,Eq,Ord)
 

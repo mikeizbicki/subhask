@@ -11,6 +11,7 @@ module SubHask.Internal.Prelude
     , (++)
 --     , Monad (..)
 
+    , IO
     , String
     , Char
 
