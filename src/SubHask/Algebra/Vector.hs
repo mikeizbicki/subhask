@@ -23,6 +23,7 @@ import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector as V
 
 import Control.Monad
+import Test.QuickCheck (frequency)
 
 import SubHask.Internal.Prelude
 import SubHask.Algebra
@@ -38,6 +39,7 @@ newtype ArrayT v r = ArrayT (v r)
     deriving (Eq,Read,Show,Arbitrary)
 
 type instance Scalar (ArrayT v r) = Int
+type instance Elem (ArrayT v r) = r
 
 instance NFData (v r) => NFData (ArrayT v r) where
     rnf (ArrayT v) = rnf v
@@ -91,8 +93,6 @@ instance VG.Vector v r => Monoid (ArrayT v r) where
     zero = ArrayT $ VG.empty
 
 instance (VG.Vector v r, Eq r) => Container (ArrayT v r) where
-    type Elem (ArrayT v r) = r
---     type ElemConstraint (ArrayT v r) = Eq r
     elem r (ArrayT v) = elem r $ VG.toList v
 
 instance VG.Vector v r => Unfoldable (ArrayT v r) where
@@ -400,8 +400,12 @@ u = VG.fromList [1..3] :: VS.Vector Float
 v = VG.fromList [1..2] :: VS.Vector Float
 
 instance (Storable r, Arbitrary r) => Arbitrary (VS.Vector r) where
-    arbitrary = liftM VG.fromList arbitrary
-    shrink v = map VG.fromList $ shrink (VG.toList v)
+--     arbitrary = liftM VG.fromList arbitrary
+--     shrink v = map VG.fromList $ shrink (VG.toList v)
+    arbitrary = frequency
+        [ (7, VG.replicateM 10 arbitrary)
+--         , (1, return VG.empty)
+        ]
 
 -- instance (Storable r, Eq r) => Eq (VS.Vector r) where
 --     {-# INLINABLE (==) #-}

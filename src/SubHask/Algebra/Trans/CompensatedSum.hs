@@ -1,36 +1,24 @@
 module SubHask.Algebra.Trans.CompensatedSum
     where
 
-import Control.Monad
-
 import SubHask.Category
 import SubHask.Algebra
 import SubHask.Internal.Prelude
+import SubHask.TemplateHaskell.Deriving
+
+import Control.Monad
 
 -------------------------------------------------------------------------------
 
 newtype Uncompensated s = Uncompensated s
-    deriving
-        ( Read,Show
-        , Eq,POrd,Ord,InfSemilattice,SupSemilattice,Lattice,MaxBound,MinBound,Heyting,Boolean
-        , Semigroup,Monoid,Abelian,Cancellative,Group,Rg,Rig,Ring
-        )
 
-deriving instance Cone s => Cone (Uncompensated s)
-deriving instance Module s => Module (Uncompensated s)
-deriving instance VectorSpace s => VectorSpace (Uncompensated s)
-
-deriving instance Normed s => Normed (Uncompensated s)
-deriving instance MetricSpace s => MetricSpace (Uncompensated s)
-
-type instance Scalar (Uncompensated s) = Scalar s
-
-instance Container s => Container (Uncompensated s) where
-    type Elem (Uncompensated s) = Elem s
---     type ElemConstraint (Uncompensated s) = ElemConstraint s
-    elem x (Uncompensated s) = elem x s
-
-deriving instance Unfoldable s => Unfoldable (Uncompensated s)
+deriveHierarchy ''Uncompensated
+    [ ''Ord
+    , ''Boolean
+    , ''InnerProductSpace
+    , ''Ring
+    , ''Unfoldable
+    ]
 
 instance Foldable s => Foldable (Uncompensated s) where
     unCons (Uncompensated s) = case unCons s of

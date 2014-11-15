@@ -2,8 +2,12 @@
 import SubHask
 import SubHask.Algebra.Objects
 import SubHask.Algebra.Trans.StringMetrics
+import SubHask.Algebra.Trans.MiscMetrics
+import SubHask.Algebra.Trans.Kernel
+import SubHask.Algebra.Trans.CompensatedSum
 
-import SubHask.Test
+import SubHask.TemplateHaskell.Deriving
+import SubHask.TemplateHaskell.Test
 import Language.Haskell.TH
 
 import Test.Framework (defaultMain, testGroup)
@@ -14,11 +18,12 @@ import Test.QuickCheck.Arbitrary
 main = defaultMain
     [ testGroup "simple"
         [ testGroup "numeric"
-            [ $( mkSpecializedClassTests [t| Int      |] [''Ord,''Ring, ''Bounded] )
-            , $( mkSpecializedClassTests [t| Integer  |] [''Ord,''Ring, ''Lattice] )
-            , $( mkSpecializedClassTests [t| Rational |] [''Ord,''Ring, ''Lattice] )
+            [ $( mkSpecializedClassTests [t| Int      |] [''Ord,''Ring, ''Bounded, ''MetricSpace] )
+            , $( mkSpecializedClassTests [t| Integer  |] [''Ord,''Ring, ''Lattice, ''MetricSpace] )
+            , $( mkSpecializedClassTests [t| Rational |] [''Ord,''Ring, ''Lattice, ''MetricSpace] )
 --             , $( mkSpecializedClassTests [t| Float    |] [''Ord,''Field, ''Bounded] )
 --             , $( mkSpecializedClassTests [t| Double   |] [''Ord,''Field, ''Bounded] )
+            , $( mkSpecializedClassTests [t| Uncompensated Int |] [ ''Ring ] )
             ]
         , testGroup "non-numeric"
             [ $( mkSpecializedClassTests [t| Bool      |] [''Ord,''Boolean] )
@@ -31,16 +36,26 @@ main = defaultMain
                 ]
             ]
         ]
---     | FIXME: vector Arbitrary broken due to different sizes
---     , testGroup "vectors"
+    , testGroup "vectors"
+        -- | FIXME: vector Arbitrary broken due to different sizes
+        -- | FIXME: vector identity is different than x-x, so spurious failures
 --         [ $( mkSpecializedClassTests [t| Vector Int |] [ ''Group, ''Ord, ''Lattice ] )
---         ]
+        [ testGroup "metrics"
+            [ $( mkSpecializedClassTests [t| Vector Double |] [''MetricSpace] )
+            , $( mkSpecializedClassTests [t| Polynomial 2 (Vector Double) |] [''MetricSpace] )
+            , $( mkSpecializedClassTests [t| RBF 2 (Vector Double) |] [''MetricSpace] )
+            , $( mkSpecializedClassTests [t| Sigmoid 2 (Vector Double) |] [''MetricSpace] )
+--             , $( mkSpecializedClassTests [t| Xi2                   Vector Double  |] [''MetricSpace] )
+--             , $( mkSpecializedClassTests [t| HistogramIntersection Vector Double  |] [''MetricSpace] )
+--             , $( mkSpecializedClassTests [t| JensenShannonDivergence Vector Double  |] [''MetricSpace] )
+            ]
+        ]
     , testGroup "containers"
         [ $( mkSpecializedClassTests [t| []            Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| Array         Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''FreeMonoid ] )
-        , testGroup "transformers"
+        , testGroup "metrics"
             [ $( mkSpecializedClassTests [t| Lexical [Char] |] [''Ord,''MinBound] )
             , $( mkSpecializedClassTests [t| Hamming [Char] |] [''MetricSpace] )
             ]

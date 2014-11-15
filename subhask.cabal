@@ -26,6 +26,8 @@ library
         SubHask.Algebra.Vector
         SubHask.Algebra.Trans.CompensatedSum
         SubHask.Algebra.Trans.StringMetrics
+        SubHask.Algebra.Trans.MiscMetrics
+        SubHask.Algebra.Trans.Kernel
         SubHask.Category
 --         SubHask.Category.Algebra.TypeParams
         SubHask.Category.Finite
@@ -46,7 +48,8 @@ library
         SubHask.SubType
         SubHask.Quotient
 
-        SubHask.Test
+        SubHask.TemplateHaskell.Deriving
+        SubHask.TemplateHaskell.Test
 
     other-modules:
 --         SubHask.Internal.Prelude
@@ -68,6 +71,7 @@ library
         StandaloneDeriving,
         GeneralizedNewtypeDeriving,
         TemplateHaskell,
+        BangPatterns,
 
         AutoDeriveTypeable,
         RebindableSyntax
@@ -125,6 +129,7 @@ Test-Suite TestSuite
         StandaloneDeriving,
         GeneralizedNewtypeDeriving,
         TemplateHaskell,
+        BangPatterns,
 
         AutoDeriveTypeable,
         RebindableSyntax

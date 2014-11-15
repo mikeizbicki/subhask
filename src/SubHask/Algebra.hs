@@ -18,7 +18,9 @@ module SubHask.Algebra
     , law_Lattice_infabsorption
     , law_Lattice_supabsorption
     , supremum
+    , supremum_
     , infimum
+    , infimum_
     , MinBound (..)
     , law_MinBound_inf
     , disjoint
@@ -51,7 +53,9 @@ module SubHask.Algebra
     , law_Ord_totality
     , defn_Ord_compare
     , maximum
+    , maximum_
     , minimum
+    , minimum_
     , Ordering (..)
     , WithPreludeOrd (..)
 --     , FoldableOrd (..)
@@ -66,6 +70,7 @@ module SubHask.Algebra
     , or
 
     -- * Set-like
+    , Elem
     , Container (..)
     , empty
     , law_Container_preservation
@@ -450,14 +455,6 @@ defn_Ord_compare a1 a2 = case (compare a1 a2, pcompare a1 a2) of
     (EQ,PEQ) -> True
     _        -> False
 
-{-# INLINE maximum #-}
-maximum :: (MinBound b, Ord b) => [b] -> b
-maximum = supremum
-
-{-# INLINE minimum #-}
-minimum :: (MaxBound b, Ord b) => [b] -> b
-minimum = infimum
-
 newtype WithPreludeOrd a = WithPreludeOrd a
     deriving (Read,Show,NFData,Eq,POrd,Ord,InfSemilattice,SupSemilattice,Lattice)
 
@@ -584,22 +581,6 @@ infixr 3 &&
 infixr 2 ||
 (||) :: Lattice b => b -> b -> b
 (||) = sup
-
-{-# INLINE and #-}
-and :: (Foldable bs, Elem bs~b, Boolean b) => bs -> b
-and = foldl' inf true
-
-{-# INLINE or #-}
-or :: (Foldable bs, Elem bs~b, Boolean b) => bs -> b
-or = foldl' sup false
-
-{-# INLINE supremum #-}
-supremum :: (Foldable bs, Elem bs~b, Lattice b, MinBound b) => bs -> b
-supremum = foldl' sup minBound
-
-{-# INLINE infimum #-}
-infimum :: (Foldable bs, Elem bs~b, Lattice b, MaxBound b) => bs -> b
-infimum = foldl' inf maxBound
 
 instance Lattice Bool
 instance Lattice Char
@@ -1303,6 +1284,7 @@ class Field r => Floating r where
     exp :: r -> r
     sqrt :: r -> r
     log :: r -> r
+    tanh :: r -> r
     (**) :: r -> r -> r
     infixl 8 **
 
@@ -1311,6 +1293,7 @@ instance Floating Float where
     sqrt = P.sqrt
     log = P.log
     exp = P.exp
+    tanh = P.tanh
     (**) = (P.**)
 
 instance Floating Double where
@@ -1318,6 +1301,7 @@ instance Floating Double where
     sqrt = P.sqrt
     log = P.log
     exp = P.exp
+    tanh = P.tanh
     (**) = (P.**)
 
 ---------------------------------------
@@ -1422,6 +1406,13 @@ class (Module v, Field (Scalar v)) => VectorSpace v where
     infixl 7 ./.
     (./.) :: v -> v -> v
 
+{-# INLINE normalize #-}
+normalize :: (Normed v, VectorSpace v) => v -> v
+normalize v = if abs v==zero
+    then v
+    else v ./ abs v
+
+
 instance (VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => VectorSpace (a,b) where
     (a,b) ./ r = (a./r,b./r)
     (a1,b1)./.(a2,b2) = (a1./.a2,b1./.b2)
@@ -1464,6 +1455,7 @@ instance VectorSpace b => VectorSpace (a -> b) where g ./. f = \a -> g a ./. f a
 class
     ( VectorSpace v
     , MetricSpace v
+    , Normed v
     , HasScalar v
     , Normed (Scalar v)
     , Floating (Scalar v)
@@ -1512,25 +1504,21 @@ class
 
     {-# INLINE isFartherThan #-}
     isFartherThan :: v -> v -> Scalar v -> Bool
-    isFartherThan s1 s2 b = {-# SCC isFartherThan #-} if dist > b
-        then True
-        else False
-            where
-                dist = distance s1 s2
-
---     {-# INLINE isFartherThanWithDistance #-}
---     isFartherThanWithDistance :: v -> v -> Scalar v -> Strict.Maybe (Scalar v)
---     isFartherThanWithDistance s1 s2 b = if dist > b
---         then Strict.Nothing
---         else Strict.Just $ dist
---         where
---             dist = distance s1 s2
+    isFartherThan s1 s2 b =
+        {-# SCC isFartherThan #-}
+        if dist > b
+            then True
+            else False
+        where
+            dist = distance s1 s2
 
     {-# INLINE isFartherThanWithDistanceCanError #-}
     isFartherThanWithDistanceCanError :: CanError (Scalar v) => v -> v -> Scalar v -> Scalar v
-    isFartherThanWithDistanceCanError s1 s2 b = {-# SCC isFartherThanWithDistanceCanError  #-} if dist > b
-        then errorVal
-        else dist
+    isFartherThanWithDistanceCanError s1 s2 b =
+        {-# SCC isFartherThanWithDistanceCanError  #-}
+        if dist > b
+            then errorVal
+            else dist
         where
             dist = distance s1 s2
 
@@ -1590,6 +1578,14 @@ instance CanError (Maybe' a) where
     {-# INLINE errorVal #-}
     errorVal = Nothing'
 
+instance CanError [a] where
+    {-# INLINE isError #-}
+    isError [] = True
+    isError _  = False
+
+    {-# INLINE errorVal #-}
+    errorVal = []
+
 instance CanError Float where
     {-# INLINE isError #-}
     {-# INLINE errorVal #-}
@@ -1620,12 +1616,10 @@ instance (Monoid s, POrd s, Container s, MinBound s, Unfoldable s, Foldable s) =
 --     join :: ValidCategory (+>) a => s (s a) +> s a
 
 type Item s = Elem s
+type family Elem s
 
 class Monoid s => Container s where
-    type Elem s :: *
---     type ElemConstraint s :: Constraint
---     type ElemConstraint s = ()
-    elem :: {-ElemConstraint s =>-} Elem s -> s -> Bool
+    elem :: Elem s -> s -> Bool
 
 law_Container_preservation :: (Container s) => s -> s -> Elem s -> Bool
 law_Container_preservation s1 s2 e = if e `elem` s1 || e `elem` s2
@@ -1763,6 +1757,46 @@ reduce s = foldl' (+) zero s
 length :: Unfoldable s => s -> Scalar s
 length = abs
 
+{-# INLINE and #-}
+and :: (Foldable bs, Elem bs~b, Boolean b) => bs -> b
+and = foldl' inf true
+
+{-# INLINE or #-}
+or :: (Foldable bs, Elem bs~b, Boolean b) => bs -> b
+or = foldl' sup false
+
+{-# INLINE maximum #-}
+maximum :: (MinBound b, Ord b) => [b] -> b
+maximum = supremum
+
+{-# INLINE maximum_ #-}
+maximum_ :: Ord b => b -> [b] -> b
+maximum_ = supremum_
+
+{-# INLINE minimum #-}
+minimum :: (MaxBound b, Ord b) => [b] -> b
+minimum = infimum
+
+{-# INLINE minimum_ #-}
+minimum_ :: Ord b => b -> [b] -> b
+minimum_ = infimum_
+
+{-# INLINE supremum #-}
+supremum :: (Foldable bs, Elem bs~b, Lattice b, MinBound b) => bs -> b
+supremum = supremum_ minBound
+
+{-# INLINE supremum_ #-}
+supremum_ :: (Foldable bs, Elem bs~b, Lattice b) => b -> bs -> b
+supremum_ = foldl' sup
+
+{-# INLINE infimum #-}
+infimum :: (Foldable bs, Elem bs~b, Lattice b, MaxBound b) => bs -> b
+infimum = infimum_ maxBound
+
+{-# INLINE infimum_ #-}
+infimum_ :: (Foldable bs, Elem bs~b, Lattice b) => b -> bs -> b
+infimum_ = foldl' inf
+
 -- FIXME: this is really slow; does it have a space leak? or is it just cache misses?
 foldtList :: forall a. Monoid a => (a -> a -> a) -> a -> [a] -> a
 foldtList f x0 xs = case go xs of
@@ -1854,10 +1888,9 @@ newtype Lexical a = Lexical a
     deriving (Read,Show,Arbitrary,NFData,Semigroup,Monoid)
 
 type instance Scalar (Lexical a) = Scalar a
+type instance Elem (Lexical a) = Elem a
 
 instance Container a => Container (Lexical a) where
-    type Elem (Lexical a) = Elem a
---     type ElemConstraint (Lexical a) = ElemConstraint a
     elem e (Lexical a) = elem e a
 
 deriving instance Normed a => Normed (Lexical a)
@@ -1896,6 +1929,7 @@ instance (Ord (Elem a), Foldable a) => Ord (Lexical a)
 -------------------
 
 type instance Scalar [a] = Int
+type instance Elem [a] = a
 
 instance POrd a => InfSemilattice [a] where
     inf [] _  = []
@@ -1924,8 +1958,6 @@ instance Monoid [a] where
     zero = []
 
 instance Eq a => Container [a] where
-    type Elem [a] = a
---     type ElemConstraint [a] = Eq a
     elem _ []       = False
     elem x (y:ys)   = x==y || elem x ys
 
@@ -1964,6 +1996,7 @@ newtype IndexedVector k v = IndexedVector { unsafeGetMap :: Map.Map (WithPrelude
     deriving (Read,Show,NFData)
 
 type instance Scalar (IndexedVector k v) = Scalar v
+type instance Elem (IndexedVector k v) = v
 
 -- | This is the L2 norm of the vector.
 instance (Floating (Scalar v), IsScalar v, Ord v) => Normed (IndexedVector k v) where
@@ -2061,8 +2094,6 @@ instance (Ord k, Semigroup v) => Monoid (IndexedVector k v) where
 instance (Ord k, Abelian v) => Abelian (IndexedVector k v)
 
 instance (Ord k, Semigroup v, Eq v) => Container (IndexedVector k v) where
-    type Elem (IndexedVector k v) = v
---     type ElemConstraint (IndexedVector k v) = Eq v
     elem x (IndexedVector m) = elem x $ P.map snd $ Map.toList m
 
 instance (Ord k, Semigroup v) => Indexed (IndexedVector k v) where
@@ -2089,6 +2120,7 @@ instance (Ord k, Semigroup v) => IndexedDeletable (IndexedVector k v) where
 newtype Set a = Set (Set.Set (WithPreludeOrd a))
 
 type instance Scalar (Set a) = Int
+type instance Elem (Set a) = a
 
 instance Normed (Set a) where
     abs (Set s) = Set.size s
@@ -2131,7 +2163,6 @@ instance Ord a => Monoid (Set a) where
 instance Ord a => Abelian (Set a)
 
 instance Ord a => Container (Set a) where
-    type Elem (Set a) = a
     elem a (Set s) = Set.member (WithPreludeOrd a)s
 
 instance Ord a => Unfoldable (Set a) where

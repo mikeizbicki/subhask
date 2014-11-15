@@ -1,4 +1,4 @@
-module SubHask.Test
+module SubHask.TemplateHaskell.Test
     where
 
 import Prelude
@@ -11,6 +11,7 @@ import Language.Haskell.TH
 import GHC.Exts
 
 import SubHask.Internal.Prelude
+import SubHask.TemplateHaskell.Deriving
 -- import SubHask.Category
 -- import SubHask.Algebra
 
@@ -171,19 +172,6 @@ mkClassTests className = do
 --                     ( next )
 --             otherwise -> trace ("mkClassTests: skipping "++show ctx++" => "++show t) $ go xs
             otherwise -> go xs
-
--- | Convert ''Group into [''Semigroup, ''Monoid, ''Cancellative, ''Group]
-listSuperClasses :: Name -> Q [Name]
-listSuperClasses className = do
-    info <- reify className
-    case info of
-        ClassI (ClassD ctx _ [PlainTV var] _ _) _ -> liftM (className:) $ liftM concat $ mapM (go var) ctx
-        _ -> error $ "class "++nameBase className++" not a unary class"
-    where
-        go var (ClassP name [VarT var']) = if var==var'
-            then listSuperClasses name
-            else return [] -- ^ class depends on another type tested elsewhere
-        go var _ = return []
 
 
 -- | Given a type and a class, searches "testMap" for all tests for the class;

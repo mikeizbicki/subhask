@@ -2,6 +2,7 @@ module SubHask.Algebra.Trans.StringMetrics
     where
 
 import SubHask
+import SubHask.TemplateHaskell.Deriving
 
 import Data.Function.Memoize
 import Debug.Trace
@@ -9,9 +10,13 @@ import Debug.Trace
 -------------------------------------------------------------------------------
 
 newtype Jaccard a = Jaccard a
-    deriving (Read,Show,Eq)
 
-type instance Scalar (Jaccard a) = Scalar a
+deriveHierarchy ''Jaccard
+    [ ''Ord
+    , ''Boolean
+    , ''Ring
+    , ''FreeMonoid
+    ]
 
 instance
     ( Lattice a
@@ -25,38 +30,27 @@ instance
 -------------------------------------------------------------------------------
 
 newtype Hamming a = Hamming a
-    deriving (Read,Show,Eq,POrd,Ord,InfSemilattice,SupSemilattice,Lattice,MinBound,NFData,Arbitrary)
 
-instance Semigroup a => Semigroup (Hamming a) where
-    (Hamming a1)+(Hamming a2)=Hamming (a1+a2)
---     associativeEpsilon a = 0
-
-instance Monoid a => Monoid (Hamming a) where
-    zero = Hamming zero
-
-instance Container a => Container (Hamming a) where
-    type Elem (Hamming a) = Elem a
---     type ElemConstraint (Hamming a) = ElemConstraint a
-    elem e (Hamming a) = elem e a
-
-deriving instance (Integral (Scalar a), Unfoldable a) => Unfoldable (Hamming a)
-deriving instance (Integral (Scalar a), Foldable a) => Foldable (Hamming a)
-
-instance (Integral (Scalar a), Normed a) => Normed (Hamming a) where
-    abs (Hamming a) = fromIntegral $ abs a
-
--- FIXME
--- type instance Scalar (Hamming a) = Scalar a
-type instance Scalar (Hamming a) = Float
+deriveHierarchy ''Hamming
+    [ ''Ord
+    , ''Boolean
+    , ''Ring
+    , ''FreeMonoid
+    ]
 
 instance
     ( Foldable a
     , Eq (Elem a)
     , Eq a
+    , Ord (Scalar a)
+    , Ring (Scalar a)
     ) => MetricSpace (Hamming a)
         where
 
-    distance (Hamming xs) (Hamming ys) = {-# SCC distance_Hamming #-} go (toList xs) (toList ys) 0
+    {-# INLINE distance #-}
+    distance (Hamming xs) (Hamming ys) =
+        {-# SCC distance_Hamming #-}
+        go (toList xs) (toList ys) 0
         where
             go [] [] i = i
             go xs [] i = i + fromIntegral (abs xs)
@@ -65,32 +59,32 @@ instance
                 then 0
                 else 1
 
+    {-# INLINE isFartherThanWithDistanceCanError #-}
+    isFartherThanWithDistanceCanError (Hamming xs) (Hamming ys) dist =
+        {-# SCC isFartherThanWithDistance_Hamming #-}
+        go (toList xs) (toList ys) 0
+        where
+            go xs ys tot = if tot > dist
+                then errorVal
+                else go_ xs ys tot
+                where
+                    go_ (x:xs) (y:ys) i = go xs ys $ i + if x==y
+                        then 0
+                        else 1
+                    go_ [] [] i = i
+                    go_ xs [] i = i + fromIntegral (abs xs)
+                    go_ [] ys i = i + fromIntegral (abs ys)
+
 -------------------------------------------------------------------------------
 
 newtype Levenshtein a = Levenshtein a
-    deriving (Read,Show,Eq,POrd,Ord,InfSemilattice,SupSemilattice,Lattice,MinBound,NFData,Arbitrary)
 
-instance Semigroup a => Semigroup (Levenshtein a) where
-    (Levenshtein a1)+(Levenshtein a2)=Levenshtein (a1+a2)
---     associativeEpsilon a = 0
-
-instance Monoid a => Monoid (Levenshtein a) where
-    zero = Levenshtein zero
-
-instance Container a => Container (Levenshtein a) where
-    type Elem (Levenshtein a) = Elem a
---     type ElemConstraint (Levenshtein a) = ElemConstraint a
-    elem e (Levenshtein a) = elem e a
-
-deriving instance (Integral (Scalar a), Unfoldable a) => Unfoldable (Levenshtein a)
-deriving instance (Integral (Scalar a), Foldable a) => Foldable (Levenshtein a)
-
-instance (Integral (Scalar a), Normed a) => Normed (Levenshtein a) where
-    abs (Levenshtein a) = fromIntegral $ abs a
-
--- FIXME
--- type instance Scalar (Levenshtein a) = Scalar a
-type instance Scalar (Levenshtein a) = Float
+deriveHierarchy ''Levenshtein
+    [ ''Ord
+    , ''Boolean
+    , ''Ring
+    , ''FreeMonoid
+    ]
 
 instance
     ( Foldable a
@@ -98,18 +92,33 @@ instance
     , Eq (Elem a)
     , Eq a
     , Show a
+    , Ord (Scalar a)
+    , Ring (Scalar a)
+    , MaxBound (Scalar a)
     ) => MetricSpace (Levenshtein a)
         where
-    distance (Levenshtein xs) (Levenshtein ys) = {-# SCC distance_Levenshtein #-} fromIntegral $ go (toList xs) (toList ys)
+
+    {-# INLINE distance #-}
+    distance (Levenshtein xs) (Levenshtein ys) =
+        {-# SCC distance_Levenshtein #-}
+        go (toList xs) (toList ys)
         where
             go = memoize2 go'
                 where
                     go' [] [] = 0
-                    go' xs [] = length xs
-                    go' [] ys = length ys
+                    go' xs [] = fromIntegral $ length xs
+                    go' [] ys = fromIntegral $ length ys
                     go' (x:xs) (y:ys) = minimum
                         [ go xs (y:ys) + 1
                         , go (x:xs) ys + 1
                         , go xs ys + if (x/=y) then 1 else 0
                         ]
 
+--     {-# INLINE isFartherThanWithDistanceCanError #-}
+--     isFartherThanWithDistanceCanError (Levenshtein xs) (Levenshtein ys) dist =
+--         {-# SCC isFartherThanWithDistanceCanError #-}
+--         go (toList xs) (toList ys)
+--         where
+--             go = memoize2 go_
+--                 where
+--                     go_
