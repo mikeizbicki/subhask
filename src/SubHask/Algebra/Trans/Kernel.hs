@@ -3,23 +3,46 @@ module SubHask.Algebra.Trans.Kernel
 
 import qualified Prelude as P
 import SubHask
+import SubHask.TemplateHaskell.Deriving
 
 kernel2distance :: (Floating (Scalar v), VectorSpace v) => (v -> v -> Scalar v) -> v -> v -> Scalar v
 kernel2distance kernel v1 v2 = sqrt $ kernel v1 v1 - kernel v1 v2 - kernel v2 v1 + kernel v2 v2
 
 -------------------------------------------------------------------------------
+-- generic
+
+-- FIXME: use a dependently typed kernel like this for everything
+-- create a couple of standard static ones
+data WithKernel (kernel::k) v where
+    WithKernel :: (v -> v -> Scalar v) -> v -> WithKernel k v
+
+type instance Scalar (WithKernel k v) = Scalar v
+
+instance Eq v => Eq (WithKernel k v) where
+    (WithKernel _ v1)==(WithKernel _ v2) = v1==v2
+
+instance
+    ( Ord (Scalar v)
+    , Floating (Scalar v)
+    , VectorSpace v
+    , Eq v
+    ) => MetricSpace (WithKernel k v)
+        where
+    distance (WithKernel k v1) (WithKernel _ v2) = kernel2distance k v1 v2
+
+sameKernel :: WithKernel k1 v -> WithKernel k2 v -> WithKernel k2 v
+sameKernel (WithKernel k1 v1) (WithKernel k2 _) = WithKernel k2 v1
+
+-------------------------------------------------------------------------------
 -- polynomial
 
 newtype Polynomial (n::Nat) v = Polynomial v
-    deriving
-        (Read,Show,NFData,Arbitrary
-        ,Eq,POrd,Ord,InfSemilattice,MinBound,SupSemilattice,MaxBound,Lattice
-        ,Semigroup,Cancellative,Monoid,Abelian,Group
-        )
 
-type instance Scalar (Polynomial n v) = Scalar v
-deriving instance (Module v) => Module (Polynomial n v)
-deriving instance (VectorSpace v) => VectorSpace (Polynomial n v)
+deriveHierarchy ''Polynomial
+    [ ''Ord
+    , ''Boolean
+    , ''VectorSpace
+    ]
 
 instance (KnownNat n, InnerProductSpace v) => MetricSpace (Polynomial n v) where
     distance = kernel2distance polykernel
@@ -31,15 +54,12 @@ instance (KnownNat n, InnerProductSpace v) => MetricSpace (Polynomial n v) where
 -- ExponentialKernel
 
 newtype ExponentialKernel (n::Nat) v = ExponentialKernel v
-    deriving
-        (Read,Show,NFData,Arbitrary
-        ,Eq,POrd,Ord,InfSemilattice,MinBound,SupSemilattice,MaxBound,Lattice
-        ,Semigroup,Cancellative,Monoid,Abelian,Group
-        )
 
-type instance Scalar (ExponentialKernel n v) = Scalar v
-deriving instance (Module v) => Module (ExponentialKernel n v)
-deriving instance (VectorSpace v) => VectorSpace (ExponentialKernel n v)
+deriveHierarchy ''ExponentialKernel
+    [ ''Ord
+    , ''Boolean
+    , ''VectorSpace
+    ]
 
 instance (KnownNat n, InnerProductSpace v) => MetricSpace (ExponentialKernel n v) where
     distance = kernel2distance rbf
@@ -51,15 +71,12 @@ instance (KnownNat n, InnerProductSpace v) => MetricSpace (ExponentialKernel n v
 -- RBF
 
 newtype RBF (n::Nat) v = RBF v
-    deriving
-        (Read,Show,NFData,Arbitrary
-        ,Eq,POrd,Ord,InfSemilattice,MinBound,SupSemilattice,MaxBound,Lattice
-        ,Semigroup,Cancellative,Monoid,Abelian,Group
-        )
 
-type instance Scalar (RBF n v) = Scalar v
-deriving instance (Module v) => Module (RBF n v)
-deriving instance (VectorSpace v) => VectorSpace (RBF n v)
+deriveHierarchy ''RBF
+    [ ''Ord
+    , ''Boolean
+    , ''VectorSpace
+    ]
 
 instance (KnownNat n, InnerProductSpace v) => MetricSpace (RBF n v) where
     distance = kernel2distance rbf
@@ -71,15 +88,12 @@ instance (KnownNat n, InnerProductSpace v) => MetricSpace (RBF n v) where
 -- Sigmoid
 
 newtype Sigmoid (n::Nat) v = Sigmoid v
-    deriving
-        (Read,Show,NFData,Arbitrary
-        ,Eq,POrd,Ord,InfSemilattice,MinBound,SupSemilattice,MaxBound,Lattice
-        ,Semigroup,Cancellative,Monoid,Abelian,Group
-        )
 
-type instance Scalar (Sigmoid n v) = Scalar v
-deriving instance (Module v) => Module (Sigmoid n v)
-deriving instance (VectorSpace v) => VectorSpace (Sigmoid n v)
+deriveHierarchy ''Sigmoid
+    [ ''Ord
+    , ''Boolean
+    , ''VectorSpace
+    ]
 
 instance (InnerProductSpace v) => MetricSpace (Sigmoid n v) where
     distance = kernel2distance sigmoid
