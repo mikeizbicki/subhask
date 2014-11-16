@@ -32,32 +32,33 @@ main = defaultMain
             , $( mkSpecializedClassTests [t| POrdering |] [''Monoid])
             , testGroup "transformers"
                 [ $( mkSpecializedClassTests [t| BooleanRing Bool |] [''Ring] )
-                , $( mkSpecializedClassTests [t| Z 2              |] [''Ring] )
+                , $( mkSpecializedClassTests [t| Z 57             |] [''Ring] )
                 ]
             ]
         ]
-    , testGroup "vectors"
+--     , testGroup "vectors"
         -- | FIXME: vector Arbitrary broken due to different sizes
         -- | FIXME: vector identity is different than x-x, so spurious failures
 --         [ $( mkSpecializedClassTests [t| Vector Int |] [ ''Group, ''Ord, ''Lattice ] )
-        [ testGroup "metrics"
-            [ $( mkSpecializedClassTests [t| Vector Double |] [''MetricSpace] )
-            , $( mkSpecializedClassTests [t| Polynomial 2 (Vector Double) |] [''MetricSpace] )
-            , $( mkSpecializedClassTests [t| RBF 2 (Vector Double) |] [''MetricSpace] )
-            , $( mkSpecializedClassTests [t| Sigmoid 2 (Vector Double) |] [''MetricSpace] )
+--         [ testGroup "metrics"
+--             [ $( mkSpecializedClassTests [t| Vector Double |] [''MetricSpace] )
+--             , $( mkSpecializedClassTests [t| Polynomial 2 (Vector Double) |] [''MetricSpace] )
+--             , $( mkSpecializedClassTests [t| RBF 2 (Vector Double) |] [''MetricSpace] )
+--             , $( mkSpecializedClassTests [t| Sigmoid 2 (Vector Double) |] [''MetricSpace] )
 --             , $( mkSpecializedClassTests [t| Xi2                   Vector Double  |] [''MetricSpace] )
 --             , $( mkSpecializedClassTests [t| HistogramIntersection Vector Double  |] [''MetricSpace] )
 --             , $( mkSpecializedClassTests [t| JensenShannonDivergence Vector Double  |] [''MetricSpace] )
-            ]
-        ]
+--             ]
+--         ]
     , testGroup "containers"
         [ $( mkSpecializedClassTests [t| []            Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| Array         Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''FreeMonoid ] )
-        , testGroup "metrics"
-            [ $( mkSpecializedClassTests [t| Lexical [Char] |] [''Ord,''MinBound] )
-            , $( mkSpecializedClassTests [t| Hamming [Char] |] [''MetricSpace] )
+        , testGroup "transformers"
+            [ $( mkSpecializedClassTests [t| Lexical     [Char] |] [''Ord,''MinBound] )
+            , $( mkSpecializedClassTests [t| Hamming     [Char] |] [''MetricSpace] )
+            , $( mkSpecializedClassTests [t| Levenshtein [Char] |] [''MetricSpace] )
             ]
         ]
     ]
