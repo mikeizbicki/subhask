@@ -29,6 +29,77 @@ import SubHask.Internal.Prelude
 import SubHask.Algebra
 import SubHask.Category
 
+import Control.Monad.Primitive
+import Control.Monad.ST
+import Data.IORef
+import Data.STRef
+
+--------------------------------------------------------------------------------
+-- Mutability
+
+type family MutableVersion a :: * -> *
+type family ImmutableVersion (a :: * -> *) :: *
+
+class Mutable a ma | a -> ma, ma -> a where
+    unsafeFreeze :: PrimMonad m => ma (PrimState m) -> m a
+    unsafeThaw :: PrimMonad m => a -> m (ma (PrimState m))
+
+    freeze :: PrimMonad m => ma (PrimState m) -> m a
+    thaw :: PrimMonad m => a -> m (ma (PrimState m))
+
+
+class
+    ( Semigroup g
+    , Mutable g mg
+    ) => SemigroupM g mg
+        where
+
+    infixl 6 +=
+    (+=) :: PrimMonad m
+            => mg (PrimState m)
+            -> mg (PrimState m)
+            -> m (mg (PrimState m))
+
+defn_SemigroupM :: forall g mg.
+    ( Eq g
+    , SemigroupM g mg
+    , Mutable g mg
+    ) => g -> g -> Bool
+defn_SemigroupM g1 g2 = g1+g2 == res
+    where
+        res = runST ( do
+            g1thaw <- thaw g1
+            g2thaw <- thaw g2
+            g1thaw += g2thaw
+            unsafeFreeze g1thaw
+            )
+
+newtype MBoxedVector a s = MBoxedVector (V.MVector s a)
+
+instance Mutable (V.Vector a) (MBoxedVector a) where
+    unsafeThaw v = liftM MBoxedVector $ VG.unsafeThaw v
+    unsafeFreeze (MBoxedVector mv) = VG.unsafeFreeze mv
+
+    thaw v = liftM MBoxedVector $ VG.thaw v
+    freeze (MBoxedVector mv) = VG.freeze mv
+
+instance Semigroup g => SemigroupM (BoxedVector g) (MBoxedVector g) where
+    (+=) (MBoxedVector mv1) (MBoxedVector mv2)
+        | VGM.length mv1 == 0 = return $ MBoxedVector mv2
+        | VGM.length mv2 == 0 = return $ MBoxedVector mv1
+        | VGM.length mv2 /= VGM.length mv2 = error "BoxedVector.SemigroupM: vectors have unequal length"
+        | otherwise = do
+            go 0
+            return (MBoxedVector mv1)
+        where
+            go i = if i == VGM.length mv1
+                then return ()
+                else do
+                    g1 <- VGM.unsafeRead mv1 i
+                    g2 <- VGM.unsafeRead mv2 i
+                    VGM.unsafeWrite mv1 i (g1 + g2)
+                    go (i+1)
+
 -------------------------------------------------------------------------------
 
 type Array = ArrayT BoxedVector

@@ -24,6 +24,7 @@ library
         SubHask.Algebra.HMatrix
         SubHask.Algebra.Objects
         SubHask.Algebra.Vector
+        SubHask.Algebra.Trans.EarthMover
         SubHask.Algebra.Trans.CompensatedSum
         SubHask.Algebra.Trans.StringMetrics
         SubHask.Algebra.Trans.MiscMetrics
@@ -72,6 +73,7 @@ library
         GeneralizedNewtypeDeriving,
         TemplateHaskell,
         BangPatterns,
+        FunctionalDependencies,
 
         AutoDeriveTypeable,
         RebindableSyntax
@@ -85,11 +87,13 @@ library
         template-haskell,
         ghc-prim,
         deepseq         >= 1.3,
+        primitive       >= 0.5.3,
 
         -- example objects
         containers      >= 0.5,
         vector          >= 0.10.0,
-        hmatrix         == 0.15.2.2,
+        hmatrix         >= 0.16.0.5,
+        hmatrix-glpk    >= 0.4.0.2,
 
         memoize         >= 0.6,
 
@@ -130,6 +134,7 @@ Test-Suite TestSuite
         GeneralizedNewtypeDeriving,
         TemplateHaskell,
         BangPatterns,
+        FunctionalDependencies,
 
         AutoDeriveTypeable,
         RebindableSyntax
@@ -140,11 +145,13 @@ Test-Suite TestSuite
         template-haskell,
         ghc-prim,
         deepseq         >= 1.3,
+        primitive       >= 0.5.3,
 
         -- example objects
         containers      >= 0.5,
         vector          >= 0.10.0,
-        hmatrix         == 0.15.2.2,
+--         hmatrix         == 0.15.2.2,
+        hmatrix         >= 0.16.0.5,
 
         memoize         >= 0.6,
 

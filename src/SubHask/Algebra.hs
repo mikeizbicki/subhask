@@ -90,6 +90,7 @@ module SubHask.Algebra
     , tailMaybe
     , lastMaybe
     , initMaybe
+    , Index
     , Indexed (..)
     , IndexedFoldable (..)
     , IndexedUnfoldable (..)
@@ -159,6 +160,9 @@ module SubHask.Algebra
 
     -- ** Sizes
     , Normed (..)
+--     , KernelSpace (..)
+--     , mkSelfKernel
+--     , SelfKernel
     , MetricSpace (..)
     , law_MetricSpace_nonnegativity
     , law_MetricSpace_indiscernables
@@ -766,6 +770,7 @@ instance Boolean b => Ring (BooleanRing b)
 class Semigroup g where
     infixl 6 +
     (+) :: g -> g -> g
+
 
     -- | this quantity is related to the concept of machine precision and floating point error
 --     associativeEpsilon :: Ring (Scalar g) => g -> Scalar g
@@ -1828,10 +1833,9 @@ lastMaybe = P.fmap snd . unSnoc
 initMaybe :: Foldable s => s -> Maybe s
 initMaybe = P.fmap fst . unSnoc
 
-class {-Container s =>-} Indexed s where
-    type Index s :: *
-    type Index s = Int
+type family Index s :: *
 
+class {-Container s =>-} Indexed s where
     (!) :: s -> Index s -> Elem s
     (!) s i = case s !! i of
         Just x -> x
@@ -1984,6 +1988,8 @@ instance Foldable [a] where
     foldl1 = L.foldl1
     foldl1' = L.foldl1'
 
+type instance Index [a] = Int
+
 instance Indexed [a] where
     (!!) [] _ = Nothing
     (!!) (x:xs) 0 = Just x
@@ -2096,8 +2102,9 @@ instance (Ord k, Abelian v) => Abelian (IndexedVector k v)
 instance (Ord k, Semigroup v, Eq v) => Container (IndexedVector k v) where
     elem x (IndexedVector m) = elem x $ P.map snd $ Map.toList m
 
+type instance Index (IndexedVector k v) = k
+
 instance (Ord k, Semigroup v) => Indexed (IndexedVector k v) where
-    type Index (IndexedVector k v) = k
     (IndexedVector m) !! k = Map.lookup (WithPreludeOrd k) m
 
 instance (Ord k, Semigroup v) => IndexedUnfoldable (IndexedVector k v) where
@@ -2167,3 +2174,9 @@ instance Ord a => Container (Set a) where
 
 instance Ord a => Unfoldable (Set a) where
     singleton a = Set $ Set.singleton (WithPreludeOrd a)
+
+-- newtype MutRef a s = MutRef (STRef s a)
+--
+-- instance Mutable a (MutRef a) where
+--     unsafeFreeze (MutRef r) = readSTRef r
+--     unsafeThaw = liftM MutRef . newSTRef

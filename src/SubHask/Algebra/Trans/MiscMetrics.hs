@@ -1,5 +1,4 @@
 module SubHask.Algebra.Trans.MiscMetrics
---     ( Xi2 )
     where
 
 import qualified Data.Vector.Generic as VG
@@ -8,6 +7,83 @@ import qualified Data.Vector.Generic.Mutable as VGM
 import qualified Prelude as P
 import SubHask
 import SubHask.TemplateHaskell.Deriving
+
+-------------------------------------------------------------------------------
+-- Match
+
+newtype Match v a = Match { unMatch :: v a }
+
+deriveHierarchy ''Match
+    [ ''Ord
+    , ''Boolean
+    , ''VectorSpace
+    , ''Ring
+    ]
+
+instance VG.Vector v a => VG.Vector (Match v) a where
+    {-# INLINE basicUnsafeFreeze #-}
+    {-# INLINE basicUnsafeThaw #-}
+    {-# INLINE basicLength #-}
+    {-# INLINE basicUnsafeSlice #-}
+    {-# INLINE basicUnsafeIndexM #-}
+    {-# INLINE basicUnsafeCopy #-}
+    {-# INLINE elemseq #-}
+    basicUnsafeFreeze (MatchM v) = liftM Match $ VG.basicUnsafeFreeze v
+    basicUnsafeThaw (Match v) = liftM MatchM $ VG.basicUnsafeThaw v
+    basicLength (Match v) = VG.basicLength v
+    basicUnsafeSlice s t (Match v) = Match $ VG.basicUnsafeSlice s t v
+    basicUnsafeIndexM (Match v) i = VG.basicUnsafeIndexM v i
+    basicUnsafeCopy (MatchM vm) (Match v) = VG.basicUnsafeCopy vm v
+    elemseq (Match v) a b = VG.elemseq v a b
+
+newtype MatchM v s a = MatchM { unMatchM :: v s a }
+
+instance VGM.MVector v a => VGM.MVector (MatchM v) a where
+    {-# INLINE basicLength #-}
+    {-# INLINE basicUnsafeSlice #-}
+    {-# INLINE basicOverlaps #-}
+    {-# INLINE basicUnsafeNew #-}
+    {-# INLINE basicUnsafeReplicate #-}
+    {-# INLINE basicUnsafeRead #-}
+    {-# INLINE basicUnsafeWrite #-}
+    basicLength (MatchM v) = VGM.basicLength v
+    basicUnsafeSlice s t (MatchM v) = MatchM $ VGM.basicUnsafeSlice s t v
+    basicOverlaps (MatchM v1) (MatchM v2) = VGM.basicOverlaps v1 v2
+    basicUnsafeNew n = liftM MatchM $ VGM.basicUnsafeNew n
+    basicUnsafeReplicate i a = liftM MatchM $ VGM.basicUnsafeReplicate i a
+    basicUnsafeRead (MatchM v) i = VGM.basicUnsafeRead v i
+    basicUnsafeWrite (MatchM v) i a = VGM.basicUnsafeWrite v i a
+
+    {-# INLINE basicUnsafeCopy #-}
+    {-# INLINE basicUnsafeMove #-}
+    {-# INLINE basicUnsafeGrow #-}
+    basicUnsafeCopy (MatchM v1) (MatchM v2) = VGM.basicUnsafeCopy v1 v2
+    basicUnsafeMove (MatchM v1) (MatchM v2) = VGM.basicUnsafeMove v1 v2
+    basicUnsafeGrow (MatchM v) i = MatchM `liftM` VGM.basicUnsafeGrow v i
+
+type instance VG.Mutable (Match v) = MatchM (VG.Mutable v)
+
+---------------------------------------
+
+instance
+    ( VG.Vector v r
+    , Ord (Scalar (v r))
+    , r ~ Scalar (v r)
+    , Eq (v r)
+    , Normed r
+    , Ord r
+    , IsScalar r
+    ) => MetricSpace (Match v r)
+        where
+
+    distance (Match v1) (Match v2) = go 0 0 0 0
+        where
+            go tot cdf1 cdf2 i = if i < VG.length v1
+                then go (abs $ cdf1' - cdf2') cdf1' cdf2' (i+1)
+                else tot
+                    where
+                        cdf1'=cdf1+v1 `VG.unsafeIndex` i
+                        cdf2'=cdf2+v2 `VG.unsafeIndex` i
 
 -------------------------------------------------------------------------------
 -- HistogramIntersection

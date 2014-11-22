@@ -13,8 +13,23 @@ import SubHask.Algebra
 import SubHask.Category
 import SubHask.Quotient
 import SubHask.Internal.Prelude
+import SubHask.TemplateHaskell.Deriving
 -- import SubHask.Category.Finite
 -- import SubHask.Category.Trans.Bijective
+
+-------------------------------------------------------------------------------
+-- non-negative objects
+
+newtype NonNegative t = NonNegative t
+
+deriveHierarchy ''NonNegative [ ''Ord, ''Boolean, ''Rig, ''MetricSpace ]
+
+instance (Ord t, Group t) => Cancellative (NonNegative t) where
+    (NonNegative t1)-(NonNegative t2) = if diff>zero
+        then NonNegative diff
+        else NonNegative zero
+        where
+            diff=t1-t2
 
 -------------------------------------------------------------------------------
 -- integers modulo n

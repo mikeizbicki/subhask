@@ -101,7 +101,11 @@ deriveSingleInstance typename classname = do
         TyConI (NewtypeD [] _ typekind (RecC    conname [(_,_,typeapp)]) _) -> return (conname,typekind,typeapp)
         _ -> error $ "\nderiveSingleInstance; typeinfo="++show typeinfo
 
-    typefamilies <- deriveTypefamilies [mkName "Scalar", mkName "Elem"] typename
+    typefamilies <- deriveTypefamilies
+        [ mkName "Scalar"
+        , mkName "Elem"
+        , mkName "Index"
+        ] typename
 
     classinfo <- reify classname
     liftM ( typefamilies++ ) $ case classinfo of
