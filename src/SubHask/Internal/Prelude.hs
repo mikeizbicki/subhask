@@ -1,55 +1,47 @@
 module SubHask.Internal.Prelude
     (
---     Eq (..)
---     , Ord (compare)
---     Enum (..)
-    Read (..)
+    -- * classes
+    Show (..)
+    , Read (..)
     , read
-    , Show (..)
 
-    , build
-    , (++)
---     , Monad (..)
-
-    , IO
+    -- * data types
     , String
     , Char
-
-    , Prelude.all
-    , map
-
     , Int
     , Integer
-
     , Float
     , Double
     , Rational
-
     , Bool (..)
---     , (||), (&&)
 
+    , IO
     , Maybe (..)
     , Either (..)
+
+    -- * functions
+    , build
+    , (++)
+
+    , Prelude.all
+    , map
 
     , asTypeOf
     , ifThenElse
     , undefined
     , otherwise
     , error
---     , const
     , flip
     , seq
-    , NFData (..)
 
-    , Constraint
---     , module Data.Foldable
---     , module Data.List
+    -- * Modules
     , module Data.Proxy
     , module GHC.TypeLits
---     , module Test.QuickCheck.Arbitrary
 
     -- * Non-base types
     , Arbitrary (..)
+    , NFData (..)
+    , Constraint
     )
     where
 

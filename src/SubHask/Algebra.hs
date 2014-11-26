@@ -49,6 +49,8 @@ module SubHask.Algebra
     , defn_POrd_lessthansup
     , POrdering (..)
     , Graded (..)
+    , law_Graded_pred
+    , law_Graded_fromEnum
     , Ord (..)
     , law_Ord_totality
     , defn_Ord_compare
@@ -58,8 +60,9 @@ module SubHask.Algebra
     , minimum_
     , Ordering (..)
     , WithPreludeOrd (..)
---     , FoldableOrd (..)
     , Enum (..)
+    , law_Enum_succ
+    , law_Enum_toEnum
 
     -- ** Boolean helpers
     , (||)
@@ -193,63 +196,7 @@ import SubHask.Category
 -------------------------------------------------------------------------------
 -- relational classes
 
-{-
--- | Equivalence classes.
---
--- NOTE: IEEE 754 floating point types break the invariants because @NaN /= NaN@.
-class Eq a where
-    infix 4 ==
-    (==) :: a -> a -> Bool
-
-    {-# INLINE (/=) #-}
-    infix 4 /=
-    (/=) :: a -> a -> Bool
-    a1 /= a2 = not $ a1 == a2
-
-instance Eq Bool        where {-# INLINE (==) #-} (==) = (P.==)
-instance Eq Char        where (==) = (P.==)
-instance Eq Int         where (==) = (P.==)
-instance Eq Integer     where (==) = (P.==)
-instance Eq Float       where (==) = (P.==)
-instance Eq Double      where (==) = (P.==)
-instance Eq Rational    where (==) = (P.==)
-
-instance Eq TypeRep     where (==) = (P.==)
-
-instance Eq a => Eq [a] where
-    (==) [] [] = True
-    (==) [] _  = False
-    (==) _  [] = False
-    (==) (x:xs) (y:ys) = x==y && xs==ys
-
-instance Eq a => Eq (Maybe a) where
-    Nothing   == Nothing   = True
-    (Just a1) == (Just a2) = a1==a2
-    _         == _         = False
-
-instance Eq a => Eq (Maybe' a) where
-    Nothing'   == Nothing'   = True
-    (Just' a1) == (Just' a2) = a1==a2
-    _          == _          = False
-
-
-instance Eq () where
-    ()==() = True
-
-instance (Eq a, Eq b) => Eq (a,b) where
-    (a1,b1)==(a2,b2) = a1==a2 && b1==b2
-
-instance (Eq a, Eq b, Eq c) => Eq (a,b,c) where
-    (a1,b1,c1)==(a2,b2,c2) = a1==a2 && b1==b2 && c1==c2
-
-instance (Eq a, Eq b, Eq c, Eq d) => Eq (a,b,c,d) where
-    (a1,b1,c1,d1)==(a2,b2,c2,d2) = a1==a2 && b1==b2 && c1==c2 && d1==d2
--}
-
----------------------------------------
-
 -- | Partial ordering
---
 data POrdering
     = PLT
     | PGT
@@ -289,19 +236,6 @@ instance Monoid POrdering where
 
 instance Monoid Ordering where
     zero = EQ
-
---  | Old instance below; I hope nothing relied on this
---     PLT + PLT = PLT
---     PLT + PEQ = PLT
---
---     PGT + PEQ = PGT
---     PGT + PGT = PGT
---
---     PEQ + PLT = PLT
---     PEQ + PEQ = PEQ
---     PEQ + PGT = PGT
---
---     _ + _ = PNA
 
 -- | Partial ordering.
 --
@@ -411,22 +345,91 @@ instance POrd Bool where
 
 -------------------
 
--- class Ord b => WellOrdered b where
---     succ :: b -> b
+-- | In a WellFounded type, every element (except the 'maxBound" if it exists) has a successor element
+--
+-- See <ncatlab http://ncatlab.org/nlab/show/well-founded+relation> for more info.
+class (Graded b, Ord b) => Enum b where
+    succ :: b -> b
 
--- | Graded
+    toEnum :: Int -> b
+
+law_Enum_succ :: Enum b => b -> b -> Bool
+law_Enum_succ b1 b2 = fromEnum (succ b1) == fromEnum b1+1
+                   || fromEnum (succ b1) == fromEnum b1
+
+law_Enum_toEnum :: Enum b => b -> Bool
+law_Enum_toEnum b = toEnum (fromEnum b) == b
+
+instance Enum Bool where
+    succ True = True
+    succ False = True
+
+    toEnum 1 = True
+    toEnum 0 = False
+
+instance Enum Int where
+    succ i = if i == maxBound
+        then i
+        else i+1
+
+    toEnum = id
+
+instance Enum Char where
+    succ = P.succ
+    toEnum i = if i < 0
+        then P.toEnum 0
+        else P.toEnum i
+
+instance Enum Integer where succ = P.succ; toEnum = P.toEnum
+
+-- | An element of a graded poset has a unique predecessor.
 --
 -- See <https://en.wikipedia.org/wiki/Graded_poset wikipedia> for more details.
 class POrd b => Graded b where
+    -- | the predecessor in the ordering
     pred :: b -> b
 
-    (<.) :: b -> b -> Bool
-    b1 <. b2 = b1 < b2 && b1 == pred b2
+    -- | Algebrists typically call this function the "rank" of the element in the poset;
+    -- however we use the name from the standard prelude instead
+    fromEnum :: b -> Int
 
-instance Graded Bool    where pred = P.pred
-instance Graded Char    where pred = P.pred
-instance Graded Int     where pred = P.pred
-instance Graded Integer where pred = P.pred
+law_Graded_pred :: Graded b => b -> b -> Bool
+law_Graded_pred b1 b2 = fromEnum (pred b1) == fromEnum b1-1
+                     || fromEnum (pred b1) == fromEnum b1
+
+law_Graded_fromEnum :: Graded b => b -> b -> Bool
+law_Graded_fromEnum b1 b2
+    | b1 <  b2  = fromEnum b1 <  fromEnum b2
+    | b1 >  b2  = fromEnum b1 >  fromEnum b2
+    | b1 == b2  = fromEnum b1 == fromEnum b2
+    | otherwise = True
+
+instance Graded Bool where
+    pred True = False
+    pred False = False
+
+    fromEnum True = 1
+    fromEnum False = 0
+
+instance Graded Int where
+    pred i = if i == minBound
+        then i
+        else i-1
+
+    fromEnum = id
+
+instance Graded Char where
+    pred c = if c=='\NUL'
+        then '\NUL'
+        else P.pred c
+    fromEnum = P.fromEnum
+instance Graded Integer where pred = P.pred; fromEnum = P.fromEnum
+
+(<.) :: Graded b => b -> b -> Bool
+b1 <. b2 = b1 == pred b2
+
+(>.) :: Enum b => b -> b -> Bool
+b1 >. b2 = b1 == succ b2
 
 ---------------------------------------
 
@@ -489,12 +492,6 @@ instance Ord Bool where
     compare True  True  = EQ
     compare False True  = LT
     compare True  False = GT
-
--------------------
-
--- | FIXME: implement this based on the Prelude class
-class (Graded b, Ord b) => Enum b where
-
 
 -------------------
 

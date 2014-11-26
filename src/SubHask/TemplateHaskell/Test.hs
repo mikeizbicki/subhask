@@ -29,9 +29,17 @@ testMap = Map.fromList
 --         , "defn_POrd_lessthaninf"
 --         , "defn_POrd_lessthansup"
         ] )
+    , ( "Graded",
+        [ "law_Graded_pred"
+        , "law_Graded_fromEnum"
+        ] )
     , ( "Ord",
         [ "law_Ord_totality"
         , "defn_Ord_compare"
+        ] )
+    , ( "Enum",
+        [ "law_Enum_succ"
+        , "law_Enum_toEnum"
         ] )
 
 
