@@ -11,6 +11,7 @@ import qualified Prelude as P
 
 import SubHask.Algebra
 import SubHask.Category
+import SubHask.SubType
 import SubHask.Quotient
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
@@ -20,7 +21,7 @@ import SubHask.TemplateHaskell.Deriving
 -------------------------------------------------------------------------------
 -- non-negative objects
 
-newtype NonNegative t = NonNegative t
+newtype NonNegative t = NonNegative { unNonNegative :: t }
 
 deriveHierarchy ''NonNegative [ ''Enum, ''Boolean, ''Rig, ''MetricSpace ]
 
@@ -31,6 +32,17 @@ instance (Ord t, Group t) => Cancellative (NonNegative t) where
         where
             diff=t1-t2
 
+-- | FIXME: newtypes should not be subtypes
+mkSubtype [t|forall t. NonNegative t|] [t|forall t. t|] 'unNonNegative
+mkSubtype [t|Int|] [t|Integer|] 'toInteger
+
+n1 = NonNegative 5 :: NonNegative Int
+n2 = NonNegative 3 :: NonNegative Int
+i1 = 5 :: Int
+i2 = 3 :: Int
+
+xx = $(sub[e| (1::Int) + (2::Integer) |])
+
 -------------------------------------------------------------------------------
 -- integers modulo n
 
@@ -39,9 +51,6 @@ type Z (n::Nat) = Integer/n
 
 instance KnownNat n => Arbitrary (Integer / n) where
     arbitrary = liftM mkZ arbitrary
-
--- newtype Z (n::Nat) = Z Integer
---     deriving (Read,Show,Eq,Ord)
 
 -- | safe constructor that takes the mod of the input
 mkZ :: forall n. KnownNat n => Integer -> Z n

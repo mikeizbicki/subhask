@@ -192,6 +192,7 @@ import qualified Data.Set as Set
 
 import SubHask.Internal.Prelude
 import SubHask.Category
+import SubHask.SubType
 
 -------------------------------------------------------------------------------
 -- relational classes
