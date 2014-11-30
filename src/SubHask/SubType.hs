@@ -1,9 +1,12 @@
+{-# LANGUAGE NoAutoDeriveTypeable #-} -- can't derive typeable of data families
+
 module SubHask.SubType
     where
 
 import Control.Monad
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
+import Language.Haskell.Meta
 
 import SubHask.Internal.Prelude
 import Prelude (($),id,Eq (..))
@@ -25,14 +28,47 @@ import Debug.Trace
 -- And there is no smaller value of "c" that can be used instead.
 --
 -- FIXME: it would be nicer if this were a type family; is that possible?
-class Sup a b c | a b -> c
+class Sup (s::k) (t::k) (u::k) | s t -> u
 
-instance Sup a a a
+instance Sup s s s
 
--- | We use `a <: b` to denote that a is a subtype of b.
--- The "embedType" function must be a homomorphism from a to b.
-class (Sup a b b, Sup b a b) => a <: b where
-    embedType :: a -> b
+-- | We use `s <: t` to denote that s is s subtype of t.
+-- The "embedType" function must be s homomorphism from s to t.
+--
+class (Sup s t t, Sup t s t) => (s :: k) <: (t :: k) where
+    embedType_ :: Embed s t -- a b
+
+
+-- | This data type is a huge hack to work around some unimplemented features in the type system.
+-- In particular, we want to be able to declare any type constructor to be a subtype of any other type constructor.
+-- The main use case is for making subcategories use the same subtyping mechanism as other types.
+--
+-- FIXME: replace this data family with a system based on type families;
+-- everything I've tried so far requires injective types or foralls in constraints.
+data family Embed (s::k) (t::k) -- (a::ka) (b::kb)
+
+newtype instance Embed (s :: *) (t :: *)
+    = Embed0 { unEmbed0 :: s -> t }
+embedType :: (s <: t) => s -> t
+embedType = unEmbed0 embedType_
+instance (a :: *) <: (a :: *) where
+    embedType_ = Embed0 $ id
+
+newtype instance Embed (s :: ka -> *) (t :: ka -> *)
+    = Embed1 { unEmbed1 :: forall a. s a -> t a }
+embedType1 :: (s <: t) => s a -> t a
+embedType1 = unEmbed1 embedType_
+instance (a :: k1 -> *) <: (a :: k1 -> *) where
+    embedType_ = Embed1 $ id
+
+newtype instance Embed (s :: ka -> kb -> *) (t :: ka -> kb -> *)
+    = Embed2 { unEmbed2 :: forall a b. s a b -> t a b}
+embedType2 :: forall s t a b. (s <: t) => s a b -> t a b
+embedType2 = case embedType_ :: Embed s t of
+    Embed2 f -> f
+instance (a :: k1 -> k2 -> *) <: (a :: k1 -> k2 -> *) where
+    embedType_ = Embed2 $ id
+
 
 -- | FIXME: can these laws be simplified at all?
 -- In particular, can we automatically infer ctx from just the function parameter?
@@ -60,9 +96,6 @@ law_Subtype_f2 ::
       -> a
       -> Bool
 law_Subtype_f2 _ b f a1 a2 = embedType (f a1 a2) == f (embedType a1) (embedType a2) `asTypeOf` b
-
-instance a <: a where
-    embedType = id
 
 -------------------
 
@@ -124,8 +157,9 @@ stripForall (AppT t1 t2) = AppT (stripForall t1) (stripForall t2)
 -- generates the following code:
 --
 -- > instance a <: b where
--- >    embedType = f
+-- >    embedType_ = Embed0 f
 --
+-- FIXME: What if the type doesn't have kind *?
 mkSubtypeInstance :: Type -> Type -> Name -> Dec
 mkSubtypeInstance t1 t2 f = InstanceD
     []
@@ -137,10 +171,13 @@ mkSubtypeInstance t1 t2 f = InstanceD
         t2
     )
     [ FunD
-        ( mkName "embedType" )
+        ( mkName "embedType_" )
         [ Clause
             []
-            ( NormalB $ VarE f )
+            ( NormalB $ AppE
+                ( ConE $ mkName "Embed0" )
+                ( VarE f )
+            )
             []
         ]
     ]
@@ -160,17 +197,61 @@ mkSup t1 t2 t3 =
     , InstanceD [] (AppT (AppT (AppT (ConT $ mkName "Sup") t2) t1) t3) []
     ]
 
+---------------------------------------
+-- quasiquoting
+
+s=subhask
+
+-- | defines the modified syntax that simplifies use of the subhask library
+subhask = QuasiQuoter
+    { quoteExp = go parseExp subcatExp
+    , quoteDec = go parseDecs (map subcatDec)
+    }
+    where
+        go parse eval = \str -> case parse str of
+            Left err -> error $ "parse error: "++err
+            Right th -> return $ eval th
+
 -- | This is a not-quite quasiquoter for using subtypes.
 -- It requires the TemplateHaskell extension, but not the QuasiQuoter extension.
 -- Use it like:
 --
--- > var = $(sub[| 1+2*4 |])
+-- > var = $(sub_[| 1+2*4 |])
 --
-sub :: Q Exp -> Q Exp
-sub qe = do
+exp_ :: Q Exp -> Q Exp
+exp_ qe = do
     e <- qe
-    trace ("\nsubtype substitution\n  orig="++show e++"\n") $ return ()
-    return $ subExp e
+    let ret = subcatExp e
+    trace ("\nsubtype substitution\n  orig="++show e++"\n  ret="++show ret) $ return ()
+    return ret
+
+dec_ :: Q [Dec] -> Q [Dec]
+dec_ qd = do
+    d <- qd
+    let ret = map subcatDec d
+    return ret
+
+subcatDec :: Dec -> Dec
+subcatDec (SigD n t) = SigD n t
+subcatDec (ValD p (NormalB e) xs) = ValD p (NormalB $ subcatExp e) $ map subcatDec xs
+subcatDec x = error $ "subcatDec.undef; x="++show x
+
+-- | This is a helper for "parseSubExp" that substitutes every function application with a call to "embedType2";
+-- This lets us use objects in any subcategory of hask like normal functions.
+subcatExp :: Exp -> Exp
+subcatExp (InfixE (Just a1) f (Just a2)) = subcatExp $ AppE (AppE f a1) a2
+subcatExp (InfixE (Just a1) f Nothing) = subcatExp $ AppE f a1
+-- FIXME: the code below assumes commutativity of `f`
+-- fixing this will require digging into the underlying categories
+subcatExp (InfixE Nothing f (Just a2)) = subcatExp $ AppE (AppE (VarE $ mkName "flip") f) a2
+subcatExp (InfixE Nothing f Nothing) = subcatExp f
+subcatExp (UInfixE a1 f a2) = subcatExp $ AppE (AppE f a1) a2
+subcatExp (AppE f a) = AppE (AppE (VarE $ mkName "embedType2") (subcatExp f)) (subcatExp a)
+subcatExp (VarE e) = VarE e
+subcatExp (ConE c) = ConE c
+subcatExp (LitE l) = LitE l
+subcatExp (SigE e t) = SigE (subcatExp e) t
+subcatExp x = error $ "subcatExp.undef; x="++show x
 
 -- | This is a helper for "sub" that performs the actual substitution.
 --
@@ -180,4 +261,5 @@ subExp :: Exp -> Exp
 subExp (InfixE (Just a1) f (Just a2)) = subExp $ AppE (AppE f a1) a2
 subExp (UInfixE a1 f a2) = subExp $ AppE (AppE f a1) a2
 subExp (AppE (AppE f a1) a2) = AppE (AppE (AppE (VarE $ mkName "apEmbedType2") f) a1) a2
+-- subExp (AppE f a1) = AppE (AppE (VarE $ mkName "$") f) a1
 subExp xs = xs

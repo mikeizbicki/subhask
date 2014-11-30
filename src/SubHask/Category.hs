@@ -156,18 +156,7 @@ instance Category cat => Category (CatT cat a b) where
 -- More details available at <http://en.wikipedia.org/wiki/Subcategory wikipedia>
 -- and <http://ncatlab.org/nlab/show/subcategory ncatlab>.
 
-class
-    ( Category cat
-    , Category subcat
-    ) => SubCategory
-        (subcat :: k1 -> k1 -> *)
-        (cat    :: k0 -> k0 -> *)
-        where
-
-    embed :: subcat a b -> cat a b
-
-instance Category c => SubCategory c c where
-    embed = id
+type SubCategory subcat cat = subcat <: cat
 
 -- | Technicaly, a concrete category is any category equiped with a faithful
 -- functor to the category of sets.  This is just a little too platonic to
@@ -192,13 +181,13 @@ type Concrete cat = SubCategory cat (->)
 -- > f $ 5
 
 ($) :: Concrete subcat => subcat a b -> a -> b
-($) = embed
+($) = embedType2
 
 infixr 0 $
 
 -- | Embeds a unary function into 'Hask'
 embedHask :: Concrete subcat => subcat a b -> a -> b
-embedHask = embed
+embedHask = embedType2
 
 -- | Embeds a binary function into 'Hask'
 embedHask2 ::  Concrete subcat => subcat a (subcat b c)  -> a -> b -> c
@@ -207,7 +196,7 @@ embedHask2 f = \a b -> (f $ a) $ b
 -- | This is a special form of the 'embed' function which can make specifying the
 -- category we are embedding into easier.
 withCategory :: Concrete subcat => proxy subcat -> subcat a b -> a -> b
-withCategory _ f = embed f
+withCategory _ f = embedType2 f
 
 -- | FIXME: This would be a useful function to have, but I'm not sure how to implement it yet!
 embed2 :: SubCategory cat subcat => subcat a (subcat a b) -> cat a (cat a b)
@@ -260,11 +249,11 @@ infixl 7 ><
 -- More details available at <https://en.wikipedia.org/wiki/Braided_monoidal_category wikipedia>
 -- and <http://ncatlab.org/nlab/show/braided+monoidal+category ncatlab>
 class Monoidal cat => Braided cat where
-    braid :: Proxy cat -> Tensor cat a b -> Tensor cat b a
-    unbraid :: Proxy cat -> Tensor cat b a -> Tensor cat a b
+    braid   :: cat (Tensor cat a b) (Tensor cat b a)
+    unbraid :: cat (Tensor cat a b) (Tensor cat b a)
 
 instance Braided (->) where
-    braid _ (a,b) = (b,a)
+    braid (a,b) = (b,a)
     unbraid = braid
 
 -- | In a symmetric braided category, 'braid' and 'unbraid' are inverses of each other.
@@ -333,13 +322,28 @@ instance Cartesian ((->) :: * -> * -> *) where
     terminal a _ = ()
     initial a _ = a
 
--- | Closed categories allow currying.
+-- | Closed monoidal categories allow currying, and closed braided categories allow flipping.
+-- We combine them into a single "Closed" class to simplify notation.
+--
+-- In general, closed categories need not be either "Monoidal" or "Braided".
+-- All a closed category requires is that all arrows are also objects in the category.
+-- For example, `a +> (b +> c)` is a vallid arrow in the category `(+>)`.
+-- But I don't know of any uses for this general definition of a closed category.
+-- And this restricted definition seems to have a lot of uses.
 --
 -- More details available at <https://en.wikipedia.org/wiki/Closed_category wikipedia>
 -- and <http://ncatlab.org/nlab/show/closed+category ncatlab>
-class Monoidal cat => Closed cat where
+class Braided cat => Closed cat where
     curry :: cat (Tensor cat a b) c -> cat a (cat b c)
     uncurry :: cat a (cat b c) -> cat (Tensor cat a b) c
+
+    -- | The default definition should be correct for any category,
+    -- but can be overridden with a more efficient implementation.
+    --
+    -- FIXME: does this actually need to be in a class?
+    -- or should it be a stand-alone function like "const"?
+    flip :: cat a (cat b c) -> cat b (cat a c)
+    flip f = curry (uncurry f . braid)
 
 instance Closed (->) where
     curry f = \a b -> f (a,b)

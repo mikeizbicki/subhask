@@ -1,7 +1,7 @@
 -- | Provides transformer categories for injective, surjective, and bijective
--- functions. 
+-- functions.
 --
--- TODO: Add @Epic@, @Monic@, and @Iso@ categories. 
+-- TODO: Add @Epic@, @Monic@, and @Iso@ categories.
 module SubHask.Category.Trans.Bijective
     ( Injective
     , InjectiveT
@@ -24,6 +24,7 @@ import qualified Prelude as P
 
 import SubHask.Category
 import SubHask.Algebra
+import SubHask.SubType
 import SubHask.Internal.Prelude
 
 -------------------------------------------------------------------------------
@@ -32,28 +33,30 @@ import SubHask.Internal.Prelude
 -- <https://en.wikipedia.org/wiki/Injective_function wikipedia> for more detail.
 class Concrete cat => Injective cat
 
-newtype InjectiveT cat a b = InjectiveT (cat a b)
+newtype InjectiveT cat a b = InjectiveT { unInjectiveT :: cat a b }
 
 instance Concrete cat => Injective (InjectiveT cat)
 
 instance Category cat => Category (InjectiveT cat) where
-    type ValidCategory (InjectiveT cat) a = (ValidCategory cat a) 
+    type ValidCategory (InjectiveT cat) a = (ValidCategory cat a)
     id = InjectiveT id
     (InjectiveT f).(InjectiveT g) = InjectiveT (f.g)
 
-instance SubCategory subcat cat => SubCategory (InjectiveT subcat) cat where
-    embed (InjectiveT f) = embed f
+instance Sup a b c => Sup (InjectiveT a) b c
+instance Sup b a c => Sup a (InjectiveT b) c
+instance (subcat <: cat) => InjectiveT subcat <: cat where
+    embedType_ = Embed2 (\ (InjectiveT f) -> embedType2 f)
 
 unsafeProveInjective :: Concrete cat => cat a b -> InjectiveT cat a b
 unsafeProveInjective = InjectiveT
 
 -------------------
 
--- | Surjective (onto) functions can take on every value in the range.  See 
+-- | Surjective (onto) functions can take on every value in the range.  See
 -- <https://en.wikipedia.org/wiki/Surjective_function wikipedia> for more detail.
 class Concrete cat => Surjective cat
 
-newtype SurjectiveT cat a b = SurjectiveT (cat a b)
+newtype SurjectiveT cat a b = SurjectiveT { unSurjectiveT :: cat a b }
 
 instance Concrete cat => Surjective (SurjectiveT cat)
 
@@ -62,8 +65,10 @@ instance Category cat => Category (SurjectiveT cat) where
     id = SurjectiveT id
     (SurjectiveT f).(SurjectiveT g) = SurjectiveT (f.g)
 
-instance SubCategory subcat cat => SubCategory (SurjectiveT subcat) cat where
-    embed (SurjectiveT f) = embed f
+instance Sup a b c => Sup (SurjectiveT a) b c
+instance Sup b a c => Sup a (SurjectiveT b) c
+instance (subcat <: cat) => SurjectiveT subcat <: cat where
+    embedType_ = Embed2 (\ (SurjectiveT f) -> embedType2 f)
 
 unsafeProveSurjective :: Concrete cat => cat a b -> SurjectiveT cat a b
 unsafeProveSurjective = SurjectiveT
@@ -74,7 +79,7 @@ unsafeProveSurjective = SurjectiveT
 -- <https://en.wikipedia.org/wiki/Bijective_function wikipedia> for more detail.
 class (Injective cat, Surjective cat) => Bijective cat
 
-newtype BijectiveT cat a b = BijectiveT (cat a b)
+newtype BijectiveT cat a b = BijectiveT { unBijectiveT :: cat a b }
 
 instance Concrete cat => Surjective (BijectiveT cat)
 instance Concrete cat => Injective (BijectiveT cat)
@@ -82,11 +87,13 @@ instance Concrete cat => Bijective (BijectiveT cat)
 
 instance Category cat => Category (BijectiveT cat) where
     type ValidCategory (BijectiveT cat) a = (ValidCategory cat a)
-    id = BijectiveT id 
+    id = BijectiveT id
     (BijectiveT f).(BijectiveT g) = BijectiveT (f.g)
 
-instance SubCategory subcat cat => SubCategory (BijectiveT subcat) cat where
-    embed (BijectiveT f) = embed f
+instance Sup a b c => Sup (BijectiveT a) b c
+instance Sup b a c => Sup a (BijectiveT b) c
+instance (subcat <: cat) => BijectiveT subcat <: cat where
+    embedType_ = Embed2 (\ (BijectiveT f) -> embedType2 f)
 
 proveBijective :: (Injective cat, Surjective cat) => cat a b -> BijectiveT cat a b
 proveBijective = BijectiveT

@@ -31,7 +31,6 @@ module SubHask.Internal.Prelude
     , undefined
     , otherwise
     , error
-    , flip
     , seq
 
     -- * Modules

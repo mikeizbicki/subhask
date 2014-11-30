@@ -14,6 +14,7 @@ import qualified Prelude as P
 
 import SubHask.Algebra
 import SubHask.Category
+import SubHask.SubType
 import SubHask.Internal.Prelude
 
 -------------------------------------------------------------------------------
@@ -54,8 +55,10 @@ instance Category cat => Category (ConstrainedT xs cat) where
 
     (ConstrainedT f).(ConstrainedT g) = ConstrainedT (f.g)
 
-instance SubCategory subcat cat => SubCategory (ConstrainedT xs subcat) cat where
-    embed (ConstrainedT f) = embed f
+instance Sup a b c => Sup (ConstrainedT xs a) b c
+instance Sup b a c => Sup a (ConstrainedT xs b) c
+instance (subcat <: cat) => ConstrainedT xs subcat <: cat where
+    embedType_ = Embed2 (\ (ConstrainedT f) -> embedType2 f)
 
 instance (AppConstraints xs (TUnit cat), Monoidal cat) => Monoidal (ConstrainedT xs cat) where
     type Tensor (ConstrainedT xs cat) = Tensor cat
@@ -64,22 +67,16 @@ instance (AppConstraints xs (TUnit cat), Monoidal cat) => Monoidal (ConstrainedT
     type TUnit (ConstrainedT xs cat) = TUnit cat
     tunit _ = tunit (Proxy::Proxy cat)
 
-instance (AppConstraints xs (TUnit cat), Braided cat) => Braided (ConstrainedT xs cat) where
-    braid   _ = braid   (Proxy :: Proxy cat)
-    unbraid _ = unbraid (Proxy :: Proxy cat)
+-- instance (AppConstraints xs (TUnit cat), Braided cat) => Braided (ConstrainedT xs cat) where
+--     braid   = braid   (Proxy :: Proxy cat)
+--     unbraid = unbraid (Proxy :: Proxy cat)
 
-instance (AppConstraints xs (TUnit cat), Symmetric cat) => Symmetric (ConstrainedT xs cat)
+-- instance (AppConstraints xs (TUnit cat), Symmetric cat) => Symmetric (ConstrainedT xs cat)
 
-instance (AppConstraints xs (TUnit cat), Cartesian cat) => Cartesian (ConstrainedT xs cat) where
-    fst = ConstrainedT fst
-    snd = ConstrainedT snd
+-- instance (AppConstraints xs (TUnit cat), Cartesian cat) => Cartesian (ConstrainedT xs cat) where
+--     fst = ConstrainedT fst
+--     snd = ConstrainedT snd
+--
+--     terminal a = ConstrainedT $ terminal a
+--     initial a = ConstrainedT $ initial a
 
-    terminal a = ConstrainedT $ terminal a
-    initial a = ConstrainedT $ initial a
-
--- class Symmetric cat => Cartesian cat where
---     fst :: cat (Tensor cat a b) a
---     snd :: cat (Tensor cat a b) b
---     cartesianProduct :: cat a b -> cat a c -> cat a (Tensor cat b c)
---     terminal :: a -> cat a (TUnit cat)
---     initial :: a -> cat b a

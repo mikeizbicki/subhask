@@ -10,19 +10,22 @@ import qualified Prelude as P
 
 import SubHask.Category
 import SubHask.Algebra
+import SubHask.SubType
 import SubHask.Internal.Prelude
 
 -------------------------------------------------------------------------------
 
-data LinearT cat a b = LinearT (cat a b)
+data LinearT cat a b = LinearT { unLinearT :: cat a b }
 
 instance Category cat => Category (LinearT cat) where
     type ValidCategory (LinearT cat) a = ( ValidCategory cat a )
     id = LinearT id
     (LinearT f).(LinearT g) = LinearT $ f.g
 
-instance SubCategory subcat cat => SubCategory (LinearT subcat) cat where
-    embed (LinearT cat) = embed cat
+instance Sup (LinearT cat) cat cat
+instance Sup cat (LinearT cat) cat
+instance (LinearT cat <: cat) where
+    embedType_ = Embed2 unLinearT
 
 type (+>) = LinearT (->)
 

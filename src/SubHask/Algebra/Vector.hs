@@ -31,8 +31,6 @@ import SubHask.Category
 
 import Control.Monad.Primitive
 import Control.Monad.ST
-import Data.IORef
-import Data.STRef
 
 --------------------------------------------------------------------------------
 -- Mutability
@@ -41,11 +39,14 @@ type family MutableVersion a :: * -> *
 type family ImmutableVersion (a :: * -> *) :: *
 
 class Mutable a ma | a -> ma, ma -> a where
-    unsafeFreeze :: PrimMonad m => ma (PrimState m) -> m a
-    unsafeThaw :: PrimMonad m => a -> m (ma (PrimState m))
-
     freeze :: PrimMonad m => ma (PrimState m) -> m a
     thaw :: PrimMonad m => a -> m (ma (PrimState m))
+
+    unsafeFreeze :: PrimMonad m => ma (PrimState m) -> m a
+    unsafeFreeze = freeze
+
+    unsafeThaw :: PrimMonad m => a -> m (ma (PrimState m))
+    unsafeThaw = thaw
 
 
 class

@@ -14,6 +14,7 @@ import qualified Data.Vector as V
 
 import SubHask.Algebra
 import SubHask.Category
+import SubHask.SubType
 import SubHask.Category.Trans.Common
 import SubHask.Internal.Prelude
 
@@ -139,8 +140,10 @@ instance Category cat => Category (C1T cat) where
 
     (C1T f f').(C1T g g') = C1T (f.g) ( (f'.g)*g )
 
-instance SubCategory subcat cat => SubCategory (C1T subcat) cat where
-    embed (C1T f _) = embed f
+instance Sup (C1T cat) cat cat
+instance Sup cat (C1T cat) cat
+instance (C1T cat <: cat) where
+    embedType_ = Embed2 (\ (C1T f f') -> embedType2 f)
 
 instance Category cat => Diff (C1T cat) where
     type DiffCat (C1T cat) = cat

@@ -12,6 +12,7 @@ import qualified Prelude as P
 import SubHask.Internal.Prelude
 import SubHask.Category
 import SubHask.Algebra
+import SubHask.SubType
 import SubHask.Category.Trans.Constrained
 
 -------------------------------------------------------------------------------
@@ -37,8 +38,10 @@ instance Category cat => Category (MonT cat) where
     id = MonT id
     (MonT f).(MonT g) = MonT $ f.g
 
-instance SubCategory subcat cat => SubCategory (MonT subcat) cat where
-    embed (MonT f) = embed f
+instance Sup a b c => Sup (MonT a) b c
+instance Sup b a c => Sup a (MonT b) c
+instance (subcat <: cat) => MonT subcat <: cat where
+    embedType_ = Embed2 (\ (MonT f) -> embedType2 f)
 
 instance (ValidMon (TUnit cat), Monoidal cat) => Monoidal (MonT cat) where
     type Tensor (MonT cat) = Tensor cat
@@ -47,18 +50,18 @@ instance (ValidMon (TUnit cat), Monoidal cat) => Monoidal (MonT cat) where
     type TUnit (MonT cat) = TUnit cat
     tunit _ = tunit (Proxy::Proxy cat)
 
-instance (ValidMon (TUnit cat), Braided cat) => Braided (MonT cat) where
-    braid   _ = braid   (Proxy :: Proxy cat)
-    unbraid _ = unbraid (Proxy :: Proxy cat)
-
-instance (ValidMon (TUnit cat), Symmetric cat) => Symmetric (MonT cat)
-
-instance (ValidMon (TUnit cat), Cartesian cat) => Cartesian (MonT cat) where
-    fst = MonT fst
-    snd = MonT snd
-
-    terminal a = MonT $ terminal a
-    initial a = MonT $ initial a
+-- instance (ValidMon (TUnit cat), Braided cat) => Braided (MonT cat) where
+--     braid   _ = braid   (Proxy :: Proxy cat)
+--     unbraid _ = unbraid (Proxy :: Proxy cat)
+--
+-- instance (ValidMon (TUnit cat), Symmetric cat) => Symmetric (MonT cat)
+--
+-- instance (ValidMon (TUnit cat), Cartesian cat) => Cartesian (MonT cat) where
+--     fst = MonT fst
+--     snd = MonT snd
+--
+--     terminal a = MonT $ terminal a
+--     initial a = MonT $ initial a
 
 -------------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+-- {-# LANGUAGE ScopedTypeVariables #-}
 
 {- |
 Finite categories are categories with a finite number of arrows.
@@ -39,6 +39,7 @@ import qualified Prelude as P
 
 import SubHask.Algebra
 import SubHask.Category
+import SubHask.SubType
 import SubHask.Quotient
 import SubHask.Algebra.Objects
 import SubHask.Internal.Prelude
@@ -67,12 +68,14 @@ instance Category SparseFunction where
                 Just v -> v
                 Nothing -> swapZIndex k
 
-instance SubCategory SparseFunction (->) where
-    embed (SparseFunction f) = map2function f
-        where
-            map2function map k = case Map.lookup (index k) map of
-                Just v -> deZIndex v
-                Nothing -> deZIndex $ swapZIndex $ index k
+-- instance Sup SparseFunction (->) (->)
+-- instance Sup (->) SparseFunction (->)
+-- instance SparseFunction <: (->) where
+--     embedType_ = Embed2 $ map2function f
+--         where
+--             map2function map k = case Map.lookup (index k) map of
+--                 Just v -> deZIndex v
+--                 Nothing -> deZIndex $ swapZIndex $ index k
 
 -- | Generates a sparse representation of a 'Hask' function.
 -- This proof will always succeed, although it may be computationally expensive if the 'Order' of a and b is large.
@@ -125,12 +128,14 @@ instance Category SparseFunctionMonoid where
                 Just v -> v
                 Nothing -> index zero
 
-instance SubCategory SparseFunctionMonoid (->) where
-    embed (SparseFunctionMonoid f) = map2function f
-        where
-            map2function map k = case Map.lookup (index k) map of
-                Just v -> deZIndex v
-                Nothing -> zero
+-- instance Sup SparseFunctionMonoid (->) (->)
+-- instance Sup (->) SparseFunctionMonoid (->)
+-- instance (SparseFunctionMonoid <: (->)) where
+--     embedType_ = Embed2 $ map2function f
+--         where
+--             map2function map k = case Map.lookup (index k) map of
+--                 Just v -> deZIndex v
+--                 Nothing -> zero
 
 ---------------------------------------
 
@@ -187,8 +192,8 @@ instance Category DenseFunction where
 
     (DenseFunction f).(DenseFunction g) = DenseFunction $ VU.map (f VU.!) g
 
-instance SubCategory DenseFunction (->) where
-    embed (DenseFunction f) = \x -> deZIndex $ int2index $ f VU.! (index2int $ index x)
+-- instance SubCategory DenseFunction (->) where
+--     embed (DenseFunction f) = \x -> deZIndex $ int2index $ f VU.! (index2int $ index x)
 
 -- | Generates a dense representation of a 'Hask' function.
 -- This proof will always succeed; however, if the 'Order' of the finite types

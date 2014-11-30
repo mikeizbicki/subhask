@@ -84,10 +84,12 @@ library
 
     build-depends:
         base            >= 4.7 && <4.8,
-        template-haskell,
         ghc-prim,
         deepseq         >= 1.3,
         primitive       >= 0.5.3,
+
+        template-haskell,
+        haskell-src-meta>= 0.6.0,
 
         -- example objects
         containers      >= 0.5,
@@ -142,10 +144,12 @@ Test-Suite TestSuite
 
     build-depends:
         base            >= 4.7 && <4.8,
-        template-haskell,
         ghc-prim,
         deepseq         >= 1.3,
         primitive       >= 0.5.3,
+
+        template-haskell,
+        haskell-src-meta>= 0.6.0,
 
         -- example objects
         containers      >= 0.5,
