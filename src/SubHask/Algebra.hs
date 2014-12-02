@@ -54,6 +54,10 @@ module SubHask.Algebra
     , Ord (..)
     , law_Ord_totality
     , defn_Ord_compare
+    , argmin
+    , argmax
+    , argminimum_
+    , argmaximum_
     , maximum
     , maximum_
     , minimum
@@ -1767,6 +1771,32 @@ and = foldl' inf true
 {-# INLINE or #-}
 or :: (Foldable bs, Elem bs~b, Boolean b) => bs -> b
 or = foldl' sup false
+
+{-# INLINE argmin #-}
+argmin :: Ord b => a -> a -> (a -> b) -> a
+argmin a1 a2 f = if f a1 < f a2 then a1 else a2
+
+{-# INLINE argmax #-}
+argmax :: Ord b => a -> a -> (a -> b) -> a
+argmax a1 a2 f = if f a1 > f a2 then a1 else a2
+
+{-# INLINE argminimum_ #-}
+argminimum_ :: Ord b => a -> [a] -> (a -> b) -> a
+argminimum_ a as f = fstHask $ foldl' go (a,f a) as
+    where
+        go (a1,fa1) a2 = if fa1 < fa2
+            then (a1,fa1)
+            else (a2,fa2)
+            where fa2 = f a2
+
+{-# INLINE argmaximum_ #-}
+argmaximum_ :: Ord b => a -> [a] -> (a -> b) -> a
+argmaximum_ a as f = fstHask $ foldl' go (a,f a) as
+    where
+        go (a1,fa1) a2 = if fa1 > fa2
+            then (a1,fa1)
+            else (a2,fa2)
+            where fa2 = f a2
 
 {-# INLINE maximum #-}
 maximum :: (MinBound b, Ord b) => [b] -> b
