@@ -37,33 +37,32 @@ module SubHask.Algebra
     , law_Boolean_supcomplement
     , law_Boolean_infdistributivity
     , law_Boolean_supdistributivity
-    , BooleanRing (..)
 
     , POrd (..)
     , law_POrd_reflexivity
     , law_POrd_antisymmetry
     , law_POrd_transitivity
-    , defn_POrd_pcompare
+--     , defn_POrd_pcompare
     , defn_POrd_greaterthan
-    , defn_POrd_lessthaninf
-    , defn_POrd_lessthansup
+--     , defn_POrd_lessthaninf
+--     , defn_POrd_lessthansup
     , POrdering (..)
     , Graded (..)
     , law_Graded_pred
     , law_Graded_fromEnum
     , Ord (..)
     , law_Ord_totality
-    , defn_Ord_compare
+--     , defn_Ord_compare
     , argmin
     , argmax
-    , argminimum_
-    , argmaximum_
+--     , argminimum_
+--     , argmaximum_
     , maximum
     , maximum_
     , minimum
     , minimum_
     , Ordering (..)
-    , WithPreludeOrd (..)
+--     , WithPreludeOrd (..)
     , Enum (..)
     , law_Enum_succ
     , law_Enum_toEnum
@@ -174,11 +173,11 @@ module SubHask.Algebra
     , law_MetricSpace_nonnegativity
     , law_MetricSpace_indiscernables
     , law_MetricSpace_symmetry
-    , law_MetricSpace_triangle
+--     , law_MetricSpace_triangle
 
     -- * Examples
-    , IndexedVector (..)
-    , Set
+--     , IndexedVector (..)
+--     , Set
     )
     where
 
@@ -186,7 +185,8 @@ import Control.Monad -- required for deriving clauses
 import qualified Prelude as P
 import qualified Data.List as L
 
-import Prelude (Eq(..), Ordering (..))
+-- import Prelude (Eq(..), Ordering (..))
+import Prelude (Ordering (..))
 import Data.Ratio
 import Data.Typeable
 import Test.QuickCheck (Arbitrary (..), frequency)
@@ -200,6 +200,30 @@ import SubHask.SubType
 
 -------------------------------------------------------------------------------
 -- relational classes
+
+class Boolean (Bool_ a) => Eq_ a where
+    type Bool_ a :: *
+    type Bool_ a = Bool
+
+    infix 4 ==
+    (==) :: a -> a -> Bool_ a
+
+    infix 4 /=
+    (/=) :: a -> a -> Bool_ a
+    (/=) = not (==)
+--     a1 /= a2 = not $ a1 == a2
+
+
+instance Eq_ Bool     where (==) = (P.==); (/=) = (P./=)
+instance Eq_ Char     where (==) = (P.==); (/=) = (P./=)
+instance Eq_ Int      where (==) = (P.==); (/=) = (P./=)
+instance Eq_ Integer  where (==) = (P.==); (/=) = (P./=)
+instance Eq_ Rational where (==) = (P.==); (/=) = (P./=)
+instance Eq_ Float    where (==) = (P.==); (/=) = (P./=)
+instance Eq_ Double   where (==) = (P.==); (/=) = (P./=)
+
+class (Eq_ a, Bool_ a ~ Bool) => Eq a
+instance (Eq_ a, Bool_ a ~ Bool) => Eq a
 
 -- | Partial ordering
 data POrdering
@@ -217,7 +241,7 @@ instance Arbitrary POrdering where
         , (1, return PNA)
         ]
 
-instance Eq POrdering where
+instance Eq_ POrdering where
     PLT == PLT = True
     PGT == PGT = True
     PEQ == PEQ = True
@@ -248,44 +272,52 @@ instance Monoid Ordering where
 --
 -- TODO: Is it worth adding the complexity of a preorder? https://en.wikipedia.org/wiki/Preorder
 --
-class Eq a => POrd a where
-    pcompare :: a -> a -> POrdering
+-- class Eq_ a => POrd_ a where
+--     pcompare :: a -> a -> POrdering
+--
+--     infix 4 <
+--     (<) :: a -> a -> Bool_ a
+--     a1 < a2 = case pcompare a1 a2 of
+--         PLT -> true
+--         otherwise -> false
+--
+--     infix 4 <=
+--     (<=) :: a -> a -> Bool_ a
+--     a1 <= a2 = case pcompare a1 a2 of
+--         PLT -> true
+--         PEQ -> true
+--         otherwise -> false
+--
+--     infix 4 >
+--     (>) :: a -> a -> Bool_ a
+--     a1 > a2 = case pcompare a1 a2 of
+--         PGT -> true
+--         otherwise -> false
+--
+--     infix 4 >=
+--     (>=) :: a -> a -> Bool_ a
+--     a1 >= a2 = case pcompare a1 a2 of
+--         PGT -> true
+--         PEQ -> true
+--         otherwise -> false
 
-    infix 4 <
-    (<) :: a -> a -> Bool
-    a1 < a2 = case pcompare a1 a2 of
-        PLT -> True
-        otherwise -> False
+type POrd_ a = Lattice a
 
-    infix 4 <=
-    (<=) :: a -> a -> Bool
-    a1 <= a2 = case pcompare a1 a2 of
-        PLT -> True
-        PEQ -> True
-        otherwise -> False
+class (POrd_ a, Eq a) => POrd a
+instance (POrd_ a, Eq a) => POrd a
 
-    infix 4 >
-    (>) :: a -> a -> Bool
-    a1 > a2 = case pcompare a1 a2 of
-        PGT -> True
-        otherwise -> False
-
-    infix 4 >=
-    (>=) :: a -> a -> Bool
-    a1 >= a2 = case pcompare a1 a2 of
-        PGT -> True
-        PEQ -> True
-        otherwise -> False
-
-law_POrd_reflexivity :: POrd a => a -> Bool
+law_POrd_reflexivity :: POrd a => a -> Bool_ a
 law_POrd_reflexivity a = a<=a
 
-law_POrd_antisymmetry :: POrd a => a -> a -> Bool
+law_POrd_antisymmetry :: POrd a => a -> a -> Bool_ a
 law_POrd_antisymmetry a1 a2
     | a1 <= a2 && a2 <= a1 = a1 == a2
-    | otherwise = True
+    | otherwise = true
+-- law_POrd_antisymmetry a1 a2 = if inf (a1 <= a2) (a2 <= a1)
+--     then a1 == a2
+--     else true
 
-law_POrd_transitivity :: POrd a => a -> a -> a -> Bool
+law_POrd_transitivity :: POrd a => a -> a -> a -> Bool_ a
 law_POrd_transitivity  a1 a2 a3
     | a1 <= a2 && a2 <= a3 = a1 <= a3
     | a1 <= a3 && a3 <= a2 = a1 <= a2
@@ -293,34 +325,34 @@ law_POrd_transitivity  a1 a2 a3
     | a2 <= a3 && a3 <= a1 = a2 <= a1
     | a3 <= a2 && a2 <= a1 = a3 <= a1
     | a3 <= a1 && a1 <= a2 = a3 <= a2
-    | otherwise = True
+    | otherwise = true
 
-defn_POrd_pcompare :: POrd a => a -> a -> Bool
-defn_POrd_pcompare a1 a2 = case pcompare a1 a2 of
-    PEQ -> a1 == a2 && a1 >= a2 && a1 <= a2 && not (a1 > a2) && not (a1 < a2)
-    PLT -> a1 < a2 && a1 <= a2 && a1 /= a2 && not (a1 >= a2) && not (a1 > a2)
-    PGT -> a1 > a2 && a1 >= a2 && a1 /= a2 && not (a1 <= a2) && not (a1 < a2)
-    PNA -> not (a1==a2 || a1 <= a2 || a1 < a2 || a1 > a2 || a1 >= a2)
+-- defn_POrd_pcompare :: POrd a => a -> a -> Bool_ a
+-- defn_POrd_pcompare a1 a2 = case pcompare a1 a2 of
+--     PEQ -> a1 == a2 && a1 >= a2 && a1 <= a2 && not (a1 > a2) && not (a1 < a2)
+--     PLT -> a1 < a2 && a1 <= a2 && a1 /= a2 && not (a1 >= a2) && not (a1 > a2)
+--     PGT -> a1 > a2 && a1 >= a2 && a1 /= a2 && not (a1 <= a2) && not (a1 < a2)
+--     PNA -> not (a1==a2 || a1 <= a2 || a1 < a2 || a1 > a2 || a1 >= a2)
 
-defn_POrd_greaterthan :: POrd a => a -> a -> Bool
+defn_POrd_greaterthan :: POrd a => a -> a -> Bool_ a
 defn_POrd_greaterthan a1 a2
     | a1 < a2 = a2 >= a1
     | a1 > a2 = a2 <= a1
-    | otherwise = True
+    | otherwise = true
 
--- | A chain is a collection of elements all of which can be compared
-isChain :: POrd a => [a] -> Bool
-isChain [] = True
-isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isAntichain xs
+-- -- | A chain is a collection of elements all of which can be compared
+-- isChain :: POrd a => [a] -> Bool_ a
+-- isChain [] = true
+-- isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isAntichain xs
 
 -- | An antichain is a collection of elements none of which can be compared
 --
 -- See <http://en.wikipedia.org/wiki/Antichain wikipedia> for more details.
 --
 -- See also the article on <http://en.wikipedia.org/wiki/Dilworth%27s_theorem Dilward's Theorem>.
-isAntichain :: POrd a => [a] -> Bool
-isAntichain [] = True
-isAntichain (x:xs) = all (==PNA) (map (pcompare x) xs) && isAntichain xs
+-- isAntichain :: POrd a => [a] -> Bool_ a
+-- isAntichain [] = true
+-- isAntichain (x:xs) = all (==PNA) (map (pcompare x) xs) && isAntichain xs
 
 preludeOrdering2POrdering :: P.Ordering -> POrdering
 preludeOrdering2POrdering P.LT = PLT
@@ -328,25 +360,31 @@ preludeOrdering2POrdering P.GT = PGT
 preludeOrdering2POrdering P.EQ = PEQ
 
 #define mkPOrd(x)\
-instance POrd x where\
+instance POrd_ x where\
     pcompare a1 a2 = preludeOrdering2POrdering $ P.compare a1 a2;\
     (<)  = (P.<)        ;\
     (<=) = (P.<=)       ;\
     (>)  = (P.>)        ;\
     (>=) = (P.>=)
 
-mkPOrd(Char)
-mkPOrd(Int)
-mkPOrd(Integer)
-mkPOrd(Float)
-mkPOrd(Double)
-mkPOrd(Rational)
+-- mkPOrd(Char)
+-- mkPOrd(Int)
+-- mkPOrd(Integer)
+-- mkPOrd(Float)
+-- mkPOrd(Double)
+-- mkPOrd(Rational)
+--
+-- instance POrd_ Bool where
+--     pcompare False True  = PLT
+--     pcompare True  False = PGT
+--     pcompare False False = PEQ
+--     pcompare True  True  = PEQ
 
-instance POrd Bool where
-    pcompare False True  = PLT
-    pcompare True  False = PGT
-    pcompare False False = PEQ
-    pcompare True  True  = PEQ
+instance Eq_ b => Eq_ (a -> b) where
+    type Bool_ (a -> b) = a -> Bool_ b
+    f==g = \a -> f a == g a
+
+-- instance POrd_ (a -> b) where
 
 -------------------
 
@@ -362,7 +400,7 @@ law_Enum_succ :: Enum b => b -> b -> Bool
 law_Enum_succ b1 b2 = fromEnum (succ b1) == fromEnum b1+1
                    || fromEnum (succ b1) == fromEnum b1
 
-law_Enum_toEnum :: Enum b => b -> Bool
+law_Enum_toEnum :: (POrd_ b, Enum b) => b -> Bool
 law_Enum_toEnum b = toEnum (fromEnum b) == b
 
 instance Enum Bool where
@@ -402,7 +440,7 @@ law_Graded_pred :: Graded b => b -> b -> Bool
 law_Graded_pred b1 b2 = fromEnum (pred b1) == fromEnum b1-1
                      || fromEnum (pred b1) == fromEnum b1
 
-law_Graded_fromEnum :: Graded b => b -> b -> Bool
+law_Graded_fromEnum :: (POrd_ b, Graded b) => b -> b -> Bool
 law_Graded_fromEnum b1 b2
     | b1 <  b2  = fromEnum b1 <  fromEnum b2
     | b1 >  b2  = fromEnum b1 >  fromEnum b2
@@ -430,10 +468,10 @@ instance Graded Char where
     fromEnum = P.fromEnum
 instance Graded Integer where pred = P.pred; fromEnum = P.fromEnum
 
-(<.) :: Graded b => b -> b -> Bool
+(<.) :: (POrd_ b, Graded b) => b -> b -> Bool
 b1 <. b2 = b1 == pred b2
 
-(>.) :: Enum b => b -> b -> Bool
+(>.) :: (POrd_ b, Enum b) => b -> b -> Bool
 b1 >. b2 = b1 == succ b2
 
 ---------------------------------------
@@ -443,11 +481,11 @@ b1 >. b2 = b1 == succ b2
 -- See https://en.wikipedia.org/wiki/Total_order
 class (Lattice a, POrd a) => Ord a where
     compare :: a -> a -> Ordering
-    compare a1 a2 = case pcompare a1 a2 of
-        PLT -> LT
-        PGT -> GT
-        PEQ -> EQ
-        PNA -> error "PNA given by pcompare on a totally ordered type"
+--     compare a1 a2 = case pcompare a1 a2 of
+--         PLT -> LT
+--         PGT -> GT
+--         PEQ -> EQ
+--         PNA -> error "PNA given by pcompare on a totally ordered type"
 
     {-# INLINE min #-}
     min :: a -> a -> a
@@ -457,21 +495,17 @@ class (Lattice a, POrd a) => Ord a where
     max :: a -> a -> a
     max = sup
 
-law_Ord_totality :: Ord a => a -> a -> Bool
+type Ord_ a = (Ord a, POrd_ a)
+
+law_Ord_totality :: Ord_ a => a -> a -> Bool
 law_Ord_totality a1 a2 = a1 <= a2 || a2 <= a1
 
-defn_Ord_compare :: Ord a => a -> a -> Bool
-defn_Ord_compare a1 a2 = case (compare a1 a2, pcompare a1 a2) of
-    (LT,PLT) -> True
-    (GT,PGT) -> True
-    (EQ,PEQ) -> True
-    _        -> False
-
-newtype WithPreludeOrd a = WithPreludeOrd a
-    deriving (Read,Show,NFData,Eq,POrd,Ord,InfSemilattice,SupSemilattice,Lattice)
-
-instance Ord a => P.Ord (WithPreludeOrd a) where
-    compare (WithPreludeOrd a1) (WithPreludeOrd a2) = compare a1 a2
+-- defn_Ord_compare :: Ord_ a => a -> a -> Bool
+-- defn_Ord_compare a1 a2 = case (compare a1 a2, pcompare a1 a2) of
+--     (LT,PLT) -> True
+--     (GT,PGT) -> True
+--     (EQ,PEQ) -> True
+--     _        -> False
 
 -- preludeOrdering2Ordering :: P.Ordering -> Ordering
 -- preludeOrdering2Ordering P.LT = LT
@@ -501,24 +535,30 @@ instance Ord Bool where
 -------------------
 
 -- | This is more commonly known as a "meet" semilattice
-class InfSemilattice b where
+class Eq_ a => InfSemilattice b where
     inf :: b -> b -> b
 
-law_InfSemilattice_commutative :: (Eq b, InfSemilattice b) => b -> b -> Bool
+    (<=) :: (Eq_ b, InfSemilattice b) => b -> b -> Bool_ b
+--     b1 <=: b2 = inf b1 b2 == b1
+
+    (<) :: (Eq_ b, InfSemilattice b) => b -> b -> Bool_ b
+--     b1 <: b2 = inf b1 b2 == b1 && b1 /= b2
+
+law_InfSemilattice_commutative :: (Ord_ b, Eq b, InfSemilattice b) => b -> b -> Bool
 law_InfSemilattice_commutative b1 b2 = inf b1 b2 == inf b2 b1
 
-law_InfSemilattice_associative :: (Eq b, InfSemilattice b) => b -> b -> b -> Bool
+law_InfSemilattice_associative :: (Ord_ b, Eq b, InfSemilattice b) => b -> b -> b -> Bool
 law_InfSemilattice_associative b1 b2 b3 = inf (inf b1 b2) b3 == inf b1 (inf b2 b3)
 
-theorem_InfSemilattice_idempotent :: (Eq b, InfSemilattice b) => b -> Bool
+theorem_InfSemilattice_idempotent :: (Ord_ b, Eq b, InfSemilattice b) => b -> Bool
 theorem_InfSemilattice_idempotent b = inf b b == b
 
-defn_POrd_lessthaninf :: (InfSemilattice a, POrd a) => a -> a -> Bool
-defn_POrd_lessthaninf a1 a2 = case pcompare a1 a2 of
-    PEQ -> inf a1 a2 == a1
-    PLT -> inf a1 a2 == a1
-    PGT -> inf a1 a2 == a2
-    PNA -> inf a1 a2 /= a1 && inf a1 a2 /= a2
+-- defn_POrd_lessthaninf :: (InfSemilattice a, POrd a) => a -> a -> Bool
+-- defn_POrd_lessthaninf a1 a2 = case pcompare a1 a2 of
+--     PEQ -> inf a1 a2 == a1
+--     PLT -> inf a1 a2 == a1
+--     PGT -> inf a1 a2 == a2
+--     PNA -> inf a1 a2 /= a1 && inf a1 a2 /= a2
 
 instance InfSemilattice Bool       where inf = (P.&&)
 instance InfSemilattice Char       where inf = P.min
@@ -535,21 +575,27 @@ instance InfSemilattice b => InfSemilattice (a -> b) where
 class SupSemilattice b where
     sup :: b -> b -> b
 
-law_SupSemilattice_commutative :: (Eq b, SupSemilattice b) => b -> b -> Bool
+    (>=) :: (Eq_ b, InfSemilattice b) => b -> b -> Bool_ b
+--     b1 <=: b2 = inf b1 b2 == b1
+
+    (>) :: (Eq_ b, InfSemilattice b) => b -> b -> Bool_ b
+--     b1 <: b2 = inf b1 b2 == b1 && b1 /= b2
+
+law_SupSemilattice_commutative :: (Ord_ b, Eq b, SupSemilattice b) => b -> b -> Bool
 law_SupSemilattice_commutative b1 b2 = sup b1 b2 == sup b2 b1
 
-law_SupSemilattice_associative :: (Eq b, SupSemilattice b) => b -> b -> b -> Bool
+law_SupSemilattice_associative :: (Ord_ b, Eq b, SupSemilattice b) => b -> b -> b -> Bool
 law_SupSemilattice_associative b1 b2 b3 = sup (sup b1 b2) b3 == sup b1 (sup b2 b3)
 
-theorem_SupSemilattice_idempotent :: (Eq b, SupSemilattice b) => b -> Bool
+theorem_SupSemilattice_idempotent :: (Ord_ b, Eq b, SupSemilattice b) => b -> Bool
 theorem_SupSemilattice_idempotent b = sup b b == b
 
-defn_POrd_lessthansup :: (SupSemilattice a, POrd a) => a -> a -> Bool
-defn_POrd_lessthansup a1 a2 = case pcompare a1 a2 of
-    PEQ -> sup a1 a2 == a1
-    PLT -> sup a1 a2 == a2
-    PGT -> sup a1 a2 == a1
-    PNA -> sup a1 a2 /= a1 && sup a1 a2 /= a2
+-- defn_POrd_lessthansup :: (Ord_ a, SupSemilattice a, POrd a) => a -> a -> Bool
+-- defn_POrd_lessthansup a1 a2 = case pcompare a1 a2 of
+--     PEQ -> sup a1 a2 == a1
+--     PLT -> sup a1 a2 == a2
+--     PGT -> sup a1 a2 == a1
+--     PNA -> sup a1 a2 /= a1 && sup a1 a2 /= a2
 
 instance SupSemilattice Bool       where sup = (P.||)
 instance SupSemilattice Char       where sup = P.max
@@ -572,10 +618,10 @@ instance SupSemilattice b => SupSemilattice (a -> b) where
 -- See <https://en.wikipedia.org/wiki/Lattice_%28order%29 wikipedia> for more details.
 class (InfSemilattice b, SupSemilattice b) => Lattice b where
 
-law_Lattice_infabsorption :: (Eq b, Lattice b) => b -> b -> Bool
+law_Lattice_infabsorption :: (Ord_ b, Eq b, Lattice b) => b -> b -> Bool
 law_Lattice_infabsorption b1 b2 = inf b1 (sup b1 b2) == b1
 
-law_Lattice_supabsorption :: (Eq b, Lattice b) => b -> b -> Bool
+law_Lattice_supabsorption :: (Ord_ b, Eq b, Lattice b) => b -> b -> Bool
 law_Lattice_supabsorption b1 b2 = sup b1 (inf b1 b2) == b1
 
 {-# INLINE (&&) #-}
@@ -606,7 +652,7 @@ instance Lattice b => Lattice (a -> b)
 class InfSemilattice b => MinBound b where
     minBound :: b
 
-law_MinBound_inf :: (Eq b, MinBound b) => b -> Bool
+law_MinBound_inf :: (Ord_ b, Eq b, MinBound b) => b -> Bool
 law_MinBound_inf b = inf b minBound == minBound
 
 -- | "false" is an upper bound because `a && false = false` for all a.
@@ -616,7 +662,7 @@ false = minBound
 -- | Two sets are disjoint if their infimum is the empty set.
 -- This function generalizes the notion of disjointness for any lower bounded lattice.
 -- FIXME: add other notions of disjoint
-disjoint :: (Eq b, MinBound b) => b -> b -> Bool
+disjoint :: (Ord_ b, Eq b, MinBound b) => b -> b -> Bool
 disjoint b1 b2 = (inf b1 b2) == minBound
 
 instance MinBound Bool where minBound = False
@@ -626,7 +672,7 @@ instance MinBound Float where minBound = -1/0 -- FIXME: should be a primop for t
 instance MinBound Double where minBound = -1/0
 
 instance MinBound b => MinBound (a -> b) where minBound = \x -> minBound
-instance POrd a => MinBound [a] where minBound = []
+-- instance POrd a => MinBound [a] where minBound = []
 
 -------------------
 
@@ -637,7 +683,7 @@ instance POrd a => MinBound [a] where minBound = []
 class SupSemilattice b => MaxBound b where
     maxBound :: b
 
-law_MaxBound_sup :: (Eq b, MaxBound b) => b -> Bool
+law_MaxBound_sup :: (Ord_ b, Eq b, MaxBound b) => b -> Bool
 law_MaxBound_sup b = sup b maxBound == maxBound
 
 -- | "true" is an lower bound because `a && true = true` for all a.
@@ -684,16 +730,16 @@ class Bounded b => Heyting b where
     infixl 3 ==>
     (==>) :: b -> b -> b
 
-law_Heyting_maxbound :: (Eq b, Heyting b) => b -> Bool
+law_Heyting_maxbound :: (Ord_ b, Eq b, Heyting b) => b -> Bool
 law_Heyting_maxbound b = (b ==> b) == maxBound
 
-law_Heyting_infleft :: (Eq b, Heyting b) => b -> b -> Bool
+law_Heyting_infleft :: (Ord_ b, Eq b, Heyting b) => b -> b -> Bool
 law_Heyting_infleft b1 b2 = (b1 && (b1 ==> b2)) == (b1 && b2)
 
-law_Heyting_infright :: (Eq b, Heyting b) => b -> b -> Bool
+law_Heyting_infright :: (Ord_ b, Eq b, Heyting b) => b -> b -> Bool
 law_Heyting_infright b1 b2 = (b2 && (b1 ==> b2)) == b2
 
-law_Heyting_distributive :: (Eq b, Heyting b) => b -> b -> b -> Bool
+law_Heyting_distributive :: (Ord_ b, Eq b, Heyting b) => b -> b -> b -> Bool
 law_Heyting_distributive b1 b2 b3 = (b1 ==> (b2 && b3)) == ((b1 ==> b2) && (b1 ==> b3))
 
 -- | FIXME: add the axioms for intuitionist logic, which are theorems based on these laws
@@ -712,59 +758,29 @@ instance Heyting b => Heyting (a -> b) where f ==> g = \a -> f a ==> g a
 -- | Generalizes Boolean variables.
 --
 -- See <https://en.wikipedia.org/wiki/Boolean_algebra_%28structure%29 wikipedia> for more details.
-class Heyting b => Boolean b where
+class (IfResult b b ~ b, Heyting b) => Boolean b where
     not :: b -> b
 
-law_Boolean_infcomplement :: (Eq b, Boolean b) => b -> Bool
+    type IfResult b a :: *
+    type IfResult b a = a
+
+--     ifThenElse :: b -> a -> a -> IfResult b a
+--     ifThenElse = P.ifThenElse
+
+law_Boolean_infcomplement :: (Ord_ b, Eq b, Boolean b) => b -> Bool
 law_Boolean_infcomplement b = (b || not b) == true
 
-law_Boolean_supcomplement :: (Eq b, Boolean b) => b -> Bool
+law_Boolean_supcomplement :: (Ord_ b, Eq b, Boolean b) => b -> Bool
 law_Boolean_supcomplement b = (b && not b) == false
 
-law_Boolean_infdistributivity :: (Eq b, Boolean b) => b -> b -> b -> Bool
+law_Boolean_infdistributivity :: (Ord_ b, Eq b, Boolean b) => b -> b -> b -> Bool
 law_Boolean_infdistributivity b1 b2 b3 = (b1 || (b2 && b3)) == ((b1 || b2) && (b1 || b3))
 
-law_Boolean_supdistributivity :: (Eq b, Boolean b) => b -> b -> b -> Bool
+law_Boolean_supdistributivity :: (Ord_ b, Eq b, Boolean b) => b -> b -> b -> Bool
 law_Boolean_supdistributivity b1 b2 b3 = (b1 && (b2 || b3)) == ((b1 && b2) || (b1 && b3))
 
 instance Boolean Bool where not = P.not
 instance Boolean b => Boolean (a -> b) where not f = \x -> not $ f x
-
----------
-
--- | A Boolean algebra is a special type of Ring.
--- Their applications (set-like operations) tend to be very different than Rings, so it makes sense for the class hierarchies to be completely unrelated.
--- The "BooleanRing" type, however, provides the correct transformation.
-newtype BooleanRing b = BooleanRing b
-    deriving (Read,Show,Arbitrary,NFData,Eq)
-
-mkBooleanRing :: Boolean b => b -> BooleanRing b
-mkBooleanRing = BooleanRing
-
-instance Boolean b => Semigroup (BooleanRing b) where
---     (BooleanRing b1)+(BooleanRing b2) = BooleanRing $ (b1 && not b2) || (not b1 && b2)
-    (BooleanRing b1)+(BooleanRing b2) = BooleanRing $ (b1 || b2) && not (b1 && b2)
-
-instance Boolean b => Abelian (BooleanRing b)
-
-instance Boolean b => Monoid (BooleanRing b) where
-    zero = BooleanRing $ false
-
-instance Boolean b => Cancellative (BooleanRing b) where
-    (-)=(+)
---     b1-b2 = b1+negate b2
-
-instance Boolean b => Group (BooleanRing b) where
-    negate = id
---     negate (BooleanRing b) = BooleanRing $ not b
-
-instance Boolean b => Rg (BooleanRing b) where
-    (BooleanRing b1)*(BooleanRing b2) = BooleanRing $ b1 && b2
-
-instance Boolean b => Rig (BooleanRing b) where
-    one = BooleanRing $ true
-
-instance Boolean b => Ring (BooleanRing b)
 
 -------------------------------------------------------------------------------
 -- numeric classes
@@ -778,7 +794,7 @@ class Semigroup g where
 --     associativeEpsilon :: Ring (Scalar g) => g -> Scalar g
 --     associativeEpsilon _ = 0
 
-law_Semigroup_associativity :: ( Eq g, Semigroup g ) => g -> g -> g -> Bool
+law_Semigroup_associativity :: (Ord_ g,  Eq g, Semigroup g ) => g -> g -> g -> Bool
 law_Semigroup_associativity g1 g2 g3 = g1 + (g2 + g3) == (g1 + g2) + g3
 
 -- theorem_Semigroup_associativity ::
@@ -848,10 +864,10 @@ instance Semigroup   b => Semigroup   (a -> b) where f+g = \a -> f a + g a
 class Semigroup g => Monoid g where
     zero :: g
 
-law_Monoid_leftid :: (Monoid g, Eq g) => g -> Bool
+law_Monoid_leftid :: (Ord_ g, Monoid g, Eq g) => g -> Bool
 law_Monoid_leftid g = zero + g == g
 
-law_Monoid_rightid :: (Monoid g, Eq g) => g -> Bool
+law_Monoid_rightid :: (Ord_ g, Monoid g, Eq g) => g -> Bool
 law_Monoid_rightid g = g + zero == g
 
 ---------
@@ -907,10 +923,10 @@ class Semigroup g => Cancellative g where
     infixl 6 -
     (-) :: g -> g -> g
 
-law_Cancellative_rightminus1 :: (Eq g, Cancellative g) => g -> g -> Bool
+law_Cancellative_rightminus1 :: (Ord_ g, Eq g, Cancellative g) => g -> g -> Bool
 law_Cancellative_rightminus1 g1 g2 = (g1 + g2) - g2 == g1
 
-law_Cancellative_rightminus2 :: (Eq g, Cancellative g) => g -> g -> Bool
+law_Cancellative_rightminus2 :: (Ord_ g, Eq g, Cancellative g) => g -> g -> Bool
 law_Cancellative_rightminus2 g1 g2 = g1 + (g2 - g2) == g1
 
 instance Cancellative Int        where (-) = (P.-)
@@ -949,13 +965,13 @@ class (Cancellative g, Monoid g) => Group g where
     negate :: g -> g
     negate g = zero - g
 
-defn_Group_negateminus :: (Eq g, Group g) => g -> g -> Bool
+defn_Group_negateminus :: (Ord_ g, Eq g, Group g) => g -> g -> Bool
 defn_Group_negateminus g1 g2 = g1 + negate g2 == g1 - g2
 
-law_Group_leftinverse :: (Eq g, Group g) => g -> Bool
+law_Group_leftinverse :: (Ord_ g, Eq g, Group g) => g -> Bool
 law_Group_leftinverse g = negate g + g == zero
 
-law_Group_rightinverse :: (Eq g, Group g) => g -> Bool
+law_Group_rightinverse :: (Ord_ g, Eq g, Group g) => g -> Bool
 law_Group_rightinverse g = g + negate g == zero
 
 instance Group Int        where negate = P.negate
@@ -985,7 +1001,7 @@ instance Group b => Group (a -> b) where negate f = negate . f
 
 class Semigroup m => Abelian m
 
-law_Abelian_commutative :: (Abelian g, Eq g) => g -> g -> Bool
+law_Abelian_commutative :: (Ord_ g, Abelian g, Eq g) => g -> g -> Bool
 law_Abelian_commutative g1 g2 = g1 + g2 == g2 + g1
 
 instance Abelian Int
@@ -1031,19 +1047,19 @@ class (Abelian r, Monoid r) => Rg r where
     infixl 7 *
     (*) :: r -> r -> r
 
-law_Rg_multiplicativeAssociativity :: (Eq r, Rg r) => r -> r -> r -> Bool
+law_Rg_multiplicativeAssociativity :: (Ord_ r, Eq r, Rg r) => r -> r -> r -> Bool
 law_Rg_multiplicativeAssociativity r1 r2 r3 = (r1 * r2) * r3 == r1 * (r2 * r3)
 
-law_Rg_multiplicativeCommutivity :: (Eq r, Rg r) => r -> r -> Bool
+law_Rg_multiplicativeCommutivity :: (Ord_ r, Eq r, Rg r) => r -> r -> Bool
 law_Rg_multiplicativeCommutivity r1 r2 = r1*r2 == r2*r1
 
-law_Rg_annihilation :: (Eq r, Rg r) => r -> Bool
+law_Rg_annihilation :: (Ord_ r, Eq r, Rg r) => r -> Bool
 law_Rg_annihilation r = r * zero == zero
 
-law_Rg_distributivityLeft :: (Eq r, Rg r) => r -> r -> r -> Bool
+law_Rg_distributivityLeft :: (Ord_ r, Eq r, Rg r) => r -> r -> r -> Bool
 law_Rg_distributivityLeft r1 r2 r3 = r1*(r2+r3) == r1*r2+r1*r3
 
-theorem_Rg_distributivityRight :: (Eq r, Rg r) => r -> r -> r -> Bool
+theorem_Rg_distributivityRight :: (Ord_ r, Eq r, Rg r) => r -> r -> r -> Bool
 theorem_Rg_distributivityRight r1 r2 r3 = (r2+r3)*r1 == r2*r1+r3*r1
 
 instance Rg Int         where (*) = (P.*)
@@ -1066,7 +1082,7 @@ class (Monoid r, Rg r) => Rig r where
     -- | the multiplicative identity
     one :: r
 
-law_Rig_multiplicativeId :: (Eq r, Rig r) => r -> Bool
+law_Rig_multiplicativeId :: (Ord_ r, Eq r, Rig r) => r -> Bool
 law_Rig_multiplicativeId r = r * one == r && one * r == r
 
 instance Rig Int         where one = 1
@@ -1097,7 +1113,7 @@ class (Rng r, Rig r) => Ring r where
     fromInteger :: Integer -> r
     fromInteger = slowFromInteger
 
-defn_Ring_fromInteger :: (Eq r, Ring r) => r -> Integer -> Bool
+defn_Ring_fromInteger :: (Ord_ r, Eq r, Ring r) => r -> Integer -> Bool
 defn_Ring_fromInteger r i = fromInteger i `asTypeOf` r
                          == slowFromInteger i
 
@@ -1157,17 +1173,17 @@ class Ring a => Integral a where
     divMod :: a -> a -> (a,a)
 
 
-law_Integral_divMod :: (Eq a, Integral a) => a -> a -> Bool
+law_Integral_divMod :: (Ord_ a, Eq a, Integral a) => a -> a -> Bool
 law_Integral_divMod a1 a2 = if a2 /= 0
     then a2 * (a1 `div` a2) + (a1 `mod` a2) == a1
     else True
 
-law_Integral_quotRem :: (Eq a, Integral a) => a -> a -> Bool
+law_Integral_quotRem :: (Ord_ a, Eq a, Integral a) => a -> a -> Bool
 law_Integral_quotRem a1 a2 = if a2 /= 0
     then a2 * (a1 `quot` a2) + (a1 `rem` a2) == a1
     else True
 
-law_Integral_toFromInverse :: (Eq a, Integral a) => a -> Bool
+law_Integral_toFromInverse :: (Ord_ a, Eq a, Integral a) => a -> Bool
 law_Integral_toFromInverse a = fromInteger (toInteger a) == a
 
 {-# NOINLINE [1] fromIntegral #-}
@@ -1413,11 +1429,11 @@ class (Module v, Field (Scalar v)) => VectorSpace v where
     infixl 7 ./.
     (./.) :: v -> v -> v
 
-{-# INLINE normalize #-}
-normalize :: (Normed v, VectorSpace v) => v -> v
-normalize v = if abs v==zero
-    then v
-    else v ./ abs v
+-- {-# INLINE normalize #-}
+-- normalize :: (Normed v, VectorSpace v) => v -> v
+-- normalize v = if abs v==zero
+--     then v
+--     else v ./ abs v
 
 
 instance (VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => VectorSpace (a,b) where
@@ -1501,7 +1517,7 @@ class
 
 class
 --     ( Field (Scalar v)
-    ( Ord (Scalar v)
+    ( Ord_ (Scalar v)
     , Ring (Scalar v)
     , Eq v
     ) => MetricSpace v
@@ -1510,12 +1526,12 @@ class
     distance :: v -> v -> Scalar v
 
     {-# INLINE isFartherThan #-}
-    isFartherThan :: v -> v -> Scalar v -> Bool
+    isFartherThan :: v -> v -> Scalar v -> Bool_ v
     isFartherThan s1 s2 b =
         {-# SCC isFartherThan #-}
         if dist > b
-            then True
-            else False
+            then true
+            else false
         where
             dist = distance s1 s2
 
@@ -1532,7 +1548,7 @@ class
 law_MetricSpace_nonnegativity :: MetricSpace v => v -> v -> Bool
 law_MetricSpace_nonnegativity v1 v2 = distance v1 v2 >= 0
 
-law_MetricSpace_indiscernables :: (Eq v, MetricSpace v) => v -> v -> Bool
+law_MetricSpace_indiscernables :: (Ord_ v, Eq v, MetricSpace v) => v -> v -> Bool
 law_MetricSpace_indiscernables v1 v2 = if v1 == v2
     then distance v1 v2 == 0
     else distance v1 v2 > 0
@@ -1540,11 +1556,11 @@ law_MetricSpace_indiscernables v1 v2 = if v1 == v2
 law_MetricSpace_symmetry :: MetricSpace v => v -> v -> Bool
 law_MetricSpace_symmetry v1 v2 = distance v1 v2 == distance v2 v1
 
-law_MetricSpace_triangle :: MetricSpace v => v -> v -> v -> Bool
-law_MetricSpace_triangle m1 m2 m3
-    = distance m1 m2 <= distance m1 m3 + distance m2 m3
-   && distance m1 m3 <= distance m1 m2 + distance m2 m3
-   && distance m2 m3 <= distance m1 m3 + distance m2 m1
+-- law_MetricSpace_triangle :: MetricSpace v => v -> v -> v -> Bool
+-- law_MetricSpace_triangle m1 m2 m3
+--     = distance m1 m2 <= distance m1 m3 + distance m2 m3
+--    && distance m1 m3 <= distance m1 m2 + distance m2 m3
+--    && distance m2 m3 <= distance m1 m3 + distance m2 m1
 
 instance MetricSpace Int      where distance x1 x2 = abs $ x1 - x2
 instance MetricSpace Integer  where distance x1 x2 = abs $ x1 - x2
@@ -1633,7 +1649,7 @@ law_Container_preservation s1 s2 e = if e `elem` s1 || e `elem` s2
     then e `elem` (s1+s2)
     else True
 
-law_Container_empty :: (Container s) => s -> Elem s -> Bool
+law_Container_empty :: (Ord_ s, Container s) => s -> Elem s -> Bool
 law_Container_empty s e = elem e (empty `asTypeOf` s) == False
 
 -- | a slightly more suggestive name for a container's monoid identity
@@ -1690,10 +1706,10 @@ class (Normed s, Monoid s) => Unfoldable s where
     snoc :: s -> Elem s -> s
     snoc xs x = xs + singleton x
 
-law_Unfoldable_cons :: (Container s, Unfoldable s) => s -> Elem s -> Bool
+law_Unfoldable_cons :: (Ord_ s, Container s, Unfoldable s) => s -> Elem s -> Bool
 law_Unfoldable_cons s e = elem e (cons e s) == True
 
-law_Unfoldable_snoc :: (Container s, Unfoldable s) => s -> Elem s -> Bool
+law_Unfoldable_snoc :: (Ord_ s, Container s, Unfoldable s) => s -> Elem s -> Bool
 law_Unfoldable_snoc s e = elem e (snoc s e) == True
 
 -- | This function needed for the OverloadedStrings language extension
@@ -1773,30 +1789,30 @@ or :: (Foldable bs, Elem bs~b, Boolean b) => bs -> b
 or = foldl' sup false
 
 {-# INLINE argmin #-}
-argmin :: Ord b => a -> a -> (a -> b) -> a
+argmin :: Ord_ b => a -> a -> (a -> b) -> IfResult (Bool_ b) a
 argmin a1 a2 f = if f a1 < f a2 then a1 else a2
 
 {-# INLINE argmax #-}
-argmax :: Ord b => a -> a -> (a -> b) -> a
+argmax :: Ord_ b => a -> a -> (a -> b) -> IfResult (Bool_ b) a
 argmax a1 a2 f = if f a1 > f a2 then a1 else a2
 
-{-# INLINE argminimum_ #-}
-argminimum_ :: Ord b => a -> [a] -> (a -> b) -> a
-argminimum_ a as f = fstHask $ foldl' go (a,f a) as
-    where
-        go (a1,fa1) a2 = if fa1 < fa2
-            then (a1,fa1)
-            else (a2,fa2)
-            where fa2 = f a2
-
-{-# INLINE argmaximum_ #-}
-argmaximum_ :: Ord b => a -> [a] -> (a -> b) -> a
-argmaximum_ a as f = fstHask $ foldl' go (a,f a) as
-    where
-        go (a1,fa1) a2 = if fa1 > fa2
-            then (a1,fa1)
-            else (a2,fa2)
-            where fa2 = f a2
+-- {-# INLINE argminimum_ #-}
+-- argminimum_ :: Ord b => a -> [a] -> (a -> b) -> a
+-- argminimum_ a as f = fstHask $ foldl' go (a,f a) as
+--     where
+--         go (a1,fa1) a2 = if fa1 < fa2
+--             then (a1,fa1)
+--             else (a2,fa2)
+--             where fa2 = f a2
+--
+-- {-# INLINE argmaximum_ #-}
+-- argmaximum_ :: Ord b => a -> [a] -> (a -> b) -> a
+-- argmaximum_ a as f = fstHask $ foldl' go (a,f a) as
+--     where
+--         go (a1,fa1) a2 = if fa1 > fa2
+--             then (a1,fa1)
+--             else (a2,fa2)
+--             where fa2 = f a2
 
 {-# INLINE maximum #-}
 maximum :: (MinBound b, Ord b) => [b] -> b
@@ -1926,11 +1942,11 @@ instance Container a => Container (Lexical a) where
     elem e (Lexical a) = elem e a
 
 deriving instance Normed a => Normed (Lexical a)
-deriving instance (Eq (Elem a), Foldable a, MetricSpace a) => MetricSpace (Lexical a)
+deriving instance (Ord_ a, Eq (Elem a), Foldable a, MetricSpace a) => MetricSpace (Lexical a)
 deriving instance Unfoldable a => Unfoldable (Lexical a)
 deriving instance Foldable a => Foldable (Lexical a)
 
-instance (Eq (Elem a), Foldable a) => Eq (Lexical a) where
+instance (Eq (Elem a), Foldable a) => Eq_ (Lexical a) where
     (Lexical a1)==(Lexical a2) = toList a1==toList a2
 
 instance (Ord (Elem a), Foldable a) => InfSemilattice (Lexical a) where
@@ -1944,19 +1960,19 @@ instance (Ord (Elem a), Foldable a) => Lattice (Lexical a) where
 instance (Ord (Elem a), Foldable a) => MinBound (Lexical a) where
     minBound = Lexical zero
 
-instance (Ord (Elem a), Foldable a) => POrd (Lexical a) where
-    pcompare (Lexical a1) (Lexical a2) = go (toList a1) (toList a2)
-        where
-            go [] [] = PEQ
-            go [] _  = PLT
-            go _  [] = PGT
-            go (a1:as1) (a2:as2) = case pcompare a1 a2 of
-                PLT -> PLT
-                PGT -> PGT
-                PNA -> PNA
-                PEQ -> go as1 as2
+-- instance (Ord (Elem a), Foldable a) => POrd_ (Lexical a) where
+--     pcompare (Lexical a1) (Lexical a2) = go (toList a1) (toList a2)
+--         where
+--             go [] [] = PEQ
+--             go [] _  = PLT
+--             go _  [] = PGT
+--             go (a1:as1) (a2:as2) = case pcompare a1 a2 of
+--                 PLT -> PLT
+--                 PGT -> PGT
+--                 PNA -> PNA
+--                 PEQ -> go as1 as2
 
-instance (Ord (Elem a), Foldable a) => Ord (Lexical a)
+instance (Ord_ a, Ord (Elem a), Foldable a) => Ord (Lexical a)
 
 -------------------
 
@@ -1964,21 +1980,25 @@ type instance Scalar [a] = Int
 type instance Elem [a] = a
 
 instance POrd a => InfSemilattice [a] where
-    inf [] _  = []
-    inf _  [] = []
-    inf (x:xs) (y:ys) = if x==y
-        then x:inf xs ys
-        else []
+--     inf [] _  = []
+--     inf _  [] = []
+--     inf (x:xs) (y:ys) = if x==y
+--         then x:inf xs ys
+--         else []
 
-instance POrd a => POrd [a] where
-    pcompare [] [] = PEQ
-    pcompare [] _  = PLT
-    pcompare _  [] = PGT
-    pcompare (x:xs) (y:ys) = case (pcompare x y, pcompare xs ys) of
-        (PEQ,PLT) -> PLT
-        (PEQ,PGT) -> PGT
-        (PEQ,PEQ) -> PEQ
-        _         -> PNA
+instance Eq_ a => Eq_ [a] where
+    type Bool_ [a] = Bool_ a
+
+-- instance POrd_ a => POrd_ [a] where
+--
+--     pcompare [] [] = PEQ
+--     pcompare [] _  = PLT
+--     pcompare _  [] = PGT
+--     pcompare (x:xs) (y:ys) = case (pcompare x y, pcompare xs ys) of
+--         (PEQ,PLT) -> PLT
+--         (PEQ,PGT) -> PGT
+--         (PEQ,PEQ) -> PEQ
+--         _         -> PNA
 
 instance Normed [a] where
     abs = P.length
@@ -1990,8 +2010,8 @@ instance Monoid [a] where
     zero = []
 
 instance Eq a => Container [a] where
-    elem _ []       = False
-    elem x (y:ys)   = x==y || elem x ys
+--     elem _ []       = False
+--     elem x (y:ys)   = x==y || elem x ys
 
 instance Unfoldable [a] where
     singleton a = [a]
@@ -2023,188 +2043,3 @@ instance Indexed [a] where
     (!!) (x:xs) 0 = Just x
     (!!) (x:xs) i = xs !! (i-1)
 
--------------------------------------------------------------------------------
--- compatibility layer types
-
-newtype IndexedVector k v = IndexedVector { unsafeGetMap :: Map.Map (WithPreludeOrd k) v }
-    deriving (Read,Show,NFData)
-
-type instance Scalar (IndexedVector k v) = Scalar v
-type instance Elem (IndexedVector k v) = v
-
--- | This is the L2 norm of the vector.
-instance (Floating (Scalar v), IsScalar v, Ord v) => Normed (IndexedVector k v) where
-    {-# INLINE abs #-}
-    abs (IndexedVector m) =
-        {-# SCC abs_IndexedVector #-}
-        sqrt $ sum $ map (**2) $ Map.elems m
-
-instance (Floating (Scalar v), IsScalar v, Ord v, Ord k) => MetricSpace (IndexedVector k v) where
-    {-# INLINE distance #-}
-    distance (IndexedVector m1) (IndexedVector m2) =
-        {-# SCC distance_IndexedVector #-}
-        sqrt $ go 0 (Map.assocs m1) (Map.assocs m2)
-        where
-            go tot [] [] = tot
-            go tot [] ((k,v):xs) = go (tot+v*v) [] xs
-            go tot ((k,v):xs) [] = go (tot+v*v) [] xs
-
-            go tot ((k1,v1):xs1) ((k2,v2):xs2) = case compare k1 k2 of
-                EQ -> go (tot+(v1-v2)*(v1-v2)) xs1 xs2
-                LT -> go (tot+v1*v1) xs1 ((k2,v2):xs2)
-                GT -> go (tot+v2*v2) ((k1,v1):xs1) xs1
-
-    isFartherThanWithDistanceCanError (IndexedVector m1) (IndexedVector m2) dist =
-        {-# SCC isFartherThanWithDistanceCanError_IndexedVector #-}
-        sqrt $ go 0 (Map.assocs m1) (Map.assocs m2)
-        where
-            dist2 = dist*dist
-
-            go tot [] [] = tot
-            go tot xs ys = if tot > dist2
-                then errorVal
-                else go' tot xs ys
-
-            go' tot [] ((k,v):xs) = go (tot+v*v) [] xs
-            go' tot ((k,v):xs) [] = go (tot+v*v) [] xs
-
-            go' tot ((k1,v1):xs1) ((k2,v2):xs2) = case compare k1 k2 of
-                EQ -> go (tot+(v1-v2)*(v1-v2)) xs1 xs2
-                LT -> go (tot+v1*v1) xs1 ((k2,v2):xs2)
-                GT -> go (tot+v2*v2) ((k1,v1):xs1) xs1
-
-instance (Eq k, Eq v) => Eq (IndexedVector k v) where
-    (IndexedVector m1)==(IndexedVector m2) = m1' == m2'
-        where
-            m1' = removeWithPreludeOrd $ Map.toList m1
-            m2' = removeWithPreludeOrd $ Map.toList m2
-            removeWithPreludeOrd [] = []
-            removeWithPreludeOrd ((WithPreludeOrd k,v):xs) = (k,v):removeWithPreludeOrd xs
-
--- FIXME: this would be faster if we don't repeat all the work of the comparisons
--- FIXME: is this the correct instance?
--- FIXME: this is the ordering for an Array; create a SparseArray type
--- instance (Ord k, Eq v, Semigroup v) => POrd (IndexedVector k v) where
---     pcompare (IndexedVector m1) (IndexedVector m2) = if (IndexedVector m1)==(IndexedVector m2)
---         then PEQ
---         else if Map.isSubmapOfBy (==) m1 m2
---             then PLT
---             else if Map.isSubmapOfBy (==) m2 m1
---                 then PGT
---                 else PNA
-
-instance (Ord k, POrd v, Semigroup v) => POrd (IndexedVector k v) where
-    pcompare (IndexedVector m1) (IndexedVector m2) = go (Map.assocs m1) (Map.assocs m2)
-        where
-            go [] [] = PEQ
-            go [] _  = PLT
-            go _  [] = PGT
-            go ((k1,v1):xs1) ((k2,v2):xs2) = case pcompare k1 k2 of
-                PNA -> PNA
-                PLT -> PLT
-                PGT -> PGT
-                PEQ -> case pcompare v1 v2 of
-                    PNA -> PNA
-                    PLT -> PLT
-                    PGT -> PGT
-                    PEQ -> go xs1 xs2
-
-instance (Ord k, POrd v, Semigroup v) => Ord (IndexedVector k v) where
-
-instance (Ord k, Semigroup v) => InfSemilattice (IndexedVector k v) where
-    inf (IndexedVector m1) (IndexedVector m2) = IndexedVector $ Map.unionWith (+) m1 m2
-
-instance (Ord k, Semigroup v) => SupSemilattice (IndexedVector k v) where
-    sup (IndexedVector m1) (IndexedVector m2) = IndexedVector $ Map.intersectionWith (+) m1 m2
-
-instance (Ord k, Semigroup v) => Lattice (IndexedVector k v) where
-
-instance (Ord k, Semigroup v) => Semigroup (IndexedVector k v) where
-    (+) = inf
-
-instance (Ord k, Semigroup v) => Monoid (IndexedVector k v) where
-    zero = IndexedVector $ Map.empty
-
-instance (Ord k, Abelian v) => Abelian (IndexedVector k v)
-
-instance (Ord k, Semigroup v, Eq v) => Container (IndexedVector k v) where
-    elem x (IndexedVector m) = elem x $ P.map snd $ Map.toList m
-
-type instance Index (IndexedVector k v) = k
-
-instance (Ord k, Semigroup v) => Indexed (IndexedVector k v) where
-    (IndexedVector m) !! k = Map.lookup (WithPreludeOrd k) m
-
-instance (Ord k, Semigroup v) => IndexedUnfoldable (IndexedVector k v) where
-    singletonAt i e = IndexedVector $ Map.singleton (WithPreludeOrd i) e
-
-    consAt i e (IndexedVector s) = IndexedVector $ Map.insert (WithPreludeOrd i) e s
-
-    snocAt (IndexedVector s) i e = IndexedVector $ Map.insert (WithPreludeOrd i) e s
-
-    fromIndexedList xs = IndexedVector $ Map.fromList $ map (\(i,e) -> (WithPreludeOrd i,e)) xs
-
-instance (Ord k, Semigroup v) => IndexedFoldable (IndexedVector k v) where
-    toIndexedList (IndexedVector s) = map (\(WithPreludeOrd i,e) -> (i,e)) $ Map.assocs s
-
-instance (Ord k, Semigroup v) => IndexedDeletable (IndexedVector k v) where
-    deleteAt k (IndexedVector s) = IndexedVector $ Map.delete (WithPreludeOrd k) s
-
----------------------------------------
-
-newtype Set a = Set (Set.Set (WithPreludeOrd a))
-
-type instance Scalar (Set a) = Int
-type instance Elem (Set a) = a
-
-instance Normed (Set a) where
-    abs (Set s) = Set.size s
-
-instance Eq a => Eq (Set a) where
-    (Set s1)==(Set s2) = s1'==s2'
-        where
-            s1' = removeWithPreludeOrd $ Set.toList s1
-            s2' = removeWithPreludeOrd $ Set.toList s2
-            removeWithPreludeOrd [] = []
-            removeWithPreludeOrd (WithPreludeOrd x:xs) = x:removeWithPreludeOrd xs
-
--- | FIXME: this would be faster if we don't repeat all the work of the comparisons
-instance Ord a => POrd (Set a) where
-    pcompare (Set s1) (Set s2) = if (Set s1)==(Set s2)
-        then PEQ
-        else if Set.isSubsetOf s1 s2
-            then PLT
-            else if Set.isSubsetOf s2 s1
-                then PGT
-                else PNA
-
-instance Ord a => InfSemilattice (Set a) where
-    inf (Set s1) (Set s2) = Set $ Set.union s1 s2
-
-instance Ord a => SupSemilattice (Set a) where
-    sup (Set s1) (Set s2) = Set $ Set.intersection s1 s2
-
-instance Ord a => Lattice (Set a) where
-
-instance Ord a => MinBound (Set a) where
-    minBound = Set $ Set.empty
-
-instance Ord a => Semigroup (Set a) where
-    (Set s1)+(Set s2) = Set $ Set.union s1 s2
-
-instance Ord a => Monoid (Set a) where
-    zero = Set $ Set.empty
-
-instance Ord a => Abelian (Set a)
-
-instance Ord a => Container (Set a) where
-    elem a (Set s) = Set.member (WithPreludeOrd a)s
-
-instance Ord a => Unfoldable (Set a) where
-    singleton a = Set $ Set.singleton (WithPreludeOrd a)
-
--- newtype MutRef a s = MutRef (STRef s a)
---
--- instance Mutable a (MutRef a) where
---     unsafeFreeze (MutRef r) = readSTRef r
---     unsafeThaw = liftM MutRef . newSTRef

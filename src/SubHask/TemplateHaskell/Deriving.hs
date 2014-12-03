@@ -18,12 +18,12 @@ module SubHask.TemplateHaskell.Deriving
     )
     where
 
-import Prelude (zip,reverse,ReadS)
+import Prelude (zip,reverse,ReadS,Eq(..))
 import Data.List (init,last,nub)
 
 import SubHask.Internal.Prelude
 import SubHask.Category
-import SubHask.Algebra
+import SubHask.Algebra hiding (Eq(..))
 
 import Language.Haskell.TH.Syntax
 import Control.Monad

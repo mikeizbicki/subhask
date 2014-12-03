@@ -25,7 +25,7 @@ quotient :: CanonicalEq (a/b) => a -> a/b
 quotient = canonicalize . Mod
 
 newtype (/) (a :: *) (b :: k) = Mod a
-    deriving (Eq,POrd,Ord,Read,Show,  P.Ord)
+    deriving ({-Eq,POrd,Ord,-}Read,Show,  P.Ord)
 
 -- instance (Semigroup a, CanonicalEq (a/b)) => Semigroup (a/b) where
 --     (Mod a)+(Mod b) = canonicalEq $ Mod $ a + b

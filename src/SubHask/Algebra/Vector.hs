@@ -61,19 +61,19 @@ class
             -> mg (PrimState m)
             -> m (mg (PrimState m))
 
-defn_SemigroupM :: forall g mg.
-    ( Eq g
-    , SemigroupM g mg
-    , Mutable g mg
-    ) => g -> g -> Bool
-defn_SemigroupM g1 g2 = g1+g2 == res
-    where
-        res = runST ( do
-            g1thaw <- thaw g1
-            g2thaw <- thaw g2
-            g1thaw += g2thaw
-            unsafeFreeze g1thaw
-            )
+-- defn_SemigroupM :: forall g mg.
+--     ( Eq g
+--     , SemigroupM g mg
+--     , Mutable g mg
+--     ) => g -> g -> Bool
+-- defn_SemigroupM g1 g2 = g1+g2 == res
+--     where
+--         res = runST ( do
+--             g1thaw <- thaw g1
+--             g2thaw <- thaw g2
+--             g1thaw += g2thaw
+--             unsafeFreeze g1thaw
+--             )
 
 newtype MBoxedVector a s = MBoxedVector (V.MVector s a)
 
@@ -108,10 +108,13 @@ type UnboxedArray = ArrayT UnboxedVector
 type StorableArray = ArrayT VS.Vector
 
 newtype ArrayT v r = ArrayT (v r)
-    deriving (Eq,Read,Show,Arbitrary)
+    deriving (Read,Show,Arbitrary)
 
 type instance Scalar (ArrayT v r) = Int
 type instance Elem (ArrayT v r) = r
+
+instance Eq (v r) => Eq (ArrayT v r) where
+    (ArrayT v1)==(ArrayT v2) = v1==v2
 
 instance NFData (v r) => NFData (ArrayT v r) where
     rnf (ArrayT v) = rnf v

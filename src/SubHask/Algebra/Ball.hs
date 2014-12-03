@@ -19,6 +19,7 @@ data Box v = Box
 type instance Scalar (Box v) = Scalar v
 
 instance (Eq v, Eq (Scalar v)) => Eq (Box v) where
+    type ComparisonResult (Box v) = ComparisonResult v
     b1==b2 = smallest b1 == smallest b2 && largest b1 == largest b2
 
 instance (POrd v, MetricSpace v) => POrd (Box v) where
