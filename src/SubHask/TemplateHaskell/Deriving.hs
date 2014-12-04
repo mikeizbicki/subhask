@@ -2,11 +2,12 @@
 --
 -- FIXME: doesn't handle multiparameter classes like Integral and Vector
 --
--- FIXME: this should be separated out into another lib when finished
+-- FIXME: should this be separated out into another lib when finished?
 module SubHask.TemplateHaskell.Deriving
     (
     -- * template haskell functions
     deriveHierarchy
+    , deriveHierarchyFiltered
     , deriveSingleInstance
     , deriveTypefamilies
     , listSuperClasses
@@ -18,12 +19,9 @@ module SubHask.TemplateHaskell.Deriving
     )
     where
 
-import Prelude (zip,reverse,ReadS,Eq(..))
-import Data.List (init,last,nub)
-
 import SubHask.Internal.Prelude
-import SubHask.Category
-import SubHask.Algebra hiding (Eq(..))
+import Prelude
+import Data.List (init,last,nub)
 
 import Language.Haskell.TH.Syntax
 import Control.Monad
@@ -87,9 +85,13 @@ deriveTypefamilies familynameL typename = do
 -- You only need to list the final classes in the hierarchy that are supposed to be derived.
 -- All the intermediate classes will be derived automatically.
 deriveHierarchy :: Name -> [Name] -> Q [Dec]
-deriveHierarchy typename classnameL = do
+deriveHierarchy typename classnameL = deriveHierarchyFiltered typename classnameL []
+
+-- | Like "deriveHierarchy" except classes in the second list will not be derived.
+deriveHierarchyFiltered :: Name -> [Name] -> [Name] -> Q [Dec]
+deriveHierarchyFiltered typename classnameL filterL = do
     classL <- liftM concat $ mapM listSuperClasses $ mkName "BasicType":classnameL
-    instanceL <- mapM (deriveSingleInstance typename) $ nub classL
+    instanceL <- mapM (deriveSingleInstance typename) $ filter (\x -> not (elem x filterL)) $ nub classL
     return $ concat instanceL
 
 -- | Given a single newtype and single class, constructs newtype instances
@@ -105,6 +107,7 @@ deriveSingleInstance typename classname = do
         [ mkName "Scalar"
         , mkName "Elem"
         , mkName "Index"
+        , mkName "Logic"
         ] typename
 
     classinfo <- reify classname
@@ -119,25 +122,29 @@ deriveSingleInstance typename classname = do
 
         -- | otherwise, create the instance
         ClassI classd@(ClassD ctx classname [PlainTV varname] [] decs) _ -> do
---           trace ("\nconname="++show conname) $ return ()
---           trace ("typekind="++show typekind) $ return ()
---           trace ("typeapp="++show typeapp) $ return ()
---           trace ("\nclassd="++show classd) $ return ()
+--             trace ("\nconname="++show conname) $ return ()
+--             trace ("typekind="++show typekind) $ return ()
+--             trace ("typeapp="++show typeapp) $ return ()
+--             trace ("\nclassd="++show classd) $ return ()
             alreadyInstance <- isNewtypeInstance typename classname
             if alreadyInstance
                 then return []
                 else do
---                     trace ("aaa="++show (apply2varlist (ConT typename) typekind)) $ return ()
+                    -- | FIXME: we need a special case for show otherwise we'll hit an infinite loop somehow on the Set type
+--                     funcL <- if (nameBase classname=="Show"
+--                         then
+--                         else mapM subNewtype decs
+
                     funcL <- mapM subNewtype decs
-                    return
-                        [ InstanceD
+
+                    return [ InstanceD
                             ( ClassP classname [typeapp] : map (substitutePat varname typeapp) ctx )
                             ( AppT (ConT classname) $ apply2varlist (ConT typename) typekind )
 --                             ( AppT (ConT classname) (AppT (ConT typename) typeapp ))
 --                             ( ClassP classname [VarT varname] : ctx )
 --                             ( AppT (ConT classname) (AppT (ConT typename) (VarT varname) ))
                             funcL
-                        ]
+                         ]
             where
 
                 subNewtype (SigD f sigtype) = {-trace ("\n\n\nfunction="++show (nameBase f)) $ -} do

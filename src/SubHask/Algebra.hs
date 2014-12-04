@@ -5,28 +5,35 @@
 module SubHask.Algebra
     (
     -- * Comparisons
-    Eq (..)
-    , InfSemilattice (..)
-    , law_InfSemilattice_commutative
-    , law_InfSemilattice_associative
-    , theorem_InfSemilattice_idempotent
-    , SupSemilattice (..)
-    , law_SupSemilattice_commutative
-    , law_SupSemilattice_associative
-    , theorem_SupSemilattice_idempotent
-    , Lattice (..)
+    Logic
+    , Eq_ (..)
+    , Eq
+    , POrd_ (..)
+    , POrd
+    , law_POrd_commutative
+    , law_POrd_associative
+    , theorem_POrd_idempotent
+    , Lattice_ (..)
+    , Lattice
+    , law_Lattice_commutative
+    , law_Lattice_associative
+    , theorem_Lattice_idempotent
     , law_Lattice_infabsorption
     , law_Lattice_supabsorption
+    , law_Lattice_reflexivity
+    , law_Lattice_antisymmetry
+    , law_Lattice_transitivity
+    , defn_Lattice_greaterthan
+    , MinBound_ (..)
+    , MinBound
+    , law_MinBound_inf
+    , Bounded (..)
+    , law_Bounded_sup
     , supremum
     , supremum_
     , infimum
     , infimum_
-    , MinBound (..)
-    , law_MinBound_inf
     , disjoint
-    , MaxBound (..)
-    , law_MaxBound_sup
-    , Bounded
     , Heyting (..)
     , law_Heyting_maxbound
     , law_Heyting_infleft
@@ -38,21 +45,15 @@ module SubHask.Algebra
     , law_Boolean_infdistributivity
     , law_Boolean_supdistributivity
 
-    , POrd (..)
-    , law_POrd_reflexivity
-    , law_POrd_antisymmetry
-    , law_POrd_transitivity
---     , defn_POrd_pcompare
-    , defn_POrd_greaterthan
---     , defn_POrd_lessthaninf
---     , defn_POrd_lessthansup
-    , POrdering (..)
+--     , defn_Latticelessthaninf
+--     , defn_Latticelessthansup
     , Graded (..)
     , law_Graded_pred
     , law_Graded_fromEnum
-    , Ord (..)
-    , law_Ord_totality
---     , defn_Ord_compare
+    , Ord_ (..)
+    , Ord
+    , law_Ordtotality
+--     , defn_Ordcompare
     , argmin
     , argmax
 --     , argminimum_
@@ -62,7 +63,6 @@ module SubHask.Algebra
     , minimum
     , minimum_
     , Ordering (..)
---     , WithPreludeOrd (..)
     , Enum (..)
     , law_Enum_succ
     , law_Enum_toEnum
@@ -87,7 +87,6 @@ module SubHask.Algebra
     , law_Unfoldable_cons
     , law_Unfoldable_snoc
     , Foldable (..)
-    , Lexical (..)
     , length
     , reduce
     , foldtList
@@ -173,7 +172,7 @@ module SubHask.Algebra
     , law_MetricSpace_nonnegativity
     , law_MetricSpace_indiscernables
     , law_MetricSpace_symmetry
---     , law_MetricSpace_triangle
+    , law_MetricSpace_triangle
 
     -- * Examples
 --     , IndexedVector (..)
@@ -191,9 +190,6 @@ import Data.Ratio
 import Data.Typeable
 import Test.QuickCheck (Arbitrary (..), frequency)
 
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-
 import SubHask.Internal.Prelude
 import SubHask.Category
 import SubHask.SubType
@@ -201,18 +197,39 @@ import SubHask.SubType
 -------------------------------------------------------------------------------
 -- relational classes
 
-class Boolean (Bool_ a) => Eq_ a where
-    type Bool_ a :: *
-    type Bool_ a = Bool
+-- | Every type has an associated logic.
+-- Most types use classical logic, which corresponds to the Bool type.
+-- But types can use any logical system they want.
+-- Functions, for example, use an infinite logic.
+-- You probably want your logic to be an instance of "Boolean", but this is not required.
+--
+-- See wikipedia's articles on <https://en.wikipedia.org/wiki/Algebraic_logic algebraic logic>,
+-- and <https://en.wikipedia.org/wiki/Infinitary_logic infinitary logic> for more details.
+type family Logic a :: *
+type instance Logic Bool = Bool
+type instance Logic Char = Bool
+type instance Logic Int = Bool
+type instance Logic Integer = Bool
+type instance Logic Rational = Bool
+type instance Logic Float = Bool
+type instance Logic Double = Bool
+type instance Logic (a->b) = a -> Logic b
+
+-- | Defines equivalence classes over the type.
+-- The types need not have identical representations in the machine to be equal.
+--
+-- See <https://en.wikipedia.org/wiki/Equivalence_class wikipedia>
+-- and <http://ncatlab.org/nlab/show/equivalence+class ncatlab> for more details.
+class Eq_ a where
 
     infix 4 ==
-    (==) :: a -> a -> Bool_ a
+    (==) :: a -> a -> Logic a
 
+    -- | In order to have the "not equals to" relation, your logic must have a notion of "not", and therefore must be "Boolean".
+    {-# INLINE (/=) #-}
     infix 4 /=
-    (/=) :: a -> a -> Bool_ a
+    (/=) :: Boolean (Logic a) => a -> a -> Logic a
     (/=) = not (==)
---     a1 /= a2 = not $ a1 == a2
-
 
 instance Eq_ Bool     where (==) = (P.==); (/=) = (P./=)
 instance Eq_ Char     where (==) = (P.==); (/=) = (P./=)
@@ -222,103 +239,131 @@ instance Eq_ Rational where (==) = (P.==); (/=) = (P./=)
 instance Eq_ Float    where (==) = (P.==); (/=) = (P./=)
 instance Eq_ Double   where (==) = (P.==); (/=) = (P./=)
 
-class (Eq_ a, Bool_ a ~ Bool) => Eq a
-instance (Eq_ a, Bool_ a ~ Bool) => Eq a
+instance Eq_ b => Eq_ (a -> b) where
+    (f==g) a = f a == f a
 
--- | Partial ordering
-data POrdering
-    = PLT
-    | PGT
-    | PEQ
-    | PNA
-    deriving (Read,Show)
+class (Eq_ a, Logic a ~ Bool) => Eq a
+instance (Eq_ a, Logic a ~ Bool) => Eq a
 
-instance Arbitrary POrdering where
-    arbitrary = frequency
-        [ (1, return PLT)
-        , (1, return PGT)
-        , (1, return PEQ)
-        , (1, return PNA)
-        ]
+--------------------
 
-instance Eq_ POrdering where
-    PLT == PLT = True
-    PGT == PGT = True
-    PEQ == PEQ = True
-    PNA == PNA = True
-    _   == _   = False
+-- | This is more commonly known as a "meet" semilattice
+class Eq_ b => POrd_ b where
+    inf :: b -> b -> b
 
--- | FIXME: think carefully about the correct instance for this
-instance Semigroup POrdering where
-    PEQ + x = x
-    PLT + _ = PLT
-    PGT + _ = PGT
-    PNA + _ = PNA
+    {-# INLINE (<=) #-}
+    infix 4 <=
+    (<=) :: b -> b -> Logic b
+    b1 <= b2 = inf b1 b2 == b1
 
-instance Semigroup Ordering where
-    EQ + x = x
-    LT + _ = LT
-    GT + _ = GT
+    {-# INLINE (<) #-}
+    infix 4 <
+    (<) :: Boolean (Logic b) => b -> b -> Logic b
+    b1 < b2 = inf b1 b2 == b1 && b1 /= b2
 
-instance Monoid POrdering where
-    zero = PEQ
+class (Eq b, POrd_ b) => POrd b
+instance (Eq b, POrd_ b) => POrd b
 
-instance Monoid Ordering where
-    zero = EQ
+law_POrd_commutative :: (Eq b, POrd_ b) => b -> b -> Bool
+law_POrd_commutative b1 b2 = inf b1 b2 == inf b2 b1
 
--- | Partial ordering.
+law_POrd_associative :: (Eq b, POrd_ b) => b -> b -> b -> Bool
+law_POrd_associative b1 b2 b3 = inf (inf b1 b2) b3 == inf b1 (inf b2 b3)
+
+theorem_POrd_idempotent :: (Eq b, POrd_ b) => b -> Bool
+theorem_POrd_idempotent b = inf b b == b
+
+instance POrd_ Bool       where inf = (P.&&)
+instance POrd_ Char       where inf = P.min
+instance POrd_ Int        where inf = P.min
+instance POrd_ Integer    where inf = P.min
+instance POrd_ Float      where inf = P.min
+instance POrd_ Double     where inf = P.min
+instance POrd_ Rational   where inf = P.min
+instance POrd_ b => POrd_ (a -> b) where
+    inf f g = \x -> inf (f x) (g x)
+
+-------------------
+
+-- | Most Lattice literature only considers 'Bounded' lattices, but here we have both upper and lower bounded lattices.
 --
--- NOTE: IEEE 754 floating point types break the invariants because @NaN /= NaN@.
+-- prop> minBound <= b || not (minBound > b)
 --
--- TODO: Is it worth adding the complexity of a preorder? https://en.wikipedia.org/wiki/Preorder
---
--- class Eq_ a => POrd_ a where
---     pcompare :: a -> a -> POrdering
---
---     infix 4 <
---     (<) :: a -> a -> Bool_ a
---     a1 < a2 = case pcompare a1 a2 of
---         PLT -> true
---         otherwise -> false
---
---     infix 4 <=
---     (<=) :: a -> a -> Bool_ a
---     a1 <= a2 = case pcompare a1 a2 of
---         PLT -> true
---         PEQ -> true
---         otherwise -> false
---
---     infix 4 >
---     (>) :: a -> a -> Bool_ a
---     a1 > a2 = case pcompare a1 a2 of
---         PGT -> true
---         otherwise -> false
---
---     infix 4 >=
---     (>=) :: a -> a -> Bool_ a
---     a1 >= a2 = case pcompare a1 a2 of
---         PGT -> true
---         PEQ -> true
---         otherwise -> false
+class POrd_ b => MinBound_ b where
+    minBound :: b
 
-type POrd_ a = Lattice a
+class (Eq b, MinBound_ b) => MinBound b
+instance (Eq b, MinBound_ b) => MinBound b
 
-class (POrd_ a, Eq a) => POrd a
-instance (POrd_ a, Eq a) => POrd a
+law_MinBound_inf :: (Eq b, MinBound_ b) => b -> Bool
+law_MinBound_inf b = inf b minBound == minBound
 
-law_POrd_reflexivity :: POrd a => a -> Bool_ a
-law_POrd_reflexivity a = a<=a
+-- | "false" is an upper bound because `a && false = false` for all a.
+false :: MinBound_ b => b
+false = minBound
 
-law_POrd_antisymmetry :: POrd a => a -> a -> Bool_ a
-law_POrd_antisymmetry a1 a2
+-- | Two sets are disjoint if their infimum is the empty set.
+-- This function generalizes the notion of disjointness for any lower bounded lattice.
+-- FIXME: add other notions of disjoint
+disjoint :: (Eq b, MinBound_ b) => b -> b -> Bool
+disjoint b1 b2 = (inf b1 b2) == minBound
+
+instance MinBound_ Bool where minBound = False
+instance MinBound_ Char where minBound = P.minBound
+instance MinBound_ Int where minBound = P.minBound
+instance MinBound_ Float where minBound = -1/0 -- FIXME: should be a primop for this
+instance MinBound_ Double where minBound = -1/0
+
+instance MinBound_ b => MinBound_ (a -> b) where minBound = \x -> minBound
+-- instance Lattice a => MinBound_ [a] where minBound = []
+
+
+-------------------
+-- |
+--
+--
+-- See <https://en.wikipedia.org/wiki/Lattice_%28order%29 wikipedia> for more details.
+class POrd_ b => Lattice_ b where
+    sup :: b -> b -> b
+
+    {-# INLINE (>=) #-}
+    infix 4 >=
+    (>=) :: b -> b -> Logic b
+    b1 >= b2 = sup b1 b2 == b1
+
+    {-# INLINE (>) #-}
+    infix 4 >
+    (>) :: Boolean (Logic b) => b -> b -> Logic b
+    b1 > b2 = sup b1 b2 == b1 && b1 /= b2
+
+class (Eq b, Lattice_ b) => Lattice b
+instance (Eq b, Lattice_ b) => Lattice b
+
+law_Lattice_commutative :: (Eq b, Lattice_ b) => b -> b -> Bool
+law_Lattice_commutative b1 b2 = sup b1 b2 == sup b2 b1
+
+law_Lattice_associative :: (Eq b, Lattice_ b) => b -> b -> b -> Bool
+law_Lattice_associative b1 b2 b3 = sup (sup b1 b2) b3 == sup b1 (sup b2 b3)
+
+theorem_Lattice_idempotent :: (Eq b, Lattice_ b) => b -> Bool
+theorem_Lattice_idempotent b = sup b b == b
+
+law_Lattice_infabsorption :: (Eq b, Lattice b) => b -> b -> Bool
+law_Lattice_infabsorption b1 b2 = inf b1 (sup b1 b2) == b1
+
+law_Lattice_supabsorption :: (Eq b, Lattice b) => b -> b -> Bool
+law_Lattice_supabsorption b1 b2 = sup b1 (inf b1 b2) == b1
+
+law_Lattice_reflexivity :: Lattice a => a -> Logic a
+law_Lattice_reflexivity a = a<=a
+
+law_Lattice_antisymmetry :: Lattice a => a -> a -> Logic a
+law_Lattice_antisymmetry a1 a2
     | a1 <= a2 && a2 <= a1 = a1 == a2
     | otherwise = true
--- law_POrd_antisymmetry a1 a2 = if inf (a1 <= a2) (a2 <= a1)
---     then a1 == a2
---     else true
 
-law_POrd_transitivity :: POrd a => a -> a -> a -> Bool_ a
-law_POrd_transitivity  a1 a2 a3
+law_Lattice_transitivity :: Lattice a => a -> a -> a -> Logic a
+law_Lattice_transitivity  a1 a2 a3
     | a1 <= a2 && a2 <= a3 = a1 <= a3
     | a1 <= a3 && a3 <= a2 = a1 <= a2
     | a2 <= a1 && a1 <= a3 = a2 <= a3
@@ -327,71 +372,52 @@ law_POrd_transitivity  a1 a2 a3
     | a3 <= a1 && a1 <= a2 = a3 <= a2
     | otherwise = true
 
--- defn_POrd_pcompare :: POrd a => a -> a -> Bool_ a
--- defn_POrd_pcompare a1 a2 = case pcompare a1 a2 of
---     PEQ -> a1 == a2 && a1 >= a2 && a1 <= a2 && not (a1 > a2) && not (a1 < a2)
---     PLT -> a1 < a2 && a1 <= a2 && a1 /= a2 && not (a1 >= a2) && not (a1 > a2)
---     PGT -> a1 > a2 && a1 >= a2 && a1 /= a2 && not (a1 <= a2) && not (a1 < a2)
---     PNA -> not (a1==a2 || a1 <= a2 || a1 < a2 || a1 > a2 || a1 >= a2)
-
-defn_POrd_greaterthan :: POrd a => a -> a -> Bool_ a
-defn_POrd_greaterthan a1 a2
+defn_Lattice_greaterthan :: Lattice a => a -> a -> Logic a
+defn_Lattice_greaterthan a1 a2
     | a1 < a2 = a2 >= a1
     | a1 > a2 = a2 <= a1
     | otherwise = true
 
+instance Lattice_ Bool       where sup = (P.||)
+instance Lattice_ Char       where sup = P.max
+instance Lattice_ Int        where sup = P.max
+instance Lattice_ Integer    where sup = P.max
+instance Lattice_ Float      where sup = P.max
+instance Lattice_ Double     where sup = P.max
+instance Lattice_ Rational   where sup = P.max
+instance Lattice_ b => Lattice_ (a -> b) where
+    sup f g = \x -> sup (f x) (g x)
+
+{-# INLINE (&&) #-}
+infixr 3 &&
+(&&) :: Lattice_ b => b -> b -> b
+(&&) = inf
+
+{-# INLINE (||) #-}
+infixr 2 ||
+(||) :: Lattice_ b => b -> b -> b
+(||) = sup
+
 -- -- | A chain is a collection of elements all of which can be compared
--- isChain :: POrd a => [a] -> Bool_ a
+-- isChain :: Lattice a => [a] -> Logic a
 -- isChain [] = true
 -- isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isAntichain xs
-
--- | An antichain is a collection of elements none of which can be compared
 --
--- See <http://en.wikipedia.org/wiki/Antichain wikipedia> for more details.
---
--- See also the article on <http://en.wikipedia.org/wiki/Dilworth%27s_theorem Dilward's Theorem>.
--- isAntichain :: POrd a => [a] -> Bool_ a
+-- -- | An antichain is a collection of elements none of which can be compared
+-- --
+-- -- See <http://en.wikipedia.org/wiki/Antichain wikipedia> for more details.
+-- --
+-- -- See also the article on <http://en.wikipedia.org/wiki/Dilworth%27s_theorem Dilward's Theorem>.
+-- isAntichain :: Lattice a => [a] -> Logic a
 -- isAntichain [] = true
 -- isAntichain (x:xs) = all (==PNA) (map (pcompare x) xs) && isAntichain xs
-
-preludeOrdering2POrdering :: P.Ordering -> POrdering
-preludeOrdering2POrdering P.LT = PLT
-preludeOrdering2POrdering P.GT = PGT
-preludeOrdering2POrdering P.EQ = PEQ
-
-#define mkPOrd(x)\
-instance POrd_ x where\
-    pcompare a1 a2 = preludeOrdering2POrdering $ P.compare a1 a2;\
-    (<)  = (P.<)        ;\
-    (<=) = (P.<=)       ;\
-    (>)  = (P.>)        ;\
-    (>=) = (P.>=)
-
--- mkPOrd(Char)
--- mkPOrd(Int)
--- mkPOrd(Integer)
--- mkPOrd(Float)
--- mkPOrd(Double)
--- mkPOrd(Rational)
---
--- instance POrd_ Bool where
---     pcompare False True  = PLT
---     pcompare True  False = PGT
---     pcompare False False = PEQ
---     pcompare True  True  = PEQ
-
-instance Eq_ b => Eq_ (a -> b) where
-    type Bool_ (a -> b) = a -> Bool_ b
-    f==g = \a -> f a == g a
-
--- instance POrd_ (a -> b) where
 
 -------------------
 
 -- | In a WellFounded type, every element (except the 'maxBound" if it exists) has a successor element
 --
 -- See <ncatlab http://ncatlab.org/nlab/show/well-founded+relation> for more info.
-class (Graded b, Ord b) => Enum b where
+class (Graded b, Ord_ b) => Enum b where
     succ :: b -> b
 
     toEnum :: Int -> b
@@ -400,7 +426,7 @@ law_Enum_succ :: Enum b => b -> b -> Bool
 law_Enum_succ b1 b2 = fromEnum (succ b1) == fromEnum b1+1
                    || fromEnum (succ b1) == fromEnum b1
 
-law_Enum_toEnum :: (POrd_ b, Enum b) => b -> Bool
+law_Enum_toEnum :: (Lattice b, Enum b) => b -> Bool
 law_Enum_toEnum b = toEnum (fromEnum b) == b
 
 instance Enum Bool where
@@ -428,7 +454,7 @@ instance Enum Integer where succ = P.succ; toEnum = P.toEnum
 -- | An element of a graded poset has a unique predecessor.
 --
 -- See <https://en.wikipedia.org/wiki/Graded_poset wikipedia> for more details.
-class POrd b => Graded b where
+class Lattice b => Graded b where
     -- | the predecessor in the ordering
     pred :: b -> b
 
@@ -440,7 +466,7 @@ law_Graded_pred :: Graded b => b -> b -> Bool
 law_Graded_pred b1 b2 = fromEnum (pred b1) == fromEnum b1-1
                      || fromEnum (pred b1) == fromEnum b1
 
-law_Graded_fromEnum :: (POrd_ b, Graded b) => b -> b -> Bool
+law_Graded_fromEnum :: (Lattice b, Graded b) => b -> b -> Bool
 law_Graded_fromEnum b1 b2
     | b1 <  b2  = fromEnum b1 <  fromEnum b2
     | b1 >  b2  = fromEnum b1 >  fromEnum b2
@@ -468,10 +494,10 @@ instance Graded Char where
     fromEnum = P.fromEnum
 instance Graded Integer where pred = P.pred; fromEnum = P.fromEnum
 
-(<.) :: (POrd_ b, Graded b) => b -> b -> Bool
+(<.) :: (Lattice b, Graded b) => b -> b -> Bool
 b1 <. b2 = b1 == pred b2
 
-(>.) :: (POrd_ b, Enum b) => b -> b -> Bool
+(>.) :: (Lattice b, Enum b) => b -> b -> Bool
 b1 >. b2 = b1 == succ b2
 
 ---------------------------------------
@@ -479,234 +505,50 @@ b1 >. b2 = b1 == succ b2
 -- | This is the class of total orderings.
 --
 -- See https://en.wikipedia.org/wiki/Total_order
-class (Lattice a, POrd a) => Ord a where
-    compare :: a -> a -> Ordering
---     compare a1 a2 = case pcompare a1 a2 of
---         PLT -> LT
---         PGT -> GT
---         PEQ -> EQ
---         PNA -> error "PNA given by pcompare on a totally ordered type"
+class Lattice_ a => Ord_ a where
 
-    {-# INLINE min #-}
-    min :: a -> a -> a
-    min = inf
+law_Ordtotality :: Ord a => a -> a -> Bool
+law_Ordtotality a1 a2 = a1 <= a2 || a2 <= a1
 
-    {-# INLINE max #-}
-    max :: a -> a -> a
-    max = sup
+{-# INLINE min #-}
+min :: Ord_ a => a -> a -> a
+min = inf
 
-type Ord_ a = (Ord a, POrd_ a)
+{-# INLINE max #-}
+max :: Ord_ a => a -> a -> a
+max = sup
 
-law_Ord_totality :: Ord_ a => a -> a -> Bool
-law_Ord_totality a1 a2 = a1 <= a2 || a2 <= a1
+class (Eq a, Ord_ a) => Ord a
+instance (Eq a, Ord_ a) => Ord a
 
--- defn_Ord_compare :: Ord_ a => a -> a -> Bool
--- defn_Ord_compare a1 a2 = case (compare a1 a2, pcompare a1 a2) of
---     (LT,PLT) -> True
---     (GT,PGT) -> True
---     (EQ,PEQ) -> True
---     _        -> False
-
--- preludeOrdering2Ordering :: P.Ordering -> Ordering
--- preludeOrdering2Ordering P.LT = LT
--- preludeOrdering2Ordering P.GT = GT
--- preludeOrdering2Ordering P.EQ = EQ
---
--- instance Ord Char       where compare a1 a2 = preludeOrdering2Ordering $ P.compare a1 a2
--- instance Ord Int        where compare a1 a2 = preludeOrdering2Ordering $ P.compare a1 a2
--- instance Ord Integer    where compare a1 a2 = preludeOrdering2Ordering $ P.compare a1 a2
--- instance Ord Float      where compare a1 a2 = preludeOrdering2Ordering $ P.compare a1 a2
--- instance Ord Double     where compare a1 a2 = preludeOrdering2Ordering $ P.compare a1 a2
--- instance Ord Rational   where compare a1 a2 = preludeOrdering2Ordering $ P.compare a1 a2
-
-instance Ord Char       where compare = P.compare
-instance Ord Int        where compare = P.compare
-instance Ord Integer    where compare = P.compare
-instance Ord Float      where compare = P.compare
-instance Ord Double     where compare = P.compare
-instance Ord Rational   where compare = P.compare
-
-instance Ord Bool where
-    compare False False = EQ
-    compare True  True  = EQ
-    compare False True  = LT
-    compare True  False = GT
+instance Ord_ Char
+instance Ord_ Int
+instance Ord_ Integer
+instance Ord_ Float
+instance Ord_ Double
+instance Ord_ Rational
+instance Ord_ Bool
 
 -------------------
 
--- | This is more commonly known as a "meet" semilattice
-class Eq_ a => InfSemilattice b where
-    inf :: b -> b -> b
-
-    (<=) :: (Eq_ b, InfSemilattice b) => b -> b -> Bool_ b
---     b1 <=: b2 = inf b1 b2 == b1
-
-    (<) :: (Eq_ b, InfSemilattice b) => b -> b -> Bool_ b
---     b1 <: b2 = inf b1 b2 == b1 && b1 /= b2
-
-law_InfSemilattice_commutative :: (Ord_ b, Eq b, InfSemilattice b) => b -> b -> Bool
-law_InfSemilattice_commutative b1 b2 = inf b1 b2 == inf b2 b1
-
-law_InfSemilattice_associative :: (Ord_ b, Eq b, InfSemilattice b) => b -> b -> b -> Bool
-law_InfSemilattice_associative b1 b2 b3 = inf (inf b1 b2) b3 == inf b1 (inf b2 b3)
-
-theorem_InfSemilattice_idempotent :: (Ord_ b, Eq b, InfSemilattice b) => b -> Bool
-theorem_InfSemilattice_idempotent b = inf b b == b
-
--- defn_POrd_lessthaninf :: (InfSemilattice a, POrd a) => a -> a -> Bool
--- defn_POrd_lessthaninf a1 a2 = case pcompare a1 a2 of
---     PEQ -> inf a1 a2 == a1
---     PLT -> inf a1 a2 == a1
---     PGT -> inf a1 a2 == a2
---     PNA -> inf a1 a2 /= a1 && inf a1 a2 /= a2
-
-instance InfSemilattice Bool       where inf = (P.&&)
-instance InfSemilattice Char       where inf = P.min
-instance InfSemilattice Int        where inf = P.min
-instance InfSemilattice Integer    where inf = P.min
-instance InfSemilattice Float      where inf = P.min
-instance InfSemilattice Double     where inf = P.min
-instance InfSemilattice Rational   where inf = P.min
-
-instance InfSemilattice b => InfSemilattice (a -> b) where
-    inf f g = \x -> inf (f x) (g x)
-
--- | This is more commonly known as a "join" semilattice
-class SupSemilattice b where
-    sup :: b -> b -> b
-
-    (>=) :: (Eq_ b, InfSemilattice b) => b -> b -> Bool_ b
---     b1 <=: b2 = inf b1 b2 == b1
-
-    (>) :: (Eq_ b, InfSemilattice b) => b -> b -> Bool_ b
---     b1 <: b2 = inf b1 b2 == b1 && b1 /= b2
-
-law_SupSemilattice_commutative :: (Ord_ b, Eq b, SupSemilattice b) => b -> b -> Bool
-law_SupSemilattice_commutative b1 b2 = sup b1 b2 == sup b2 b1
-
-law_SupSemilattice_associative :: (Ord_ b, Eq b, SupSemilattice b) => b -> b -> b -> Bool
-law_SupSemilattice_associative b1 b2 b3 = sup (sup b1 b2) b3 == sup b1 (sup b2 b3)
-
-theorem_SupSemilattice_idempotent :: (Ord_ b, Eq b, SupSemilattice b) => b -> Bool
-theorem_SupSemilattice_idempotent b = sup b b == b
-
--- defn_POrd_lessthansup :: (Ord_ a, SupSemilattice a, POrd a) => a -> a -> Bool
--- defn_POrd_lessthansup a1 a2 = case pcompare a1 a2 of
---     PEQ -> sup a1 a2 == a1
---     PLT -> sup a1 a2 == a2
---     PGT -> sup a1 a2 == a1
---     PNA -> sup a1 a2 /= a1 && sup a1 a2 /= a2
-
-instance SupSemilattice Bool       where sup = (P.||)
-instance SupSemilattice Char       where sup = P.max
-instance SupSemilattice Int        where sup = P.max
-instance SupSemilattice Integer    where sup = P.max
-instance SupSemilattice Float      where sup = P.max
-instance SupSemilattice Double     where sup = P.max
-instance SupSemilattice Rational   where sup = P.max
-
-instance SupSemilattice b => SupSemilattice (a -> b) where
-    sup f g = \x -> sup (f x) (g x)
--- |
+-- | A Bounded lattice is a lattice with both a minimum and maximum element
 --
--- Every lattice induces a unique partial ordering.
--- So we would like to have a POrd constraint on Lattice.
--- Unfortunately, this is awkward because we also want to have `a -> b` be a lattice.
--- But actually computing the partial ordering on two functions is undecidable in general (whereas computing their inf/sup is decidable).
--- By using two separate classes, we allow the `a -> b` lattice instance and guarantee that whenever you see a comparison operator that the comparison is decidable.
---
--- See <https://en.wikipedia.org/wiki/Lattice_%28order%29 wikipedia> for more details.
-class (InfSemilattice b, SupSemilattice b) => Lattice b where
-
-law_Lattice_infabsorption :: (Ord_ b, Eq b, Lattice b) => b -> b -> Bool
-law_Lattice_infabsorption b1 b2 = inf b1 (sup b1 b2) == b1
-
-law_Lattice_supabsorption :: (Ord_ b, Eq b, Lattice b) => b -> b -> Bool
-law_Lattice_supabsorption b1 b2 = sup b1 (inf b1 b2) == b1
-
-{-# INLINE (&&) #-}
-infixr 3 &&
-(&&) :: Lattice b => b -> b -> b
-(&&) = inf
-
-{-# INLINE (||) #-}
-infixr 2 ||
-(||) :: Lattice b => b -> b -> b
-(||) = sup
-
-instance Lattice Bool
-instance Lattice Char
-instance Lattice Int
-instance Lattice Integer
-instance Lattice Float
-instance Lattice Double
-instance Lattice Rational
-instance Lattice b => Lattice (a -> b)
-
--------------------
-
--- | Most Lattice literature only considers 'Bounded' lattices, but here we have both upper and lower bounded lattices.
---
--- prop> minBound <= b || not (minBound > b)
---
-class InfSemilattice b => MinBound b where
-    minBound :: b
-
-law_MinBound_inf :: (Ord_ b, Eq b, MinBound b) => b -> Bool
-law_MinBound_inf b = inf b minBound == minBound
-
--- | "false" is an upper bound because `a && false = false` for all a.
-false :: MinBound b => b
-false = minBound
-
--- | Two sets are disjoint if their infimum is the empty set.
--- This function generalizes the notion of disjointness for any lower bounded lattice.
--- FIXME: add other notions of disjoint
-disjoint :: (Ord_ b, Eq b, MinBound b) => b -> b -> Bool
-disjoint b1 b2 = (inf b1 b2) == minBound
-
-instance MinBound Bool where minBound = False
-instance MinBound Char where minBound = P.minBound
-instance MinBound Int where minBound = P.minBound
-instance MinBound Float where minBound = -1/0 -- FIXME: should be a primop for this
-instance MinBound Double where minBound = -1/0
-
-instance MinBound b => MinBound (a -> b) where minBound = \x -> minBound
--- instance POrd a => MinBound [a] where minBound = []
-
--------------------
-
--- | Most Lattice literature only considers 'Bounded' lattices, but here we have both upper and lower bounded lattices.
---
--- prop> maxBound >= b || not (minBound < b)
---
-class SupSemilattice b => MaxBound b where
+class (Lattice_ b, MinBound_ b) => Bounded b where
     maxBound :: b
 
-law_MaxBound_sup :: (Ord_ b, Eq b, MaxBound b) => b -> Bool
-law_MaxBound_sup b = sup b maxBound == maxBound
+law_Bounded_sup :: (Eq b, Bounded b) => b -> Bool
+law_Bounded_sup b = sup b maxBound == maxBound
 
 -- | "true" is an lower bound because `a && true = true` for all a.
-true :: MaxBound b => b
+true :: Bounded b => b
 true = maxBound
 
-instance MaxBound Bool where maxBound = True
-instance MaxBound Char where maxBound = P.maxBound
-instance MaxBound Int where maxBound = P.maxBound
-instance MaxBound Float where maxBound = 1/0 -- FIXME: should be a primop for infinity
-instance MaxBound Double where maxBound = 1/0
-instance MaxBound b => MaxBound (a -> b) where maxBound = \x -> maxBound
-
--------------------
-
--- | FIXME: originally, Bounded was defined as:
---
--- > type Bounded b = (Lattice b, MinBound b, MaxBound b)
---
--- But template haskell can't handle tuple types, so we rewrite it as a class/instance pair.
--- Which should it actually be?!
-class (Lattice b, MinBound b, MaxBound b) => Bounded b
-instance (Lattice b, MinBound b, MaxBound b) => Bounded b
+instance Bounded Bool   where maxBound = True
+instance Bounded Char   where maxBound = P.maxBound
+instance Bounded Int    where maxBound = P.maxBound
+instance Bounded Float  where maxBound = 1/0 -- FIXME: should be a primop for infinity
+instance Bounded Double where maxBound = 1/0
+instance Bounded b => Bounded (a -> b) where maxBound = \x -> maxBound
 
 -- | Heyting algebras are lattices that support implication, but not necessarily the law of excluded middle.
 --
@@ -730,16 +572,16 @@ class Bounded b => Heyting b where
     infixl 3 ==>
     (==>) :: b -> b -> b
 
-law_Heyting_maxbound :: (Ord_ b, Eq b, Heyting b) => b -> Bool
+law_Heyting_maxbound :: (Eq b, Heyting b) => b -> Bool
 law_Heyting_maxbound b = (b ==> b) == maxBound
 
-law_Heyting_infleft :: (Ord_ b, Eq b, Heyting b) => b -> b -> Bool
+law_Heyting_infleft :: (Eq b, Heyting b) => b -> b -> Bool
 law_Heyting_infleft b1 b2 = (b1 && (b1 ==> b2)) == (b1 && b2)
 
-law_Heyting_infright :: (Ord_ b, Eq b, Heyting b) => b -> b -> Bool
+law_Heyting_infright :: (Eq b, Heyting b) => b -> b -> Bool
 law_Heyting_infright b1 b2 = (b2 && (b1 ==> b2)) == b2
 
-law_Heyting_distributive :: (Ord_ b, Eq b, Heyting b) => b -> b -> b -> Bool
+law_Heyting_distributive :: (Eq b, Heyting b) => b -> b -> b -> Bool
 law_Heyting_distributive b1 b2 b3 = (b1 ==> (b2 && b3)) == ((b1 ==> b2) && (b1 ==> b3))
 
 -- | FIXME: add the axioms for intuitionist logic, which are theorems based on these laws
@@ -753,30 +595,31 @@ modusPonens :: Boolean b => b -> b -> b
 modusPonens b1 b2 = not b1 || b2
 
 instance Heyting Bool where (==>) = modusPonens
-instance Heyting b => Heyting (a -> b) where f ==> g = \a -> f a ==> g a
+
+instance Heyting b => Heyting (a -> b) where (f==>g) a = f a ==> g a
 
 -- | Generalizes Boolean variables.
 --
 -- See <https://en.wikipedia.org/wiki/Boolean_algebra_%28structure%29 wikipedia> for more details.
-class (IfResult b b ~ b, Heyting b) => Boolean b where
+class Heyting b => Boolean b where
     not :: b -> b
 
-    type IfResult b a :: *
-    type IfResult b a = a
+--     type IfResult b a :: *
+--     type IfResult b a = a
 
 --     ifThenElse :: b -> a -> a -> IfResult b a
 --     ifThenElse = P.ifThenElse
 
-law_Boolean_infcomplement :: (Ord_ b, Eq b, Boolean b) => b -> Bool
+law_Boolean_infcomplement :: (Eq b, Boolean b) => b -> Bool
 law_Boolean_infcomplement b = (b || not b) == true
 
-law_Boolean_supcomplement :: (Ord_ b, Eq b, Boolean b) => b -> Bool
+law_Boolean_supcomplement :: (Eq b, Boolean b) => b -> Bool
 law_Boolean_supcomplement b = (b && not b) == false
 
-law_Boolean_infdistributivity :: (Ord_ b, Eq b, Boolean b) => b -> b -> b -> Bool
+law_Boolean_infdistributivity :: (Eq b, Boolean b) => b -> b -> b -> Bool
 law_Boolean_infdistributivity b1 b2 b3 = (b1 || (b2 && b3)) == ((b1 || b2) && (b1 || b3))
 
-law_Boolean_supdistributivity :: (Ord_ b, Eq b, Boolean b) => b -> b -> b -> Bool
+law_Boolean_supdistributivity :: (Eq b, Boolean b) => b -> b -> b -> Bool
 law_Boolean_supdistributivity b1 b2 b3 = (b1 && (b2 || b3)) == ((b1 && b2) || (b1 && b3))
 
 instance Boolean Bool where not = P.not
@@ -794,7 +637,7 @@ class Semigroup g where
 --     associativeEpsilon :: Ring (Scalar g) => g -> Scalar g
 --     associativeEpsilon _ = 0
 
-law_Semigroup_associativity :: (Ord_ g,  Eq g, Semigroup g ) => g -> g -> g -> Bool
+law_Semigroup_associativity :: (Eq g, Semigroup g ) => g -> g -> g -> Bool
 law_Semigroup_associativity g1 g2 g3 = g1 + (g2 + g3) == (g1 + g2) + g3
 
 -- theorem_Semigroup_associativity ::
@@ -864,10 +707,10 @@ instance Semigroup   b => Semigroup   (a -> b) where f+g = \a -> f a + g a
 class Semigroup g => Monoid g where
     zero :: g
 
-law_Monoid_leftid :: (Ord_ g, Monoid g, Eq g) => g -> Bool
+law_Monoid_leftid :: (Monoid g, Eq g) => g -> Bool
 law_Monoid_leftid g = zero + g == g
 
-law_Monoid_rightid :: (Ord_ g, Monoid g, Eq g) => g -> Bool
+law_Monoid_rightid :: (Monoid g, Eq g) => g -> Bool
 law_Monoid_rightid g = g + zero == g
 
 ---------
@@ -923,10 +766,10 @@ class Semigroup g => Cancellative g where
     infixl 6 -
     (-) :: g -> g -> g
 
-law_Cancellative_rightminus1 :: (Ord_ g, Eq g, Cancellative g) => g -> g -> Bool
+law_Cancellative_rightminus1 :: (Eq g, Cancellative g) => g -> g -> Bool
 law_Cancellative_rightminus1 g1 g2 = (g1 + g2) - g2 == g1
 
-law_Cancellative_rightminus2 :: (Ord_ g, Eq g, Cancellative g) => g -> g -> Bool
+law_Cancellative_rightminus2 :: (Eq g, Cancellative g) => g -> g -> Bool
 law_Cancellative_rightminus2 g1 g2 = g1 + (g2 - g2) == g1
 
 instance Cancellative Int        where (-) = (P.-)
@@ -965,13 +808,13 @@ class (Cancellative g, Monoid g) => Group g where
     negate :: g -> g
     negate g = zero - g
 
-defn_Group_negateminus :: (Ord_ g, Eq g, Group g) => g -> g -> Bool
+defn_Group_negateminus :: (Eq g, Group g) => g -> g -> Bool
 defn_Group_negateminus g1 g2 = g1 + negate g2 == g1 - g2
 
-law_Group_leftinverse :: (Ord_ g, Eq g, Group g) => g -> Bool
+law_Group_leftinverse :: (Eq g, Group g) => g -> Bool
 law_Group_leftinverse g = negate g + g == zero
 
-law_Group_rightinverse :: (Ord_ g, Eq g, Group g) => g -> Bool
+law_Group_rightinverse :: (Eq g, Group g) => g -> Bool
 law_Group_rightinverse g = g + negate g == zero
 
 instance Group Int        where negate = P.negate
@@ -1001,7 +844,7 @@ instance Group b => Group (a -> b) where negate f = negate . f
 
 class Semigroup m => Abelian m
 
-law_Abelian_commutative :: (Ord_ g, Abelian g, Eq g) => g -> g -> Bool
+law_Abelian_commutative :: (Abelian g, Eq g) => g -> g -> Bool
 law_Abelian_commutative g1 g2 = g1 + g2 == g2 + g1
 
 instance Abelian Int
@@ -1023,7 +866,7 @@ instance Abelian b => Abelian (a -> b)
 --
 -- See <http://ncatlab.org/nlab/show/normed%20group ncatlab>
 class
-    ( Ord (Scalar g)
+    ( Ord_ (Scalar g)
     , HasScalar g
     ) => Normed g where
     abs :: g -> Scalar g
@@ -1047,19 +890,19 @@ class (Abelian r, Monoid r) => Rg r where
     infixl 7 *
     (*) :: r -> r -> r
 
-law_Rg_multiplicativeAssociativity :: (Ord_ r, Eq r, Rg r) => r -> r -> r -> Bool
+law_Rg_multiplicativeAssociativity :: (Eq r, Rg r) => r -> r -> r -> Bool
 law_Rg_multiplicativeAssociativity r1 r2 r3 = (r1 * r2) * r3 == r1 * (r2 * r3)
 
-law_Rg_multiplicativeCommutivity :: (Ord_ r, Eq r, Rg r) => r -> r -> Bool
+law_Rg_multiplicativeCommutivity :: (Eq r, Rg r) => r -> r -> Bool
 law_Rg_multiplicativeCommutivity r1 r2 = r1*r2 == r2*r1
 
-law_Rg_annihilation :: (Ord_ r, Eq r, Rg r) => r -> Bool
+law_Rg_annihilation :: (Eq r, Rg r) => r -> Bool
 law_Rg_annihilation r = r * zero == zero
 
-law_Rg_distributivityLeft :: (Ord_ r, Eq r, Rg r) => r -> r -> r -> Bool
+law_Rg_distributivityLeft :: (Eq r, Rg r) => r -> r -> r -> Bool
 law_Rg_distributivityLeft r1 r2 r3 = r1*(r2+r3) == r1*r2+r1*r3
 
-theorem_Rg_distributivityRight :: (Ord_ r, Eq r, Rg r) => r -> r -> r -> Bool
+theorem_Rg_distributivityRight :: (Eq r, Rg r) => r -> r -> r -> Bool
 theorem_Rg_distributivityRight r1 r2 r3 = (r2+r3)*r1 == r2*r1+r3*r1
 
 instance Rg Int         where (*) = (P.*)
@@ -1082,7 +925,7 @@ class (Monoid r, Rg r) => Rig r where
     -- | the multiplicative identity
     one :: r
 
-law_Rig_multiplicativeId :: (Ord_ r, Eq r, Rig r) => r -> Bool
+law_Rig_multiplicativeId :: (Eq r, Rig r) => r -> Bool
 law_Rig_multiplicativeId r = r * one == r && one * r == r
 
 instance Rig Int         where one = 1
@@ -1113,7 +956,7 @@ class (Rng r, Rig r) => Ring r where
     fromInteger :: Integer -> r
     fromInteger = slowFromInteger
 
-defn_Ring_fromInteger :: (Ord_ r, Eq r, Ring r) => r -> Integer -> Bool
+defn_Ring_fromInteger :: (Eq r, Ring r) => r -> Integer -> Bool
 defn_Ring_fromInteger r i = fromInteger i `asTypeOf` r
                          == slowFromInteger i
 
@@ -1173,17 +1016,17 @@ class Ring a => Integral a where
     divMod :: a -> a -> (a,a)
 
 
-law_Integral_divMod :: (Ord_ a, Eq a, Integral a) => a -> a -> Bool
+law_Integral_divMod :: (Eq a, Integral a) => a -> a -> Bool
 law_Integral_divMod a1 a2 = if a2 /= 0
     then a2 * (a1 `div` a2) + (a1 `mod` a2) == a1
     else True
 
-law_Integral_quotRem :: (Ord_ a, Eq a, Integral a) => a -> a -> Bool
+law_Integral_quotRem :: (Eq a, Integral a) => a -> a -> Bool
 law_Integral_quotRem a1 a2 = if a2 /= 0
     then a2 * (a1 `quot` a2) + (a1 `rem` a2) == a1
     else True
 
-law_Integral_toFromInverse :: (Ord_ a, Eq a, Integral a) => a -> Bool
+law_Integral_toFromInverse :: (Eq a, Integral a) => a -> Bool
 law_Integral_toFromInverse a = fromInteger (toInteger a) == a
 
 {-# NOINLINE [1] fromIntegral #-}
@@ -1517,7 +1360,7 @@ class
 
 class
 --     ( Field (Scalar v)
-    ( Ord_ (Scalar v)
+    ( Ord (Scalar v)
     , Ring (Scalar v)
     , Eq v
     ) => MetricSpace v
@@ -1526,7 +1369,7 @@ class
     distance :: v -> v -> Scalar v
 
     {-# INLINE isFartherThan #-}
-    isFartherThan :: v -> v -> Scalar v -> Bool_ v
+    isFartherThan :: v -> v -> Scalar v -> Logic v
     isFartherThan s1 s2 b =
         {-# SCC isFartherThan #-}
         if dist > b
@@ -1548,7 +1391,7 @@ class
 law_MetricSpace_nonnegativity :: MetricSpace v => v -> v -> Bool
 law_MetricSpace_nonnegativity v1 v2 = distance v1 v2 >= 0
 
-law_MetricSpace_indiscernables :: (Ord_ v, Eq v, MetricSpace v) => v -> v -> Bool
+law_MetricSpace_indiscernables :: (Eq v, MetricSpace v) => v -> v -> Bool
 law_MetricSpace_indiscernables v1 v2 = if v1 == v2
     then distance v1 v2 == 0
     else distance v1 v2 > 0
@@ -1556,11 +1399,11 @@ law_MetricSpace_indiscernables v1 v2 = if v1 == v2
 law_MetricSpace_symmetry :: MetricSpace v => v -> v -> Bool
 law_MetricSpace_symmetry v1 v2 = distance v1 v2 == distance v2 v1
 
--- law_MetricSpace_triangle :: MetricSpace v => v -> v -> v -> Bool
--- law_MetricSpace_triangle m1 m2 m3
---     = distance m1 m2 <= distance m1 m3 + distance m2 m3
---    && distance m1 m3 <= distance m1 m2 + distance m2 m3
---    && distance m2 m3 <= distance m1 m3 + distance m2 m1
+law_MetricSpace_triangle :: MetricSpace v => v -> v -> v -> Bool
+law_MetricSpace_triangle m1 m2 m3
+    = distance m1 m2 <= distance m1 m3 + distance m2 m3
+   && distance m1 m3 <= distance m1 m2 + distance m2 m3
+   && distance m2 m3 <= distance m1 m3 + distance m2 m1
 
 instance MetricSpace Int      where distance x1 x2 = abs $ x1 - x2
 instance MetricSpace Integer  where distance x1 x2 = abs $ x1 - x2
@@ -1624,8 +1467,8 @@ instance CanError Double where
 -------------------------------------------------------------------------------
 -- set-like
 
-class (Monoid s, POrd s, Container s, MinBound s, Unfoldable s, Foldable s) => FreeMonoid s
-instance (Monoid s, POrd s, Container s, MinBound s, Unfoldable s, Foldable s) => FreeMonoid s
+class (Monoid s, Container s, MinBound_ s, Unfoldable s, Foldable s) => FreeMonoid s
+instance (Monoid s, Container s, MinBound_ s, Unfoldable s, Foldable s) => FreeMonoid s
 
 -- class (Set s, Cat (+>)) => EndoFunctor s (+>) where
 --     efmap :: (a +> b) -> s { Elem :: a } +> s { Elem :: b }
@@ -1641,7 +1484,7 @@ instance (Monoid s, POrd s, Container s, MinBound s, Unfoldable s, Foldable s) =
 type Item s = Elem s
 type family Elem s
 
-class Monoid s => Container s where
+class (Logic s ~ Logic (Elem s), Monoid s) => Container s where
     elem :: Elem s -> s -> Bool
 
 law_Container_preservation :: (Container s) => s -> s -> Elem s -> Bool
@@ -1649,7 +1492,7 @@ law_Container_preservation s1 s2 e = if e `elem` s1 || e `elem` s2
     then e `elem` (s1+s2)
     else True
 
-law_Container_empty :: (Ord_ s, Container s) => s -> Elem s -> Bool
+law_Container_empty :: (Container s) => s -> Elem s -> Bool
 law_Container_empty s e = elem e (empty `asTypeOf` s) == False
 
 -- | a slightly more suggestive name for a container's monoid identity
@@ -1706,10 +1549,10 @@ class (Normed s, Monoid s) => Unfoldable s where
     snoc :: s -> Elem s -> s
     snoc xs x = xs + singleton x
 
-law_Unfoldable_cons :: (Ord_ s, Container s, Unfoldable s) => s -> Elem s -> Bool
+law_Unfoldable_cons :: (Container s, Unfoldable s) => s -> Elem s -> Bool
 law_Unfoldable_cons s e = elem e (cons e s) == True
 
-law_Unfoldable_snoc :: (Ord_ s, Container s, Unfoldable s) => s -> Elem s -> Bool
+law_Unfoldable_snoc :: (Container s, Unfoldable s) => s -> Elem s -> Bool
 law_Unfoldable_snoc s e = elem e (snoc s e) == True
 
 -- | This function needed for the OverloadedStrings language extension
@@ -1789,15 +1632,15 @@ or :: (Foldable bs, Elem bs~b, Boolean b) => bs -> b
 or = foldl' sup false
 
 {-# INLINE argmin #-}
-argmin :: Ord_ b => a -> a -> (a -> b) -> IfResult (Bool_ b) a
+argmin :: Ord b => a -> a -> (a -> b) -> a
 argmin a1 a2 f = if f a1 < f a2 then a1 else a2
 
 {-# INLINE argmax #-}
-argmax :: Ord_ b => a -> a -> (a -> b) -> IfResult (Bool_ b) a
+argmax :: Ord b => a -> a -> (a -> b) -> a
 argmax a1 a2 f = if f a1 > f a2 then a1 else a2
 
 -- {-# INLINE argminimum_ #-}
--- argminimum_ :: Ord b => a -> [a] -> (a -> b) -> a
+-- argminimum_ :: Ord_ b => a -> [a] -> (a -> b) -> a
 -- argminimum_ a as f = fstHask $ foldl' go (a,f a) as
 --     where
 --         go (a1,fa1) a2 = if fa1 < fa2
@@ -1806,7 +1649,7 @@ argmax a1 a2 f = if f a1 > f a2 then a1 else a2
 --             where fa2 = f a2
 --
 -- {-# INLINE argmaximum_ #-}
--- argmaximum_ :: Ord b => a -> [a] -> (a -> b) -> a
+-- argmaximum_ :: Ord_ b => a -> [a] -> (a -> b) -> a
 -- argmaximum_ a as f = fstHask $ foldl' go (a,f a) as
 --     where
 --         go (a1,fa1) a2 = if fa1 > fa2
@@ -1815,35 +1658,35 @@ argmax a1 a2 f = if f a1 > f a2 then a1 else a2
 --             where fa2 = f a2
 
 {-# INLINE maximum #-}
-maximum :: (MinBound b, Ord b) => [b] -> b
+maximum :: Bounded b => [b] -> b
 maximum = supremum
 
 {-# INLINE maximum_ #-}
-maximum_ :: Ord b => b -> [b] -> b
+maximum_ :: Ord_ b => b -> [b] -> b
 maximum_ = supremum_
 
 {-# INLINE minimum #-}
-minimum :: (MaxBound b, Ord b) => [b] -> b
+minimum :: Bounded b => [b] -> b
 minimum = infimum
 
 {-# INLINE minimum_ #-}
-minimum_ :: Ord b => b -> [b] -> b
+minimum_ :: Ord_ b => b -> [b] -> b
 minimum_ = infimum_
 
 {-# INLINE supremum #-}
-supremum :: (Foldable bs, Elem bs~b, Lattice b, MinBound b) => bs -> b
+supremum :: (Foldable bs, Elem bs~b, Bounded b) => bs -> b
 supremum = supremum_ minBound
 
 {-# INLINE supremum_ #-}
-supremum_ :: (Foldable bs, Elem bs~b, Lattice b) => b -> bs -> b
+supremum_ :: (Foldable bs, Elem bs~b, Lattice_ b) => b -> bs -> b
 supremum_ = foldl' sup
 
 {-# INLINE infimum #-}
-infimum :: (Foldable bs, Elem bs~b, Lattice b, MaxBound b) => bs -> b
+infimum :: (Foldable bs, Elem bs~b, Bounded b) => bs -> b
 infimum = infimum_ maxBound
 
 {-# INLINE infimum_ #-}
-infimum_ :: (Foldable bs, Elem bs~b, Lattice b) => b -> bs -> b
+infimum_ :: (Foldable bs, Elem bs~b, POrd_ b) => b -> bs -> b
 infimum_ = foldl' inf
 
 -- FIXME: this is really slow; does it have a space leak? or is it just cache misses?
@@ -1932,73 +1775,27 @@ class (IndexedFoldable s) => IndexedDeletable s where
 
 -------------------
 
-newtype Lexical a = Lexical a
-    deriving (Read,Show,Arbitrary,NFData,Semigroup,Monoid)
-
-type instance Scalar (Lexical a) = Scalar a
-type instance Elem (Lexical a) = Elem a
-
-instance Container a => Container (Lexical a) where
-    elem e (Lexical a) = elem e a
-
-deriving instance Normed a => Normed (Lexical a)
-deriving instance (Ord_ a, Eq (Elem a), Foldable a, MetricSpace a) => MetricSpace (Lexical a)
-deriving instance Unfoldable a => Unfoldable (Lexical a)
-deriving instance Foldable a => Foldable (Lexical a)
-
-instance (Eq (Elem a), Foldable a) => Eq_ (Lexical a) where
-    (Lexical a1)==(Lexical a2) = toList a1==toList a2
-
-instance (Ord (Elem a), Foldable a) => InfSemilattice (Lexical a) where
-    inf a1 a2 = if a1 < a2 then a1 else a2
-
-instance (Ord (Elem a), Foldable a) => SupSemilattice (Lexical a) where
-    sup a1 a2 = if a1 > a2 then a1 else a2
-
-instance (Ord (Elem a), Foldable a) => Lattice (Lexical a) where
-
-instance (Ord (Elem a), Foldable a) => MinBound (Lexical a) where
-    minBound = Lexical zero
-
--- instance (Ord (Elem a), Foldable a) => POrd_ (Lexical a) where
---     pcompare (Lexical a1) (Lexical a2) = go (toList a1) (toList a2)
---         where
---             go [] [] = PEQ
---             go [] _  = PLT
---             go _  [] = PGT
---             go (a1:as1) (a2:as2) = case pcompare a1 a2 of
---                 PLT -> PLT
---                 PGT -> PGT
---                 PNA -> PNA
---                 PEQ -> go as1 as2
-
-instance (Ord_ a, Ord (Elem a), Foldable a) => Ord (Lexical a)
-
 -------------------
 
 type instance Scalar [a] = Int
+type instance Logic [a] = Logic a
 type instance Elem [a] = a
 
-instance POrd a => InfSemilattice [a] where
---     inf [] _  = []
---     inf _  [] = []
---     inf (x:xs) (y:ys) = if x==y
---         then x:inf xs ys
---         else []
+instance (Boolean (Logic a), Eq_ a) => Eq_ [a] where
+    (x:xs)==(y:ys) = x==y && xs==ys
+    (x:xs)==[]     = false
+    []    ==(y:ts) = false
+    []    ==[]     = true
 
-instance Eq_ a => Eq_ [a] where
-    type Bool_ [a] = Bool_ a
+instance (Bool ~ Logic a, POrd_ a) => POrd_ [a] where
+    inf [] _  = []
+    inf _  [] = []
+    inf (x:xs) (y:ys) = if x==y
+        then x:inf xs ys
+        else []
 
--- instance POrd_ a => POrd_ [a] where
---
---     pcompare [] [] = PEQ
---     pcompare [] _  = PLT
---     pcompare _  [] = PGT
---     pcompare (x:xs) (y:ys) = case (pcompare x y, pcompare xs ys) of
---         (PEQ,PLT) -> PLT
---         (PEQ,PGT) -> PGT
---         (PEQ,PEQ) -> PEQ
---         _         -> PNA
+instance (Bool ~ Logic a, POrd_ a) => MinBound_ [a] where
+    minBound = []
 
 instance Normed [a] where
     abs = P.length
@@ -2010,8 +1807,8 @@ instance Monoid [a] where
     zero = []
 
 instance Eq a => Container [a] where
---     elem _ []       = False
---     elem x (y:ys)   = x==y || elem x ys
+    elem _ []       = False
+    elem x (y:ys)   = x==y || elem x ys
 
 instance Unfoldable [a] where
     singleton a = [a]

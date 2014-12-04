@@ -18,36 +18,36 @@ cabal-version:       >=1.10
 
 library
     exposed-modules:
-        SubHask
+--         SubHask
         SubHask.Algebra
-        SubHask.Algebra.Ball
-        SubHask.Algebra.HMatrix
-        SubHask.Algebra.Objects
-        SubHask.Algebra.Vector
-        SubHask.Algebra.Trans.EarthMover
-        SubHask.Algebra.Trans.CompensatedSum
-        SubHask.Algebra.Trans.StringMetrics
-        SubHask.Algebra.Trans.MiscMetrics
-        SubHask.Algebra.Trans.Kernel
+--         SubHask.Algebra.Ball
+--         SubHask.Algebra.HMatrix
+        SubHask.Algebra.Container
+        SubHask.Algebra.Group
+        SubHask.Algebra.Logic
+        SubHask.Algebra.Ord
+--         SubHask.Algebra.Vector
+--         SubHask.Algebra.Trans.EarthMover
+--         SubHask.Algebra.Trans.CompensatedSum
+--         SubHask.Algebra.Trans.StringMetrics
+--         SubHask.Algebra.Trans.MiscMetrics
+--         SubHask.Algebra.Trans.Kernel
         SubHask.Category
 --         SubHask.Category.Algebra.TypeParams
-        SubHask.Category.Finite
-        SubHask.Category.Product
-        SubHask.Category.Polynomial
-        SubHask.Category.Slice
-        SubHask.Category.Trans.Common
---         SubHask.Category.Trans.Algebra
-        SubHask.Category.Trans.Bijective
-        SubHask.Category.Trans.Continuous
-        SubHask.Category.Trans.Constrained
-        SubHask.Category.Trans.Derivative
-        SubHask.Category.Trans.Linear
-        SubHask.Category.Trans.Monotonic
-        SubHask.Functor
-        SubHask.Instances
+--         SubHask.Category.Finite
+--         SubHask.Category.Product
+--         SubHask.Category.Polynomial
+--         SubHask.Category.Slice
+--         SubHask.Category.Trans.Common
+--         SubHask.Category.Trans.Bijective
+--         SubHask.Category.Trans.Continuous
+--         SubHask.Category.Trans.Constrained
+--         SubHask.Category.Trans.Derivative
+--         SubHask.Category.Trans.Linear
+--         SubHask.Category.Trans.Monotonic
         SubHask.Internal.Prelude
         SubHask.SubType
-        SubHask.Quotient
+--         SubHask.Quotient
 
         SubHask.TemplateHaskell.Deriving
         SubHask.TemplateHaskell.Test

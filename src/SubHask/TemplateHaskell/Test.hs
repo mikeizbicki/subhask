@@ -20,50 +20,32 @@ import SubHask.TemplateHaskell.Deriving
 testMap :: Map.Map String [String]
 testMap = Map.fromList
     [ ( "Eq",[] )
-    , ( "POrd",
-        [ "law_POrd_reflexivity"
-        , "law_POrd_antisymmetry"
-        , "law_POrd_transitivity"
-        , "defn_POrd_pcompare"
-        , "defn_POrd_greaterthan"
---         , "defn_POrd_lessthaninf"
---         , "defn_POrd_lessthansup"
-        ] )
-    , ( "Graded",
-        [ "law_Graded_pred"
-        , "law_Graded_fromEnum"
-        ] )
-    , ( "Ord",
-        [ "law_Ord_totality"
-        , "defn_Ord_compare"
-        ] )
-    , ( "Enum",
-        [ "law_Enum_succ"
-        , "law_Enum_toEnum"
-        ] )
+    , ( "InfSemilatice",[])
+    , ( "MinBound",[])
+    , ( "Lattice",[])
+    , ( "Ord",[])
 
-
-    , ( "InfSemilattice",
-        [ "law_InfSemilattice_commutative"
-        , "law_InfSemilattice_associative"
-        , "theorem_InfSemilattice_idempotent"
+    , ( "Eq_",[] )
+    , ( "POrd_",
+        [ "law_POrd_commutative"
+        , "law_POrd_associative"
+        , "theorem_POrd_idempotent"
         ])
-    , ( "SupSemilattice",
-        [ "law_SupSemilattice_commutative"
-        , "law_SupSemilattice_associative"
-        , "theorem_SupSemilattice_idempotent"
+    , ("MinBound_",
+        [ "law_MinBound_inf"
         ] )
-    , ( "Lattice",
+    , ( "Lattice_",
         [ "law_Lattice_infabsorption"
         , "law_Lattice_supabsorption"
         ] )
-    , ("MinBound",
-        [ "law_MinBound_inf"
+    , ( "Ord_",[])
+--     , ( "Ord_",
+--         [ "law_Ord_totality"
+--         , "defn_Ord_compare"
+--         ] )
+    , ("Bounded",
+        [ "law_Bounded_sup"
         ] )
-    , ("MaxBound",
-        [ "law_MaxBound_sup"
-        ] )
-    , ("Bounded",[])
     , ("Heyting",
         [ "law_Heyting_maxbound"
         , "law_Heyting_infleft"
@@ -76,6 +58,16 @@ testMap = Map.fromList
         , "law_Boolean_infdistributivity"
         , "law_Boolean_supdistributivity"
         ])
+    , ( "Graded",
+        [ "law_Graded_pred"
+        , "law_Graded_fromEnum"
+        ] )
+    , ( "Enum",
+        [ "law_Enum_succ"
+        , "law_Enum_toEnum"
+        ] )
+
+
 
     , ( "Semigroup" ,
         [ "law_Semigroup_associativity"
