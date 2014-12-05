@@ -59,8 +59,8 @@ main = defaultMain
 --         ]
     , testGroup "containers"
         [ $( mkSpecializedClassTests [t| []            Char |] [ ''FreeMonoid ] )
-        , $( mkSpecializedClassTests [t| Set           Char |] [ ''MinBound_ ] )
---         , $( mkSpecializedClassTests [t| Set           Char |] [ ''Monoid, ''Lattice, ''Container, ''Foldable, ''Unfoldable ] )
+        , $( mkSpecializedClassTests [t| Set           Char |] [ ''FreeMonoid ] )
+        , $( mkSpecializedClassTests [t| IndexedVector Int Int |] [ ''Lattice, ''Monoid ] )
 --         , $( mkSpecializedClassTests [t| Array         Char |] [ ''FreeMonoid ] )
 --         , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''FreeMonoid ] )
 --         , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''FreeMonoid ] )

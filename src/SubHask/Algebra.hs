@@ -15,6 +15,7 @@ module SubHask.Algebra
     , theorem_POrd_idempotent
     , Lattice_ (..)
     , Lattice
+    , POrdering (..)
     , law_Lattice_commutative
     , law_Lattice_associative
     , theorem_Lattice_idempotent
@@ -52,6 +53,7 @@ module SubHask.Algebra
     , law_Graded_fromEnum
     , Ord_ (..)
     , Ord
+    , Ordering (..)
     , law_Ordtotality
 --     , defn_Ordcompare
     , argmin
@@ -214,6 +216,7 @@ type instance Logic Rational = Bool
 type instance Logic Float = Bool
 type instance Logic Double = Bool
 type instance Logic (a->b) = a -> Logic b
+type instance Logic (a,b) = Logic a
 
 -- | Defines equivalence classes over the type.
 -- The types need not have identical representations in the machine to be equal.
@@ -241,6 +244,9 @@ instance Eq_ Double   where (==) = (P.==); (/=) = (P./=)
 
 instance Eq_ b => Eq_ (a -> b) where
     (f==g) a = f a == f a
+
+instance (Eq_ a, Eq_ b, Logic a ~ Logic b, Lattice (Logic a)) => Eq_ (a,b) where
+    (a1,b1)==(a2,b2) = a1==a2 && b1==b2
 
 class (Eq_ a, Logic a ~ Bool) => Eq a
 instance (Eq_ a, Logic a ~ Bool) => Eq a
@@ -319,6 +325,52 @@ instance MinBound_ b => MinBound_ (a -> b) where minBound = \x -> minBound
 
 
 -------------------
+
+-- | Represents all the possible ordering relations in a classical logic (i.e. Logic a ~ Bool)
+data POrdering
+    = PLT
+    | PGT
+    | PEQ
+    | PNA
+    deriving (Read,Show)
+
+type instance Logic POrdering = Bool
+
+instance Arbitrary POrdering where
+    arbitrary = frequency
+        [ (1, return PLT)
+        , (1, return PGT)
+        , (1, return PEQ)
+        , (1, return PNA)
+        ]
+
+instance Eq_ POrdering where
+    PLT == PLT = True
+    PGT == PGT = True
+    PEQ == PEQ = True
+    PNA == PNA = True
+    _ == _ = False
+
+-- | FIXME: there are many semigroups over POrdering;
+-- how should we represent the others? newtypes?
+instance Semigroup POrdering where
+    PEQ + x = x
+    PLT + _ = PLT
+    PGT + _ = PGT
+    PNA + _ = PNA
+
+instance Semigroup Ordering where
+    EQ + x = x
+    LT + _ = LT
+    GT + _ = GT
+
+instance Monoid POrdering where
+    zero = PEQ
+
+instance Monoid Ordering where
+    zero = EQ
+
+
 -- |
 --
 --
@@ -335,6 +387,20 @@ class POrd_ b => Lattice_ b where
     infix 4 >
     (>) :: Boolean (Logic b) => b -> b -> Logic b
     b1 > b2 = sup b1 b2 == b1 && b1 /= b2
+
+    -- | This function does not make sense on non-classical logics
+    --
+    -- FIXME: there are probably related functions for all these other logics;
+    -- is there a nice way to represent them all?
+    {-# INLINABLE pcompare #-}
+    pcompare :: Logic b ~ Bool => b -> b -> POrdering
+    pcompare a b = if a==b
+        then PEQ
+        else if a < b
+            then PLT
+            else if a > b
+                then PGT
+                else PNA
 
 class (Eq b, Lattice_ b) => Lattice b
 instance (Eq b, Lattice_ b) => Lattice b
@@ -506,6 +572,12 @@ b1 >. b2 = b1 == succ b2
 --
 -- See https://en.wikipedia.org/wiki/Total_order
 class Lattice_ a => Ord_ a where
+    compare :: (Logic a~Bool, Ord_ a) => a -> a -> Ordering
+    compare a1 a2 = case pcompare a1 a2 of
+        PLT -> LT
+        PGT -> GT
+        PEQ -> EQ
+        PNA -> error "PNA given by pcompare on a totally ordered type"
 
 law_Ordtotality :: Ord a => a -> a -> Bool
 law_Ordtotality a1 a2 = a1 <= a2 || a2 <= a1
