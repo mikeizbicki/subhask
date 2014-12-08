@@ -5,10 +5,10 @@ import SubHask.Category
 import SubHask.Internal.Prelude
 import SubHask.Algebra.Group
 import SubHask.Algebra.Container
--- import SubHask.Algebra.Trans.StringMetrics
 -- import SubHask.Algebra.Trans.MiscMetrics
 -- import SubHask.Algebra.Trans.Kernel
--- import SubHask.Algebra.Trans.CompensatedSum
+import SubHask.Algebra.Vector
+import SubHask.Compatibility.Containers
 
 import SubHask.TemplateHaskell.Deriving
 import SubHask.TemplateHaskell.Test
@@ -27,7 +27,7 @@ main = defaultMain
             , $( mkSpecializedClassTests [t| Rational |] [''Ord,''Ring, ''Lattice, ''MetricSpace] )
 -- --             , $( mkSpecializedClassTests [t| Float    |] [''Ord,''Field, ''Bounded] )
 -- --             , $( mkSpecializedClassTests [t| Double   |] [''Ord,''Field, ''Bounded] )
---             , $( mkSpecializedClassTests [t| Uncompensated Int |] [ ''Ring ] )
+            , $( mkSpecializedClassTests [t| Uncompensated Int |] [ ''Ring ] )
             , testGroup "transformers"
                 [ $( mkSpecializedClassTests [t| NonNegative Int  |] [''Enum,''Rig, ''Bounded, ''MetricSpace] )
                 , $( mkSpecializedClassTests [t| Z 57             |] [''Ring] )
@@ -47,7 +47,7 @@ main = defaultMain
         -- | FIXME: vector identity is different than x-x, so spurious failures
 --         [ $( mkSpecializedClassTests [t| Vector Int |] [ ''Group, ''Ord, ''Lattice ] )
 --         [ testGroup "metrics"
---             [ $( mkSpecializedClassTests [t| Vector Double |] [''MetricSpace] )
+--             [ $( mkSpecializedClassTests [t| Vector Double |] [''MetricSpace ] )
 --             , $( mkSpecializedClassTests [t| Polynomial 2 (Vector Double) |] [''MetricSpace] )
 --             , $( mkSpecializedClassTests [t| RBF 2 (Vector Double) |] [''MetricSpace] )
 --             , $( mkSpecializedClassTests [t| Sigmoid 2 (Vector Double) |] [''MetricSpace] )
@@ -59,15 +59,17 @@ main = defaultMain
 --         ]
     , testGroup "containers"
         [ $( mkSpecializedClassTests [t| []            Char |] [ ''FreeMonoid ] )
-        , $( mkSpecializedClassTests [t| Set           Char |] [ ''FreeMonoid ] )
-        , $( mkSpecializedClassTests [t| IndexedVector Int Int |] [ ''Lattice, ''Monoid ] )
---         , $( mkSpecializedClassTests [t| Array         Char |] [ ''FreeMonoid ] )
---         , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''FreeMonoid ] )
---         , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''FreeMonoid ] )
+        , $( mkSpecializedClassTests [t| Array         Char |] [ ''FreeMonoid ] )
+        , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''FreeMonoid ] )
+        , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''FreeMonoid ] )
+--         , $( mkSpecializedClassTests [t| Set           Char |] [ ''FreeMonoid ] )
+--         , $( mkSpecializedClassTests [t| Map  Char Int |] [ ''POrd, ''Indexed ] )
+--         , $( mkSpecializedClassTests [t| Map' Char Int |] [ ''POrd, ''Indexed ] )
         , testGroup "transformers"
-            [ $( mkSpecializedClassTests [t| Lexical     [Char] |] [''Ord,''MinBound_,''Lattice] )
---             , $( mkSpecializedClassTests [t| Hamming     [Char] |] [''MetricSpace] )
---             , $( mkSpecializedClassTests [t| Levenshtein [Char] |] [''MetricSpace] )
+            [ $( mkSpecializedClassTests [t| Lexical        [Char] |] [''Ord,''MinBound] )
+            , $( mkSpecializedClassTests [t| ComponentWise  [Char] |] [''Lattice,''MinBound] )
+            , $( mkSpecializedClassTests [t| Hamming        [Char] |] [''MetricSpace] )
+            , $( mkSpecializedClassTests [t| Levenshtein    [Char] |] [''MetricSpace] )
             ]
         ]
     ]

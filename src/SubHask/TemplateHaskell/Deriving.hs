@@ -12,6 +12,9 @@ module SubHask.TemplateHaskell.Deriving
     , deriveTypefamilies
     , listSuperClasses
 
+    -- ** compatibility functions
+    , fromPreludeEq
+
     -- ** helpers
     , BasicType
     , helper_liftM
@@ -106,7 +109,7 @@ deriveSingleInstance typename classname = do
     typefamilies <- deriveTypefamilies
         [ mkName "Scalar"
         , mkName "Elem"
-        , mkName "Index"
+--         , mkName "Index"
         , mkName "Logic"
         ] typename
 
@@ -281,3 +284,21 @@ list2exp xs = go $ reverse xs
     where
         go (x:[]) = x
         go (x:xs) = AppE (go xs) x
+
+-- | Generate an Eq_ instance from the Prelude's Eq instance.
+-- This requires that Logic t = Bool, so we also generate this type instance.
+fromPreludeEq :: Q Type -> Q [Dec]
+fromPreludeEq qt = do
+    t<-qt
+    return
+        [ TySynInstD
+            ( mkName "Logic" )
+            ( TySynEqn [t] (ConT $ mkName "Bool" ))
+        , InstanceD
+            []
+            ( AppT ( ConT $ mkName "Eq_" ) t )
+            [ FunD
+                ( mkName "==" )
+                [ Clause [] (NormalB $ VarE $ mkName "P.==") [] ]
+            ]
+        ]

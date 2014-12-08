@@ -97,7 +97,7 @@ newtype (/) (a :: *) (b :: k) = Mod a
 instance (Quotient a b, Arbitrary a) => Arbitrary (a/b) where
     arbitrary = liftM mkQuotient arbitrary
 
-deriveHierarchyFiltered ''(/) [ ''Eq_ ] [''Arbitrary]
+deriveHierarchyFiltered ''(/) [ ''Eq_, ''P.Ord ] [''Arbitrary]
 
 instance (Semigroup a, Quotient a b) => Semigroup (a/b) where
     (Mod z1) + (Mod z2) = mkQuotient $ z1 + z2

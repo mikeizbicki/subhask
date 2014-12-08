@@ -43,8 +43,10 @@ instance (P.Eq a, Ord a) => P.Ord (With a) where
 --                 else P.GT
 -------------
 
-newtype WithPreludeOrd a = WithPreludeOrd a
-    deriving (Show)
+newtype WithPreludeOrd a = WithPreludeOrd { unWithPreludeOrd :: a }
+
+instance Show a => Show (WithPreludeOrd a) where
+    show (WithPreludeOrd a) = show a
 
 -- | FIXME: for some reason, our deriving mechanism doesn't work on Show here;
 -- It causes's Set's show to enter an infinite loop

@@ -24,6 +24,7 @@ testMap = Map.fromList
     , ( "MinBound",[])
     , ( "Lattice",[])
     , ( "Ord",[])
+    , ( "POrd",[])
 
     , ( "Eq_",[] )
     , ( "POrd_",
@@ -39,10 +40,12 @@ testMap = Map.fromList
         , "law_Lattice_supabsorption"
         ] )
     , ( "Ord_",[])
---     , ( "Ord_",
---         [ "law_Ord_totality"
+    , ( "Ord_",
+        [ "law_Ord_totality"
+        , "law_Ord_min"
+        , "law_Ord_max"
 --         , "defn_Ord_compare"
---         ] )
+        ] )
     , ("Bounded",
         [ "law_Bounded_sup"
         ] )
@@ -124,10 +127,18 @@ testMap = Map.fromList
         [ "law_Container_empty"
         , "law_Container_preservation"
         ] )
+    , ( "Indexed",
+        [ "law_Indexed_cons"
+        ] )
 
     , ( "Unfoldable",
-        [ "law_Unfoldable_cons"
-        , "law_Unfoldable_snoc"
+        [ "law_Unfoldable_singleton"
+        , "law_Unfoldable_abs"
+        , "theorem_Unfoldable_insert"
+        , "defn_Unfoldable_cons"
+        , "defn_Unfoldable_snoc"
+        , "defn_Unfoldable_fromList"
+        , "defn_Unfoldable_fromListN"
         ] )
     , ( "Foldable",
         [

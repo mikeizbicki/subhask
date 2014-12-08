@@ -15,7 +15,7 @@ import qualified Data.Vector as V
 import SubHask.Algebra
 import SubHask.Category
 import SubHask.SubType
-import SubHask.Category.Trans.Common
+-- import SubHask.Category.Trans.Common
 import SubHask.Internal.Prelude
 
 import qualified Prelude as P
@@ -130,6 +130,8 @@ instance Category Cask where
 data C1T cat a b where
     C1T :: Rng (cat a a) => cat a a -> cat a a -> C1T cat a a
 
+type instance Logic (C1T cat a b) = Logic (cat a b)
+
 instance Category cat => Category (C1T cat) where
     type ValidCategory (C1T cat) a =
         ( ValidCategory cat a
@@ -151,7 +153,7 @@ instance Category cat => Diff (C1T cat) where
 
 ---------
 
-instance Eq (cat a a) => Eq (C1T cat a a) where
+instance (Lattice_ (Logic (cat a a)), Eq_ (cat a a)) => Eq_ (C1T cat a a) where
     (C1T f f')==(C1T g g') = f==g && f'==g'
 
 instance Ring (cat a a) => Semigroup (C1T cat a a) where

@@ -17,8 +17,9 @@ data WithKernel (kernel::k) v where
     WithKernel :: (v -> v -> Scalar v) -> v -> WithKernel k v
 
 type instance Scalar (WithKernel k v) = Scalar v
+type instance Logic (WithKernel k v) = Logic v
 
-instance Eq v => Eq (WithKernel k v) where
+instance Eq v => Eq_ (WithKernel k v) where
     (WithKernel _ v1)==(WithKernel _ v2) = v1==v2
 
 instance

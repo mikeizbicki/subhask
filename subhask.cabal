@@ -4,8 +4,8 @@
 name:                subhask
 version:             0.1.0.0
 synopsis:            Type safe interface for programming in subcategories of Hask
--- description:
-homepage:            github.com/mikeizbicki/subhask
+description:         -- FIXME: add a description
+homepage:            http://github.com/mikeizbicki/subhask
 license:             BSD3
 license-file:        LICENSE
 author:              Mike Izbicki
@@ -18,42 +18,42 @@ cabal-version:       >=1.10
 
 library
     exposed-modules:
---         SubHask
+        SubHask
+
         SubHask.Algebra
---         SubHask.Algebra.Ball
---         SubHask.Algebra.HMatrix
         SubHask.Algebra.Container
         SubHask.Algebra.Group
         SubHask.Algebra.Logic
+        SubHask.Algebra.Metric
         SubHask.Algebra.Ord
---         SubHask.Algebra.Vector
---         SubHask.Algebra.Trans.EarthMover
---         SubHask.Algebra.Trans.CompensatedSum
---         SubHask.Algebra.Trans.StringMetrics
---         SubHask.Algebra.Trans.MiscMetrics
---         SubHask.Algebra.Trans.Kernel
-        SubHask.Category
---         SubHask.Category.Algebra.TypeParams
---         SubHask.Category.Finite
---         SubHask.Category.Product
---         SubHask.Category.Polynomial
---         SubHask.Category.Slice
---         SubHask.Category.Trans.Common
---         SubHask.Category.Trans.Bijective
---         SubHask.Category.Trans.Continuous
---         SubHask.Category.Trans.Constrained
---         SubHask.Category.Trans.Derivative
---         SubHask.Category.Trans.Linear
---         SubHask.Category.Trans.Monotonic
-        SubHask.Internal.Prelude
-        SubHask.SubType
---         SubHask.Quotient
+        SubHask.Algebra.Vector
+        SubHask.Algebra.HMatrix
+        SubHask.Algebra.Trans.MiscMetrics
+        SubHask.Algebra.Trans.Kernel
 
+        SubHask.Category
+        SubHask.Category.Finite
+        SubHask.Category.Product
+        SubHask.Category.Polynomial
+        SubHask.Category.Slice
+        SubHask.Category.Trans.Bijective
+        SubHask.Category.Trans.Continuous
+        SubHask.Category.Trans.Constrained
+        SubHask.Category.Trans.Derivative
+        SubHask.Category.Trans.Linear
+        SubHask.Category.Trans.Monotonic
+
+        SubHask.Compatibility.Base
+        SubHask.Compatibility.Containers
+
+        SubHask.SubType
+
+        SubHask.TemplateHaskell.CategoryTrans
         SubHask.TemplateHaskell.Deriving
         SubHask.TemplateHaskell.Test
 
     other-modules:
---         SubHask.Internal.Prelude
+        SubHask.Internal.Prelude
 
     default-extensions:
         TypeFamilies,

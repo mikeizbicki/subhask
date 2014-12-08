@@ -15,6 +15,8 @@ module SubHask.Algebra
     , theorem_POrd_idempotent
     , Lattice_ (..)
     , Lattice
+    , isChain
+    , isAntichain
     , POrdering (..)
     , law_Lattice_commutative
     , law_Lattice_associative
@@ -52,19 +54,21 @@ module SubHask.Algebra
     , law_Graded_pred
     , law_Graded_fromEnum
     , Ord_ (..)
+    , law_Ord_totality
+    , law_Ord_min
+    , law_Ord_max
     , Ord
     , Ordering (..)
-    , law_Ordtotality
---     , defn_Ordcompare
-    , argmin
-    , argmax
---     , argminimum_
---     , argmaximum_
+    , min
+    , max
     , maximum
     , maximum_
     , minimum
     , minimum_
-    , Ordering (..)
+    , argmin
+    , argmax
+--     , argminimum_
+--     , argmaximum_
     , Enum (..)
     , law_Enum_succ
     , law_Enum_toEnum
@@ -86,8 +90,15 @@ module SubHask.Algebra
     , Unfoldable (..)
     , insert
     , fromString
-    , law_Unfoldable_cons
-    , law_Unfoldable_snoc
+    , law_Unfoldable_singleton
+    , law_Unfoldable_abs
+    , theorem_Unfoldable_insert
+    , defn_Unfoldable_cons
+    , defn_Unfoldable_snoc
+    , defn_Unfoldable_fromList
+    , defn_Unfoldable_fromListN
+    , Indexed (..)
+    , law_Indexed_cons
     , Foldable (..)
     , length
     , reduce
@@ -98,11 +109,7 @@ module SubHask.Algebra
     , lastMaybe
     , initMaybe
     , Index
-    , Indexed (..)
-    , IndexedFoldable (..)
-    , IndexedUnfoldable (..)
-    , IndexedDeletable (..)
-    , insertAt
+    , Value
 
     , Topology (..)
     , FreeMonoid
@@ -175,10 +182,6 @@ module SubHask.Algebra
     , law_MetricSpace_indiscernables
     , law_MetricSpace_symmetry
     , law_MetricSpace_triangle
-
-    -- * Examples
---     , IndexedVector (..)
---     , Set
     )
     where
 
@@ -464,19 +467,19 @@ infixr 2 ||
 (||) :: Lattice_ b => b -> b -> b
 (||) = sup
 
--- -- | A chain is a collection of elements all of which can be compared
--- isChain :: Lattice a => [a] -> Logic a
--- isChain [] = true
--- isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isAntichain xs
+-- | A chain is a collection of elements all of which can be compared
+isChain :: Lattice a => [a] -> Logic a
+isChain [] = true
+isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isAntichain xs
 --
--- -- | An antichain is a collection of elements none of which can be compared
--- --
--- -- See <http://en.wikipedia.org/wiki/Antichain wikipedia> for more details.
--- --
--- -- See also the article on <http://en.wikipedia.org/wiki/Dilworth%27s_theorem Dilward's Theorem>.
--- isAntichain :: Lattice a => [a] -> Logic a
--- isAntichain [] = true
--- isAntichain (x:xs) = all (==PNA) (map (pcompare x) xs) && isAntichain xs
+-- | An antichain is a collection of elements none of which can be compared
+--
+-- See <http://en.wikipedia.org/wiki/Antichain wikipedia> for more details.
+--
+-- See also the article on <http://en.wikipedia.org/wiki/Dilworth%27s_theorem Dilward's Theorem>.
+isAntichain :: Lattice a => [a] -> Logic a
+isAntichain [] = true
+isAntichain (x:xs) = all (==PNA) (map (pcompare x) xs) && isAntichain xs
 
 -------------------
 
@@ -579,8 +582,16 @@ class Lattice_ a => Ord_ a where
         PEQ -> EQ
         PNA -> error "PNA given by pcompare on a totally ordered type"
 
-law_Ordtotality :: Ord a => a -> a -> Bool
-law_Ordtotality a1 a2 = a1 <= a2 || a2 <= a1
+law_Ord_totality :: Ord a => a -> a -> Bool
+law_Ord_totality a1 a2 = a1 <= a2 || a2 <= a1
+
+law_Ord_min :: Ord a => a -> a -> Bool
+law_Ord_min a1 a2 = min a1 a2 == a1
+                 || min a1 a2 == a2
+
+law_Ord_max :: Ord a => a -> a -> Bool
+law_Ord_max a1 a2 = max a1 a2 == a1
+                 || max a1 a2 == a2
 
 {-# INLINE min #-}
 min :: Ord_ a => a -> a -> a
@@ -1253,8 +1264,8 @@ instance (Ring r, Scalar r~r) => IsScalar r
 
 -- FIXME: made into classes due to TH limitations
 -- > type HasScalar a = IsScalar (Scalar a)
-class IsScalar (Scalar a) => HasScalar a
-instance IsScalar (Scalar a) => HasScalar a
+class ({-Logic a~Logic (Scalar a), -}IsScalar (Scalar a)) => HasScalar a
+instance ({-Logic a~Logic (Scalar a), -}IsScalar (Scalar a)) => HasScalar a
 
 type instance Scalar Int      = Int
 type instance Scalar Integer  = Integer
@@ -1430,28 +1441,36 @@ class
 
 ---------------------------------------
 
+-- | Metric spaces give us the most intuitive notion of distance between objects.
+--
+-- FIXME: There are many other notions of distance and we should make a while hierarchy.
 class
---     ( Field (Scalar v)
-    ( Ord (Scalar v)
+    ( Ord_ (Scalar v)
     , Ring (Scalar v)
-    , Eq v
+    , Eq_ v
+    , Boolean (Logic v)
+    , Logic (Scalar v) ~ Logic v
     ) => MetricSpace v
         where
 
     distance :: v -> v -> Scalar v
 
+    -- | FIXME: this should have a default implementation in terms of isFartherThanWithDistanceCanError
+    -- the weird constraints on that function prevent this
     {-# INLINE isFartherThan #-}
     isFartherThan :: v -> v -> Scalar v -> Logic v
     isFartherThan s1 s2 b =
         {-# SCC isFartherThan #-}
-        if dist > b
-            then true
-            else false
-        where
-            dist = distance s1 s2
+        distance s1 s2 > b
 
     {-# INLINE isFartherThanWithDistanceCanError #-}
-    isFartherThanWithDistanceCanError :: CanError (Scalar v) => v -> v -> Scalar v -> Scalar v
+    isFartherThanWithDistanceCanError ::
+        ( Logic (Scalar v)~Bool
+        , CanError (Scalar v)
+        ) => v
+          -> v
+          -> Scalar v
+          -> Scalar v
     isFartherThanWithDistanceCanError s1 s2 b =
         {-# SCC isFartherThanWithDistanceCanError  #-}
         if dist > b
@@ -1460,18 +1479,18 @@ class
         where
             dist = distance s1 s2
 
-law_MetricSpace_nonnegativity :: MetricSpace v => v -> v -> Bool
+law_MetricSpace_nonnegativity :: MetricSpace v => v -> v -> Logic v
 law_MetricSpace_nonnegativity v1 v2 = distance v1 v2 >= 0
 
-law_MetricSpace_indiscernables :: (Eq v, MetricSpace v) => v -> v -> Bool
+law_MetricSpace_indiscernables :: (Eq v, MetricSpace v) => v -> v -> Logic v
 law_MetricSpace_indiscernables v1 v2 = if v1 == v2
     then distance v1 v2 == 0
     else distance v1 v2 > 0
 
-law_MetricSpace_symmetry :: MetricSpace v => v -> v -> Bool
+law_MetricSpace_symmetry :: MetricSpace v => v -> v -> Logic v
 law_MetricSpace_symmetry v1 v2 = distance v1 v2 == distance v2 v1
 
-law_MetricSpace_triangle :: MetricSpace v => v -> v -> v -> Bool
+law_MetricSpace_triangle :: MetricSpace v => v -> v -> v -> Logic v
 law_MetricSpace_triangle m1 m2 m3
     = distance m1 m2 <= distance m1 m3 + distance m2 m3
    && distance m1 m3 <= distance m1 m2 + distance m2 m3
@@ -1542,34 +1561,71 @@ instance CanError Double where
 class (Monoid s, Container s, MinBound_ s, Unfoldable s, Foldable s) => FreeMonoid s
 instance (Monoid s, Container s, MinBound_ s, Unfoldable s, Foldable s) => FreeMonoid s
 
--- class (Set s, Cat (+>)) => EndoFunctor s (+>) where
---     efmap :: (a +> b) -> s { Elem :: a } +> s { Elem :: b }
---     efmap :: (a +> b) -> s a +> s b
---
--- class (Unfoldable s, EndoFunctor s (+>)) => Applicative s (+>) where
---     (<*>) :: s { Elem :: (a +> b) } -> s { Elem :: a } +> s { Elem :: b }
---     (<*>) :: s (a +> b) -> s a +> s b
---
--- class (Unfoldable s, EndoFunctor s (+>)) => Monad s (+>) where
---     join :: ValidCategory (+>) a => s (s a) +> s a
-
 type Item s = Elem s
 type family Elem s
 
-class (Logic s ~ Logic (Elem s), Monoid s) => Container s where
-    elem :: Elem s -> s -> Bool
+-- |
+-- concept must be generic enough for:
+--   maps
+--   hash tables
+--   lists/sequences
+--   fuzzy sets?
+--   bloom filters
+class (Monoid s, Eq_ s) => Container s where
+    elem :: Elem s -> s -> Logic s
 
-law_Container_preservation :: (Container s) => s -> s -> Elem s -> Bool
-law_Container_preservation s1 s2 e = if e `elem` s1 || e `elem` s2
-    then e `elem` (s1+s2)
-    else True
+    notElem :: Elem s -> s -> Logic s
 
-law_Container_empty :: (Container s) => s -> Elem s -> Bool
-law_Container_empty s e = elem e (empty `asTypeOf` s) == False
+law_Container_preservation :: (Heyting (Logic s), Container s) => s -> s -> Elem s -> Logic s
+law_Container_preservation s1 s2 e = (e `elem` s1 || e `elem` s2) ==> (e `elem` (s1+s2))
+
+law_Container_empty :: Container s => s -> Elem s -> Logic s
+law_Container_empty s e = notElem e (empty `asTypeOf` s)
 
 -- | a slightly more suggestive name for a container's monoid identity
-empty :: (Monoid s{-, Container s-}) => s
+empty :: Container s => s
 empty = zero
+
+-- type family Index s :: *
+-- type family Value s :: *
+
+type family Fst a where
+    Fst (a,b) = a
+
+type family Snd a where
+    Snd (a,b) = b
+
+type Index s = Fst (Elem s)
+type Value s = Snd (Elem s)
+
+-- |
+--
+class (Elem s~(Index s, Value s), Unfoldable s) => Indexed s where
+    (!) :: s -> Index s -> Value s
+    (!) s i = case s !! i of
+        Just x -> x
+        Nothing -> error "used (!) on an invalid index"
+
+    (!!) :: s -> Index s -> Maybe (Value s)
+
+    findWithDefault :: Value s -> Index s -> s -> Value s
+    findWithDefault def i s = case s !! i of
+        Nothing -> def
+        Just e -> e
+
+    hasIndex :: Index s -> s -> Bool
+    hasIndex i s = case s !! i of
+        Nothing -> False
+        Just _ -> True
+
+    -- FIXME: everything below should probably find homes in a different class
+
+    indices :: s -> [Index s]
+
+    values :: s -> [Value s]
+
+law_Indexed_cons :: (Indexed s, Eq_ (Value s)) => s -> Elem s -> Logic (Value s)
+law_Indexed_cons s e = cons e s ! fst e == snd e
 
 -- |
 --
@@ -1594,7 +1650,7 @@ class (Boolean s, Container s) => Topology s where
 --
 -- TODO: How is this related to Constuctable sets?
 -- https://en.wikipedia.org/wiki/Constructible_set_%28topology%29
-class (Normed s, Monoid s) => Unfoldable s where
+class Container s => Unfoldable s where
     -- | creates the smallest container with the given element
     --
     -- > elem x (singleton x) == True
@@ -1617,23 +1673,41 @@ class (Normed s, Monoid s) => Unfoldable s where
     cons :: Elem s -> s -> s
     cons x xs = singleton x + xs
 
-    -- | inserts an element on the right
+    -- | inserts an element on the right;
+    -- in a non-abelian Unfoldable, this may not insert the element;
+    -- this occurs, for example, in the Map type.
     snoc :: s -> Elem s -> s
     snoc xs x = xs + singleton x
 
-law_Unfoldable_cons :: (Container s, Unfoldable s) => s -> Elem s -> Bool
-law_Unfoldable_cons s e = elem e (cons e s) == True
+law_Unfoldable_singleton :: Unfoldable s => s -> Elem s -> Logic s
+law_Unfoldable_singleton s e = elem e $ singleton e `asTypeOf` s
 
-law_Unfoldable_snoc :: (Container s, Unfoldable s) => s -> Elem s -> Bool
-law_Unfoldable_snoc s e = elem e (snoc s e) == True
+-- | FIXME: this is only for debuging sometihng
+law_Unfoldable_abs :: (Logic (Scalar s)~Logic s, Scalar s~Int, Eq (Elem s), Normed s, Unfoldable s) => s -> [Elem s] -> Logic s
+law_Unfoldable_abs s es = abs (fromList es `asTypeOf` s) == length es
+
+theorem_Unfoldable_insert :: Unfoldable s => s -> Elem s -> Logic s
+theorem_Unfoldable_insert s e = elem e (cons e s)
+
+defn_Unfoldable_fromList :: Unfoldable s => s -> [Elem s] -> Logic s
+defn_Unfoldable_fromList s es = fromList es `asTypeOf` s == foldr cons zero es
+
+defn_Unfoldable_fromListN :: (Eq (Elem s), Unfoldable s) => s -> [Elem s] -> Logic s
+defn_Unfoldable_fromListN s es = (fromList es `asTypeOf` s)==fromListN (length es) es
+
+defn_Unfoldable_cons :: Unfoldable s => s -> Elem s -> Logic s
+defn_Unfoldable_cons s e = cons e s == singleton e + s
+
+defn_Unfoldable_snoc :: Unfoldable s => s -> Elem s -> Logic s
+defn_Unfoldable_snoc s e = snoc s e == s + singleton e
+
+-- | Insert an element into the container
+insert :: Unfoldable s => Elem s -> s -> s
+insert = cons
 
 -- | This function needed for the OverloadedStrings language extension
 fromString :: (Unfoldable s, Elem s ~ Char) => String -> s
 fromString = fromList
-
--- | For an Abelian Container, cons==snoc
-insert :: (Unfoldable s, Abelian s) => Elem s -> s -> s
-insert = cons
 
 -- | Provides inverse operations for "Unfoldable".
 --
@@ -1692,7 +1766,7 @@ reduce s = foldl' (+) zero s
 
 -- | For anything foldable, the norm must be compatible with the folding structure.
 {-# INLINE length #-}
-length :: Unfoldable s => s -> Scalar s
+length :: (Normed s, Unfoldable s) => s -> Scalar s
 length = abs
 
 {-# INLINE and #-}
@@ -1792,81 +1866,26 @@ lastMaybe = P.fmap snd . unSnoc
 initMaybe :: Foldable s => s -> Maybe s
 initMaybe = P.fmap fst . unSnoc
 
-type family Index s :: *
-
-class {-Container s =>-} Indexed s where
-    (!) :: s -> Index s -> Elem s
-    (!) s i = case s !! i of
-        Just x -> x
-        Nothing -> error "used (!) on an invalid index"
-
-    (!!) :: s -> Index s -> Maybe (Elem s)
-
-    findWithDefault :: Elem s -> Index s -> s -> Elem s
-    findWithDefault def i s = case s !! i of
-        Nothing -> def
-        Just e -> e
-
-    hasIndex :: Index s -> s -> Bool
-    hasIndex i s = case s !! i of
-        Nothing -> False
-        Just _ -> True
-
-class (Monoid s, {-Container s, -}Indexed s) => IndexedUnfoldable s where
-    singletonAt :: Index s -> Elem s -> s
-
-    consAt :: Index s -> Elem s -> s -> s
-    consAt i e s = singletonAt i e + s
-
-    snocAt :: s -> Index s -> Elem s -> s
-    snocAt s i e = s + singletonAt i e
-
-    fromIndexedList :: [(Index s, Elem s)] -> s
-    fromIndexedList = foldl' (\s (i,e) -> snocAt s i e) empty
-
-class (IndexedUnfoldable s) => IndexedFoldable s where
-    toIndexedList :: s -> [(Index s, Elem s)]
-
-    elems :: s -> [Elem s]
-    elems = map snd . toIndexedList
-
-    keys :: s -> [Index s]
-    keys = map fst . toIndexedList
-
-insertAt :: (IndexedUnfoldable s, Abelian s) => Index s -> Elem s -> s -> s
-insertAt = consAt
-
-class (IndexedFoldable s) => IndexedDeletable s where
-    deleteAt :: Index s -> s -> s
-
--- type Topology s = (Boolean s, Set s)
--- type Measurable s = (Topology s, Normed s)
---
--- class Set s => MultiSet s where
---     numElem :: Elem s -> s -> Scalar s
-
--------------------
-
 -------------------
 
 type instance Scalar [a] = Int
 type instance Logic [a] = Logic a
 type instance Elem [a] = a
 
-instance (Boolean (Logic a), Eq_ a) => Eq_ [a] where
+instance (Heyting (Logic a), Eq_ a) => Eq_ [a] where
     (x:xs)==(y:ys) = x==y && xs==ys
     (x:xs)==[]     = false
     []    ==(y:ts) = false
     []    ==[]     = true
 
-instance (Bool ~ Logic a, POrd_ a) => POrd_ [a] where
+instance (Logic a~Bool, POrd_ a) => POrd_ [a] where
     inf [] _  = []
     inf _  [] = []
     inf (x:xs) (y:ys) = if x==y
         then x:inf xs ys
         else []
 
-instance (Bool ~ Logic a, POrd_ a) => MinBound_ [a] where
+instance (Logic a~Bool, POrd_ a) => MinBound_ [a] where
     minBound = []
 
 instance Normed [a] where
@@ -1878,11 +1897,13 @@ instance Semigroup [a] where
 instance Monoid [a] where
     zero = []
 
-instance Eq a => Container [a] where
-    elem _ []       = False
+instance (Boolean (Logic a), Eq_ a) => Container [a] where
+    elem _ []       = false
     elem x (y:ys)   = x==y || elem x ys
 
-instance Unfoldable [a] where
+    notElem = not elem
+
+instance (Boolean (Logic a), Eq_ a) => Unfoldable [a] where
     singleton a = [a]
     cons x xs = x:xs
 
@@ -1905,10 +1926,10 @@ instance Foldable [a] where
     foldl1 = L.foldl1
     foldl1' = L.foldl1'
 
-type instance Index [a] = Int
+-- type instance Index [a] = Int
 
-instance Indexed [a] where
-    (!!) [] _ = Nothing
-    (!!) (x:xs) 0 = Just x
-    (!!) (x:xs) i = xs !! (i-1)
+-- instance Indexed [a] where
+--     (!!) [] _ = Nothing
+--     (!!) (x:xs) 0 = Just x
+--     (!!) (x:xs) i = xs !! (i-1)
 
