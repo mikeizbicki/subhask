@@ -91,7 +91,6 @@ module SubHask.Algebra
     , insert
     , fromString
     , law_Unfoldable_singleton
-    , law_Unfoldable_abs
     , theorem_Unfoldable_insert
     , defn_Unfoldable_cons
     , defn_Unfoldable_snoc
@@ -185,7 +184,6 @@ module SubHask.Algebra
     )
     where
 
-import Control.Monad -- required for deriving clauses
 import qualified Prelude as P
 import qualified Data.List as L
 
@@ -341,10 +339,10 @@ type instance Logic POrdering = Bool
 
 instance Arbitrary POrdering where
     arbitrary = frequency
-        [ (1, return PLT)
-        , (1, return PGT)
-        , (1, return PEQ)
-        , (1, return PNA)
+        [ (1, P.return PLT)
+        , (1, P.return PGT)
+        , (1, P.return PEQ)
+        , (1, P.return PNA)
         ]
 
 instance Eq_ POrdering where
@@ -994,7 +992,7 @@ instance Rg Float       where (*) = (P.*)
 instance Rg Double      where (*) = (P.*)
 instance Rg Rational    where (*) = (P.*)
 
-instance Rg b => Rg (a -> b) where f*g = \a -> f a * f a
+instance Rg b => Rg (a -> b) where f*g = \a -> f a * g a
 
 ---------------------------------------
 
@@ -1059,7 +1057,7 @@ instance Ring Float       where fromInteger = P.fromInteger
 instance Ring Double      where fromInteger = P.fromInteger
 instance Ring Rational    where fromInteger = P.fromInteger
 
-instance Ring b => Ring (a -> b) where fromInteger i = \_ -> fromInteger i
+instance Ring b => Ring (a -> b) where fromInteger i = \a -> fromInteger i
 
 ---------------------------------------
 
@@ -1598,8 +1596,8 @@ type family Snd a where
 type Index s = Fst (Elem s)
 type Value s = Snd (Elem s)
 
--- |
---
+-- | An indexed container us a container of tuples (a,b).
+-- Every value of type a is associated with a value of type b.
 class (Elem s~(Index s, Value s), Unfoldable s) => Indexed s where
     (!) :: s -> Index s -> Value s
     (!) s i = case s !! i of
@@ -1637,6 +1635,7 @@ law_Indexed_cons s e = cons e s ! fst e == snd e
 --
 -- prop> closed
 --
+-- FIXME: how does this relate to smooth functions?
 class (Boolean s, Container s) => Topology s where
     isOpen   :: s -> Bool
     isClosed :: s -> Bool
@@ -1681,10 +1680,6 @@ class Container s => Unfoldable s where
 
 law_Unfoldable_singleton :: Unfoldable s => s -> Elem s -> Logic s
 law_Unfoldable_singleton s e = elem e $ singleton e `asTypeOf` s
-
--- | FIXME: this is only for debuging sometihng
-law_Unfoldable_abs :: (Logic (Scalar s)~Logic s, Scalar s~Int, Eq (Elem s), Normed s, Unfoldable s) => s -> [Elem s] -> Logic s
-law_Unfoldable_abs s es = abs (fromList es `asTypeOf` s) == length es
 
 theorem_Unfoldable_insert :: Unfoldable s => s -> Elem s -> Logic s
 theorem_Unfoldable_insert s e = elem e (cons e s)

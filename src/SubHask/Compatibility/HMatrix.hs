@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -XNoRebindableSyntax #-}
 
-module SubHask.Algebra.HMatrix
+module SubHask.Compatibility.HMatrix
 --     ( Matrix
 --     , mkMatrix
 --     , fromHMatrix
@@ -40,7 +40,7 @@ import qualified Numeric.LinearAlgebra.Devel as HM (GMatrix)
 
 import SubHask.Internal.Prelude
 import SubHask.Algebra
-import SubHask.Algebra.Vector
+import SubHask.Compatibility.Vector
 import SubHask.Category
 
 import Debug.Trace

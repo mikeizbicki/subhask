@@ -44,7 +44,6 @@ testMap = Map.fromList
         [ "law_Ord_totality"
         , "law_Ord_min"
         , "law_Ord_max"
---         , "defn_Ord_compare"
         ] )
     , ("Bounded",
         [ "law_Bounded_sup"
@@ -133,7 +132,6 @@ testMap = Map.fromList
 
     , ( "Unfoldable",
         [ "law_Unfoldable_singleton"
-        , "law_Unfoldable_abs"
         , "theorem_Unfoldable_insert"
         , "defn_Unfoldable_cons"
         , "defn_Unfoldable_snoc"

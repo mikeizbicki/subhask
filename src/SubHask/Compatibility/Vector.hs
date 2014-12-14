@@ -1,5 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
-module SubHask.Algebra.Vector
+module SubHask.Compatibility.Vector
     (
     -- * Vectors
     VS.Vector

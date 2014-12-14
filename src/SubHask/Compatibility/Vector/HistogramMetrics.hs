@@ -1,4 +1,4 @@
-module SubHask.Algebra.Trans.MiscMetrics
+module SubHask.Compatibility.Vector.HistogramMetrics
     where
 
 import qualified Data.Vector.Generic as VG

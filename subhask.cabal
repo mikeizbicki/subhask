@@ -26,9 +26,6 @@ library
         SubHask.Algebra.Logic
         SubHask.Algebra.Metric
         SubHask.Algebra.Ord
-        SubHask.Algebra.Vector
-        SubHask.Algebra.HMatrix
-        SubHask.Algebra.Trans.MiscMetrics
         SubHask.Algebra.Trans.Kernel
 
         SubHask.Category
@@ -45,6 +42,9 @@ library
 
         SubHask.Compatibility.Base
         SubHask.Compatibility.Containers
+        SubHask.Compatibility.HMatrix
+        SubHask.Compatibility.Vector
+        SubHask.Compatibility.Vector.HistogramMetrics
 
         SubHask.SubType
 

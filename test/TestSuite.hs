@@ -25,8 +25,8 @@ main = defaultMain
             [ $( mkSpecializedClassTests [t| Int      |] [''Enum,''Ring, ''Bounded, ''MetricSpace] )
             , $( mkSpecializedClassTests [t| Integer  |] [''Enum,''Ring, ''Lattice, ''MetricSpace] )
             , $( mkSpecializedClassTests [t| Rational |] [''Ord,''Ring, ''Lattice, ''MetricSpace] )
--- --             , $( mkSpecializedClassTests [t| Float    |] [''Ord,''Field, ''Bounded] )
--- --             , $( mkSpecializedClassTests [t| Double   |] [''Ord,''Field, ''Bounded] )
+            , $( mkSpecializedClassTests [t| Float    |] [''Bounded] )
+            , $( mkSpecializedClassTests [t| Double   |] [''Bounded] )
             , $( mkSpecializedClassTests [t| Uncompensated Int |] [ ''Ring ] )
             , testGroup "transformers"
                 [ $( mkSpecializedClassTests [t| NonNegative Int  |] [''Enum,''Rig, ''Bounded, ''MetricSpace] )
@@ -62,9 +62,9 @@ main = defaultMain
         , $( mkSpecializedClassTests [t| Array         Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''FreeMonoid ] )
---         , $( mkSpecializedClassTests [t| Set           Char |] [ ''FreeMonoid ] )
---         , $( mkSpecializedClassTests [t| Map  Char Int |] [ ''POrd, ''Indexed ] )
---         , $( mkSpecializedClassTests [t| Map' Char Int |] [ ''POrd, ''Indexed ] )
+        , $( mkSpecializedClassTests [t| Set           Char |] [ ''FreeMonoid ] )
+        , $( mkSpecializedClassTests [t| Map  Char Int |] [ ''POrd, ''Indexed ] )
+        , $( mkSpecializedClassTests [t| Map' Char Int |] [ ''POrd, ''Indexed ] )
         , testGroup "transformers"
             [ $( mkSpecializedClassTests [t| Lexical        [Char] |] [''Ord,''MinBound] )
             , $( mkSpecializedClassTests [t| ComponentWise  [Char] |] [''Lattice,''MinBound] )

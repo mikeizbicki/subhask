@@ -17,13 +17,15 @@
 -- These resources should also be valuable to the Haskeller wishing to delve more
 -- deeply into category theory.
 --
+-- FIXME: writing laws for any classes in this file requires the classes in Algebra.
 module SubHask.Category
     (
     -- * Categories
     Category (..)
-    , SubCategory (..)
 
---     , Functor
+--     , Functor (..)
+--     , Applicative (..)
+--     , Monad (..)
 
     -- * Hask
     , Hask
@@ -63,17 +65,26 @@ import SubHask.Internal.Prelude
 import SubHask.SubType
 import qualified Prelude as P
 
--- | required for compilation because these are defined properly in the Algebra.hs file which imports this file
+-- required for compilation because these are defined properly in the Algebra.hs file
 import GHC.Exts (fromListN,fromString)
 
 -------------------------------------------------------------------------------
 
 -- | This 'Category' class modifies the one in the Haskell standard to include the 'ValidCategory' type constraint.
 -- This constraint let's us make instances of arbitrary subcategories of Hask.
+--
+-- Subcategories are defined using the subtyping mechanism "(<:)".
+-- Intuitively, arrows and objects in a subcategory satisfy additional properties that elements of the larger category do not necessarily satisfy.
+-- Elements of a subcategory can always be embeded in the larger category.
+-- Going in the other direction, however, requires a proof.
+-- These proofs can (usually) not be verified by the type system and are therefore labeled unsafe.
+--
+-- More details available at <http://en.wikipedia.org/wiki/Subcategory wikipedia>
+-- and <http://ncatlab.org/nlab/show/subcategory ncatlab>.
+
 class Category (cat :: k -> k -> *) where
 
     type ValidCategory cat (a::k) :: Constraint
-
     id :: ValidCategory cat a => cat a a
 
     infixr 9 .
@@ -146,18 +157,6 @@ instance Category cat => Category (CatT cat a b) where
 
 ---------------------------------------
 
--- | Intuitively, arrows and objects in a subcategory satisfy additional properties
--- that elements of the larger category do not necessarily satisfy.
--- Elements of a subcategory can always be embeded in the larger category.
--- Going in the other direction, however, requires a proof.  These proofs
--- can (usually) not be verified by the type system and are therefore labeled
--- unsafe.
---
--- More details available at <http://en.wikipedia.org/wiki/Subcategory wikipedia>
--- and <http://ncatlab.org/nlab/show/subcategory ncatlab>.
-
-type SubCategory subcat cat = subcat <: cat
-
 -- | Technicaly, a concrete category is any category equiped with a faithful
 -- functor to the category of sets.  This is just a little too platonic to
 -- be represented in Haskell, but 'Hask' makes a pretty good approximation.
@@ -167,7 +166,7 @@ type SubCategory subcat cat = subcat <: cat
 --
 -- More details available at <http://en.wikipedia.org/wiki/Concrete_category wikipedia>
 -- and <http://ncatlab.org/nlab/show/concrete+category ncatlib>.
-type Concrete cat = SubCategory cat (->)
+type Concrete cat = cat <: (->)
 
 -- | We generalize the Prelude's definition of "$" so that it applies to any
 -- subcategory of 'Hask' (that is, any 'Concrete' 'Category'.  This lets us
@@ -199,7 +198,7 @@ withCategory :: Concrete subcat => proxy subcat -> subcat a b -> a -> b
 withCategory _ f = embedType2 f
 
 -- | FIXME: This would be a useful function to have, but I'm not sure how to implement it yet!
-embed2 :: SubCategory cat subcat => subcat a (subcat a b) -> cat a (cat a b)
+embed2 :: (subcat <: cat) => subcat a (subcat a b) -> cat a (cat a b)
 embed2 f = undefined
 
 -------------------------------------------------------------------------------

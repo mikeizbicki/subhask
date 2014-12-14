@@ -2,7 +2,7 @@
 module SubHask.Algebra.Ord
     where
 
-import Control.Monad
+-- import Control.Monad
 import qualified Prelude as P
 
 import SubHask.Algebra
@@ -13,34 +13,34 @@ import SubHask.TemplateHaskell.Deriving
 
 import Debug.Trace
 
-newtype Swap a = Swap a
-    deriving (Read,Show,P.Eq)
-
-instance P.Ord a => P.Ord (Swap a) where
-    a <= b = b P.<= a
-
-newtype With a = With a
-    deriving (Read,Show)
+-- newtype Swap a = Swap a
+--     deriving (Read,Show,P.Eq)
+--
+-- instance P.Ord a => P.Ord (Swap a) where
+--     a <= b = b P.<= a
+--
+-- newtype With a = With a
+--     deriving (Read,Show)
 
 -- instance Show a => Show (With a)
 -- instance Read a => Read (With a)
 -- instance NFData a => NFData (With a)
 -- deriveHierarchy ''With [ ''Enum, ''Boolean, ''Ring, ''MetricSpace ]
 
-instance Eq a => P.Eq (With a) where
-    (==) = undefined
-    (/=) = undefined
-
-instance (P.Eq a, Ord a) => P.Ord (With a) where
---     compare = undefined
---     (<=) = undefined
-    compare (With a1) (With a2)
-        = trace "compare" $ P.EQ
---         = if a1 == a2
---             then P.EQ
---             else if a1 < a2
---                 then P.LT
---                 else P.GT
+-- instance Eq a => P.Eq (With a) where
+--     (==) = undefined
+--     (/=) = undefined
+--
+-- instance (P.Eq a, Ord a) => P.Ord (With a) where
+-- --     compare = undefined
+-- --     (<=) = undefined
+--     compare (With a1) (With a2)
+--         = trace "compare" $ P.EQ
+-- --         = if a1 == a2
+-- --             then P.EQ
+-- --             else if a1 < a2
+-- --                 then P.LT
+-- --                 else P.GT
 -------------
 
 newtype WithPreludeOrd a = WithPreludeOrd { unWithPreludeOrd :: a }

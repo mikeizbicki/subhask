@@ -64,7 +64,7 @@ listSuperClasses className = do
     where
         go var (ClassP name [VarT var']) = if var==var'
             then listSuperClasses name
-            else return [] -- ^ class depends on another type tested elsewhere
+            else return [] -- class depends on another type tested elsewhere
         go var _ = return []
 
 -- | creates the instance:
@@ -116,24 +116,20 @@ deriveSingleInstance typename classname = do
     classinfo <- reify classname
     liftM ( typefamilies++ ) $ case classinfo of
 
-        -- | if the class has exactly one instance that applies to everything,
+        -- if the class has exactly one instance that applies to everything,
         -- then don't create an overlapping instance
         -- These classes only exist because TH has problems with type families
         -- FIXME: this is probably not a robust solution
         ClassI (ClassD _ _ _ _ _) [InstanceD _ (VarT _) _] -> return []
         ClassI (ClassD _ _ _ _ _) [InstanceD _ (AppT (ConT _) (VarT _)) _] -> return []
 
-        -- | otherwise, create the instance
+        -- otherwise, create the instance
         ClassI classd@(ClassD ctx classname [PlainTV varname] [] decs) _ -> do
---             trace ("\nconname="++show conname) $ return ()
---             trace ("typekind="++show typekind) $ return ()
---             trace ("typeapp="++show typeapp) $ return ()
---             trace ("\nclassd="++show classd) $ return ()
             alreadyInstance <- isNewtypeInstance typename classname
             if alreadyInstance
                 then return []
                 else do
-                    -- | FIXME: we need a special case for show otherwise we'll hit an infinite loop somehow on the Set type
+                    -- FIXME: we need a special case for show otherwise we'll hit an infinite loop somehow on the Set type
 --                     funcL <- if (nameBase classname=="Show"
 --                         then
 --                         else mapM subNewtype decs
@@ -150,7 +146,7 @@ deriveSingleInstance typename classname = do
                          ]
             where
 
-                subNewtype (SigD f sigtype) = {-trace ("\n\n\nfunction="++show (nameBase f)) $ -} do
+                subNewtype (SigD f sigtype) = do
                     body <- returnType2newtypeApplicator conname varname
                         (last (arrow2list sigtype))
                         (list2exp $ (VarE f):(typeL2expL $ init $ arrow2list sigtype ))

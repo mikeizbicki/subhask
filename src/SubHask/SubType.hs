@@ -1,6 +1,25 @@
 {-# LANGUAGE NoAutoDeriveTypeable #-} -- can't derive typeable of data families
 
+-- | This module defines the subtyping mechanisms used in subhask.
 module SubHask.SubType
+    ( (<:) (..)
+    , Sup
+
+    -- **
+    , Embed (..)
+    , embedType
+    , embedType1
+    , embedType2
+--     , Embed0 (..)
+--     , Embed1 (..)
+--     , Embed2 (..)
+
+    -- * Template Haskell
+    , s
+    , subhask
+    , mkSubtype
+    , mkSubtypeInstance
+    )
     where
 
 import Control.Monad
@@ -63,9 +82,8 @@ instance (a :: k1 -> *) <: (a :: k1 -> *) where
 
 newtype instance Embed (s :: ka -> kb -> *) (t :: ka -> kb -> *)
     = Embed2 { unEmbed2 :: forall a b. s a b -> t a b}
-embedType2 :: forall s t a b. (s <: t) => s a b -> t a b
-embedType2 = case embedType_ :: Embed s t of
-    Embed2 f -> f
+embedType2 :: (s <: t) => s a b -> t a b
+embedType2 = unEmbed2 embedType_
 instance (a :: k1 -> k2 -> *) <: (a :: k1 -> k2 -> *) where
     embedType_ = Embed2 $ id
 
@@ -112,9 +130,6 @@ type family When (a::Bool) (b::Constraint) :: Constraint where
     When False b = ()
 
 -------------------
-
-instance Sup Double Int Double
-instance Sup Int Double Double
 
 apEmbedType1 ::
     ( a1 <: b1
