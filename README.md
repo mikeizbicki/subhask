@@ -42,6 +42,10 @@ Probably the easiest way to contribute to/get started with subhask is to pick yo
 
 ## TODO
 
+There's a lot left to do.
+These are just some random thoughts I wrote down so I wouldn't forget.
+There's plenty of smaller `FIXME` comments throughout the code.
+
 1. Add tree metrics.
 There's two hurdles here.
 The first is implementing the metric.
