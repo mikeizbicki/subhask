@@ -5,6 +5,7 @@ import SubHask.Category
 import SubHask.Internal.Prelude
 import SubHask.Algebra.Group
 import SubHask.Algebra.Container
+import SubHask.Algebra.Logic
 import SubHask.Compatibility.Vector
 import SubHask.Compatibility.Containers
 
@@ -35,8 +36,11 @@ main = defaultMain
         , testGroup "non-numeric"
             [ $( mkSpecializedClassTests [t| Bool      |] [''Enum,''Boolean] )
             , $( mkSpecializedClassTests [t| Char      |] [''Enum,''Bounded] )
+            , $( mkSpecializedClassTests [t| Goedel    |] [''Heyting] )
+            , $( mkSpecializedClassTests [t| H3        |] [''Heyting] )
+            , $( mkSpecializedClassTests [t| K3        |] [''Bounded] )
             , testGroup "transformers"
-                [ -- $( mkSpecializedClassTests [t| BooleanRing Bool |] [''Ring] )
+                [ $( mkSpecializedClassTests [t| Boolean2Ring Bool   |] [''Ring] )
                 ]
             ]
         ]

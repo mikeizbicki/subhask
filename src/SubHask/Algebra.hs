@@ -38,6 +38,7 @@ module SubHask.Algebra
     , infimum_
     , disjoint
     , Heyting (..)
+    , modusPonens
     , law_Heyting_maxbound
     , law_Heyting_infleft
     , law_Heyting_infright
