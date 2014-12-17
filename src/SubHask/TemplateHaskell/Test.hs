@@ -26,7 +26,11 @@ testMap = Map.fromList
     , ( "Ord",[])
     , ( "POrd",[])
 
-    , ( "Eq_",[] )
+    , ( "Eq_",
+        [ "law_Eq_reflexive"
+        , "law_Eq_symmetric"
+        , "law_Eq_transitive"
+        ] )
     , ( "POrd_",
         [ "law_POrd_commutative"
         , "law_POrd_associative"
@@ -39,7 +43,7 @@ testMap = Map.fromList
         [ "law_Lattice_infabsorption"
         , "law_Lattice_supabsorption"
         ] )
-    , ( "Ord_",[])
+--     , ( "Ord_",[])
     , ( "Ord_",
         [ "law_Ord_totality"
         , "law_Ord_min"

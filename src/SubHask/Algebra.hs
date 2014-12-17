@@ -8,6 +8,9 @@ module SubHask.Algebra
     Logic
     , Eq_ (..)
     , Eq
+    , law_Eq_reflexive
+    , law_Eq_symmetric
+    , law_Eq_transitive
     , POrd_ (..)
     , POrd
     , law_POrd_commutative
@@ -235,6 +238,15 @@ class Eq_ a where
     infix 4 /=
     (/=) :: Boolean (Logic a) => a -> a -> Logic a
     (/=) = not (==)
+
+law_Eq_reflexive :: Eq a => a -> Logic a
+law_Eq_reflexive a = a==a
+
+law_Eq_symmetric :: Eq a => a -> a -> Logic a
+law_Eq_symmetric a1 a2 = (a1==a2)==(a2==a1)
+
+law_Eq_transitive :: Eq a => a -> a -> a -> Logic a
+law_Eq_transitive a1 a2 a3 = (a1==a2&&a2==a3) ==> (a1==a3)
 
 instance Eq_ Bool     where (==) = (P.==); (/=) = (P./=)
 instance Eq_ Char     where (==) = (P.==); (/=) = (P./=)
