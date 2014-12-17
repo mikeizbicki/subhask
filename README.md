@@ -1,16 +1,31 @@
 #subhask
 
-This library provides an alternative prelude for Haskell.
-The goal is to provide a type safe interface for working in subcategories of Hask.
-Achieving this goal requires rewriting essentially all of the algebraic type classes, making them much more generic.
+This library provides a type safe interface for working in arbitrary subcategories of Hask.
+In practice, this means subhask is an alternative prelude for GHC.
+The motivation for this project is to make fast numeric applications easy to develop.
 
-Conventions:
+This library is still very experimental, but current features include:
 
-1. A function followed by a single quote is either strict or a derivative
+1.
+An alternative prelude for GHC that fixes many of the problems with the type class hierarchy.
+The goal of this class hierarchy is to align as closely as possible to the way mathematicians think.
+It can be thought of as a greatly expanded (but more principled) version of [classy-prelude](https://github.com/snoyberg/classy-prelude).
+Many of the changes will be rather controversial, but there are too many to list here.
+See the src/SubHask/Algebra.hs file for details on algebraic structures; src/SubHask/Category.hs file for details on categorical structures; and src/SubHask/Monad.hs file for details on monadic structures.
 
-2. A function followed by an underscore is a more generic version
+2.
+With many new classes come many new laws, and subhask provides template haskell functions to make enforcing these laws easier.
+The goal is that every time you create an instance of a class, template haskell automatically generates a test suite for your instance.
+These tests are not yet fully automated (due to some limitations in the current implementation of template haskell), but see the files src/SubHask/TemplateHaskell/Test.hs and test/TestSuite.hs for the current implementation.
 
-TODO:
+4.
+Due to the massive changes in the class hierarchy, other libraries will not work out-of-the box with subhask.
+There is currently a small compatibility layer for the `base`, `containers`, `vector`, and `hmatrix` libraries.
+There are also some template haskell tools to automatically derive subhask classes based on prelude classes.
+But this area needs significant work.
+Probably the easiest way to contribute to/get started with subhask is to pick your favorite haskell library and write a compatibility layer.
+
+## TODO
 
 1. Add tree metrics.
 There's two hurdles here.

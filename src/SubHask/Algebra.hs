@@ -1739,21 +1739,29 @@ class Monoid s => Foldable s where
     foldMap :: Monoid a => (Elem s -> a) -> s -> a
     foldr   :: (Elem s -> a -> a) -> a -> s -> a
     foldr'  :: (Elem s -> a -> a) -> a -> s -> a
-    foldr1  :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
-    foldr1' :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
     foldl   :: (a -> Elem s -> a) -> a -> s -> a
     foldl'  :: (a -> Elem s -> a) -> a -> s -> a
+
+    foldr1  :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
+    foldr1  f s = foldr1  f (toList s)
+    foldr1' :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
+    foldr1' f s = foldr1' f (toList s)
     foldl1  :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
+    foldl1  f s = foldl1  f (toList s)
     foldl1' :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
+    foldl1' f s = foldl1' f (toList s)
 
     -- | the default summation uses kahan summation
-    sum :: (Abelian (Elem s), Group (Elem s)) => s -> Elem s
-    sum = snd . foldl' go (zero,zero)
-        where
-            go (c,t) i = ((t'-t)-y,t')
-                where
-                    y = i-c
-                    t' = t+y
+    sum :: Monoid (Elem s) => s -> Elem s
+    sum xs = foldl' (+) zero $ toList xs
+
+--     sum :: (Abelian (Elem s), Group (Elem s)) => s -> Elem s
+--     sum = snd . foldl' go (zero,zero)
+--         where
+--             go (c,t) i = ((t'-t)-y,t')
+--                 where
+--                     y = i-c
+--                     t' = t+y
 
 {-# INLINE reduce #-}
 reduce :: (Monoid (Elem s), Foldable s) => s -> Elem s

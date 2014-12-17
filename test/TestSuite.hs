@@ -5,9 +5,7 @@ import SubHask.Category
 import SubHask.Internal.Prelude
 import SubHask.Algebra.Group
 import SubHask.Algebra.Container
--- import SubHask.Algebra.Trans.MiscMetrics
--- import SubHask.Algebra.Trans.Kernel
-import SubHask.Algebra.Vector
+import SubHask.Compatibility.Vector
 import SubHask.Compatibility.Containers
 
 import SubHask.TemplateHaskell.Deriving
@@ -37,14 +35,14 @@ main = defaultMain
         , testGroup "non-numeric"
             [ $( mkSpecializedClassTests [t| Bool      |] [''Enum,''Boolean] )
             , $( mkSpecializedClassTests [t| Char      |] [''Enum,''Bounded] )
---             , testGroup "transformers"
---                 [ $( mkSpecializedClassTests [t| BooleanRing Bool |] [''Ring] )
---                 ]
+            , testGroup "transformers"
+                [ -- $( mkSpecializedClassTests [t| BooleanRing Bool |] [''Ring] )
+                ]
             ]
         ]
+        -- FIXME: vector Arbitrary broken due to different sizes
+        -- FIXME: vector identity is different than x-x, so spurious failures
 --     , testGroup "vectors"
-        -- | FIXME: vector Arbitrary broken due to different sizes
-        -- | FIXME: vector identity is different than x-x, so spurious failures
 --         [ $( mkSpecializedClassTests [t| Vector Int |] [ ''Group, ''Ord, ''Lattice ] )
 --         [ testGroup "metrics"
 --             [ $( mkSpecializedClassTests [t| Vector Double |] [''MetricSpace ] )

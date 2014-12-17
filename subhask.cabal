@@ -46,10 +46,13 @@ library
         SubHask.Compatibility.Vector
         SubHask.Compatibility.Vector.HistogramMetrics
 
+        SubHask.Monad
+
         SubHask.SubType
 
         SubHask.TemplateHaskell.CategoryTrans
         SubHask.TemplateHaskell.Deriving
+        SubHask.TemplateHaskell.Monad
         SubHask.TemplateHaskell.Test
 
     other-modules:
