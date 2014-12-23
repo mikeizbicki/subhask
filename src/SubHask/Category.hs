@@ -34,8 +34,8 @@ module SubHask.Category
     , embedHask2
     , withCategory
     , embed2
-    , fstHask
-    , sndHask
+    , fst
+    , snd
 
     {-
     -- * Cat
@@ -267,13 +267,13 @@ instance Symmetric (->)
 --
 -- More details available at <http://ncatlab.org/nlab/show/cartesian+monoidal+category ncatlab>
 class Symmetric cat => Cartesian cat where
-    fst ::
+    fst_ ::
         ( ValidCategory cat a
         , ValidCategory cat b
         , ValidCategory cat (Tensor cat a b)
         ) => cat (Tensor cat a b) a
 
-    snd ::
+    snd_ ::
         ( ValidCategory cat a
         , ValidCategory cat b
         , ValidCategory cat (Tensor cat a b)
@@ -289,13 +289,13 @@ class Symmetric cat => Cartesian cat where
 
 -- | "fst" specialized to Hask to aid with type inference
 -- FIXME: this will not be needed with injective types
-fstHask :: (a,b) -> a
-fstHask (a,b) = a
+fst :: (a,b) -> a
+fst (a,b) = a
 
 -- | "snd" specialized to Hask to aid with type inference
 -- FIXME: this will not be needed with injective types
-sndHask :: (a,b) -> b
-sndHask (a,b) = b
+snd :: (a,b) -> b
+snd (a,b) = b
 
 -- | Creates an arrow that ignores its first parameter.
 const ::
@@ -316,8 +316,8 @@ const2 ::
 const2 a b = initial a . terminal b
 
 instance Cartesian ((->) :: * -> * -> *) where
-    fst (a,b) = a
-    snd (a,b) = b
+    fst_ (a,b) = a
+    snd_ (a,b) = b
     terminal a _ = ()
     initial a _ = a
 

@@ -44,6 +44,7 @@ import Debug.Trace
 -------------
 
 newtype WithPreludeOrd a = WithPreludeOrd { unWithPreludeOrd :: a }
+    deriving Storable
 
 instance Show a => Show (WithPreludeOrd a) where
     show (WithPreludeOrd a) = show a

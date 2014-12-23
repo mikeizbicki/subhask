@@ -45,6 +45,7 @@ library
         SubHask.Compatibility.HMatrix
         SubHask.Compatibility.Vector
         SubHask.Compatibility.Vector.HistogramMetrics
+        SubHask.Compatibility.Vector.Lebesgue
 
         SubHask.Monad
 
@@ -85,14 +86,19 @@ library
     hs-source-dirs:
         src
 
+    c-sources:
+        cbits/Lebesgue.c
+
     build-depends:
         base            >= 4.7 && <4.8,
         ghc-prim,
-        deepseq         >= 1.3,
-        primitive       >= 0.5.3,
-
         template-haskell,
         haskell-src-meta>= 0.6.0,
+
+        -- widely used classes
+        deepseq         >= 1.3,
+        primitive       >= 0.5.3,
+        cassava         >= 0.4.1,
 
         -- example objects
         containers      >= 0.5,
@@ -166,3 +172,47 @@ Test-Suite TestSuite
         QuickCheck      >= 2.7,
         test-framework-quickcheck2 >= 0.3.0,
         test-framework  >= 0.8.0.3
+
+benchmark Vector
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   bench
+    main-is:          Vector.hs
+    build-depends:    base, subhask, criterion, vector, MonadRandom
+    ghc-options:
+        -O2
+        -funbox-strict-fields
+        -fexcess-precision
+
+        -fllvm
+        -optlo-O3
+        -optlo-enable-fp-mad
+        -optlo-enable-no-infs-fp-math
+        -optlo-enable-no-nans-fp-math
+        -optlo-enable-unsafe-fp-math
+
+        -ddump-rule-firings
+        -ddump-rule-rewrites
+        -ddump-rules
+        -ddump-to-file
+        -ddump-cmm
+        -ddump-simpl
+        -ddump-simpl-stats
+        -dppr-debug
+        -dsuppress-module-prefixes
+        -dsuppress-uniques
+        -dsuppress-idinfo
+        -dsuppress-coercions
+        -dsuppress-type-applications
+
+    c-sources:
+        cbits/Lebesgue.c
+
+    cc-options:
+        -O3
+        -msse2
+--         -mavx
+        -ffast-math
+        -fassociative-math
+        -ftree-vectorize
+--         -march=native
+        -mfpmath=sse

@@ -1,11 +1,10 @@
--- {-# LANGUAGE CPP #-}
--- import SubHask
 import SubHask.Algebra
 import SubHask.Category
 import SubHask.Internal.Prelude
 import SubHask.Algebra.Group
 import SubHask.Algebra.Container
 import SubHask.Algebra.Logic
+import SubHask.Algebra.Metric
 import SubHask.Compatibility.Vector
 import SubHask.Compatibility.Containers
 
@@ -65,6 +64,7 @@ main = defaultMain
         , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| Set           Char |] [ ''FreeMonoid ] )
+        , $( mkSpecializedClassTests [t| Seq           Char |] [ ''FreeMonoid ] )
         , $( mkSpecializedClassTests [t| Map  Char Int |] [ ''POrd, ''Indexed ] )
         , $( mkSpecializedClassTests [t| Map' Char Int |] [ ''POrd, ''Indexed ] )
         , testGroup "transformers"
@@ -73,5 +73,10 @@ main = defaultMain
             , $( mkSpecializedClassTests [t| Hamming        [Char] |] [''MetricSpace] )
             , $( mkSpecializedClassTests [t| Levenshtein    [Char] |] [''MetricSpace] )
             ]
+            -- FIXME: loops on Eq tests for some reason
+--         , testGroup "metric"
+--             [ $( mkSpecializedClassTests [t| Box Int              |] [''Lattice] )
+--             , $( mkSpecializedClassTests [t| Box (Hamming [Char]) |] [''Lattice,''Container] )
+--             ]
         ]
     ]

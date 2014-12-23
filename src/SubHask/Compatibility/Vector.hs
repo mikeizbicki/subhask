@@ -1,4 +1,15 @@
 {-# LANGUAGE BangPatterns #-}
+
+-- |
+--
+-- FIXME: Lots of operations are currently very slow:
+--
+-- 1. In order to generically support "zero" vectors, every add/mul/etc must do lots of extra checks.
+--
+-- 2. RULES support is very poor
+--
+-- 3. We'll need mutable algebraic operations
+--
 module SubHask.Compatibility.Vector
     (
     -- * Vectors
@@ -12,6 +23,11 @@ module SubHask.Compatibility.Vector
     , StorableArray
     , ArrayT (..)
     , ArrayTM (..)
+
+    -- * RULES
+    , eqVectorFloat
+    , eqVectorDouble
+    , eqVectorInt
     )
     where
 
@@ -33,16 +49,19 @@ import Control.Monad
 import Control.Monad.Primitive
 import Control.Monad.ST
 
+import qualified Prelude as P
 import SubHask.Internal.Prelude
 import SubHask.Algebra
 import SubHask.Algebra.Container
+import SubHask.Algebra.Ord
 import SubHask.Category
 
 
 -- | This function is copied and paster from the original library;
 -- this is sufficient to make it use our updated notion of equality and logic.
 eq :: Eq a => Stream Id a -> Stream Id a -> Bool
-{-# INLINE_STREAM eq #-}
+{-# INLINE eq #-}
+-- {-# INLINE_STREAM eq #-}
 eq (Stream step1 s1 _) (Stream step2 s2 _) = eq_loop0 SPEC s1 s2
   where
     eq_loop0 !sPEC s1 s2 = case unId (step1 s1) of
@@ -54,6 +73,28 @@ eq (Stream step1 s1 _) (Stream step2 s2 _) = eq_loop0 SPEC s1 s2
                                Yield y s2' -> x == y && eq_loop0 SPEC   s1 s2'
                                Skip    s2' ->           eq_loop1 SPEC x s1 s2'
                                Done        -> False
+
+
+-- FIXME:
+-- For some reason, the comparison function above is slower than the standard one.
+-- So we need these rewrite opts for speed.
+-- Is there a more generic way to write these?
+{-# RULES
+
+"subhask/eqVectorDouble"  (==) = eqVectorDouble
+"subhask/eqVectorFloat"  (==) = eqVectorFloat
+"subhask/eqVectorInt"  (==) = eqVectorInt
+
+  #-}
+
+eqVectorFloat :: VS.Vector Float -> VS.Vector Float -> Bool
+eqVectorFloat = (P.==)
+
+eqVectorDouble :: VS.Vector Double -> VS.Vector Double -> Bool
+eqVectorDouble = (P.==)
+
+eqVectorInt :: VS.Vector Int -> VS.Vector Int -> Bool
+eqVectorInt = (P.==)
 
 --------------------------------------------------------------------------------
 -- Mutability
@@ -226,8 +267,8 @@ instance VG.Vector v r => Foldable (ArrayT v r) where
     {-# INLINE foldl1 #-}
     {-# INLINE foldl1' #-}
     foldr   f x (ArrayT v) = VG.foldr   f x v
-    foldr'  f x (ArrayT v) = VG.foldr'  f x v
---     foldr'  f x (ArrayT v) = vecfold  f x v
+--     foldr'  f x (ArrayT v) = {-# SCC foldr' #-} VG.foldr'  f x v
+    foldr'  f x (ArrayT v) = {-# SCC foldr' #-} vecfold  f x v
     foldr1  f   (ArrayT v) = VG.foldr1  f   v
     foldr1' f   (ArrayT v) = VG.foldr1' f   v
     foldl   f x (ArrayT v) = VG.foldl   f x v
@@ -482,9 +523,6 @@ instance
 
 -------------------------------------------------------------------------------
 
-u = VG.fromList [1..3] :: VS.Vector Float
-v = VG.fromList [1..2] :: VS.Vector Float
-
 instance (Storable r, Arbitrary r) => Arbitrary (VS.Vector r) where
 --     arbitrary = liftM VG.fromList arbitrary
 --     shrink v = map VG.fromList $ shrink (VG.toList v)
@@ -493,8 +531,8 @@ instance (Storable r, Arbitrary r) => Arbitrary (VS.Vector r) where
 --         , (1, return VG.empty)
         ]
 
-instance (VG.Vector VS.Vector r, Eq r) => Eq_ (VS.Vector r) where
-    {-# INLINE (==) #-}
+instance (VG.Vector VS.Vector r, Storable r, Eq r) => Eq_ (VS.Vector r) where
+    {-# INLINE[1] (==) #-}
     xs == ys = eq (VG.stream xs) (VG.stream ys)
 
 instance (VG.Vector VS.Vector r, Ord r, Storable r) => POrd_ (VS.Vector r) where

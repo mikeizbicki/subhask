@@ -127,8 +127,8 @@ testMap = Map.fromList
         ] )
 
     , ( "Container",
-        [ "law_Container_empty"
-        , "law_Container_preservation"
+--         [ "law_Container_empty"
+        [ "law_Container_preservation"
         ] )
     , ( "Indexed",
         [ "law_Indexed_cons"

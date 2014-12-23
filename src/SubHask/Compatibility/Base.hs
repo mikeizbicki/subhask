@@ -30,7 +30,15 @@ deriveAllInScope ''P.Functor        mkPreludeFunctor
 deriveAllInScope ''M.Monad          mkPreludeMonad
 
 --------------------------------------------------------------------------------
---
 
 fromPreludeEq [t|TypeRep|]
+
+
+type instance Logic (Maybe a) = Logic a
+
+instance (Bounded (Logic a), Eq_ a) => Eq_ (Maybe a) where
+    (Just a1) == (Just a2) = a1==a2
+    Nothing   == Nothing   = true
+    _         == _         = false
+
 

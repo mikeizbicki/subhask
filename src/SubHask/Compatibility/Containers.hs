@@ -3,10 +3,11 @@
 module SubHask.Compatibility.Containers
     where
 
--- import Control.Monad
+import qualified Data.Foldable as F
 import qualified Data.Map as M
 import qualified Data.Map.Strict as MS
 import qualified Data.Set as Set
+import qualified Data.Sequence as Seq
 import qualified Prelude as P
 
 import SubHask.Algebra
@@ -19,6 +20,63 @@ import SubHask.Compatibility.Base
 import SubHask.Internal.Prelude
 import SubHask.Monad
 import SubHask.TemplateHaskell.Deriving
+
+-------------------------------------------------------------------------------
+-- | This is a thin wrapper around Data.Sequence
+
+newtype Seq a = Seq (Seq.Seq a)
+    deriving (Read,Show,NFData)
+
+type instance Scalar (Seq a) = Int
+type instance Logic (Seq a) = Bool
+type instance Elem (Seq a) = a
+
+instance (Eq a, Arbitrary a) => Arbitrary (Seq a) where
+    arbitrary = P.fmap fromList arbitrary
+
+instance Normed (Seq a) where
+    abs (Seq s) = Seq.length s
+
+instance Eq a => Eq_ (Seq a) where
+    (Seq a1)==(Seq a2) = F.toList a1==F.toList a2
+
+instance POrd a => POrd_ (Seq a) where
+    inf a1 a2 = fromList $ inf (toList a1) (toList a2)
+
+instance POrd a => MinBound_ (Seq a) where
+    minBound = empty
+
+instance Semigroup (Seq a) where
+    (Seq a1)+(Seq a2) = Seq $ a1 Seq.>< a2
+
+instance Monoid (Seq a) where
+    zero = Seq $ Seq.empty
+
+instance Eq a => Container (Seq a) where
+    elem e (Seq a) = elem e $ F.toList a
+    notElem = not elem
+
+instance Eq a => Unfoldable (Seq a) where
+    cons e (Seq a) = Seq $ e Seq.<| a
+    snoc (Seq a) e = Seq $ a Seq.|> e
+    singleton e = Seq $ Seq.singleton e
+
+    fromList xs = Seq $ Seq.fromList xs
+
+instance Eq a => Foldable (Seq a) where
+    toList (Seq a) = F.toList a
+
+--     foldMap f   (Seq a) = F.foldMap f   a
+
+    foldr   f e (Seq a) = F.foldr   f e a
+    foldr'  f e (Seq a) = F.foldr'  f e a
+    foldr1  f   (Seq a) = F.foldr1  f   a
+--     foldr1' f   (Seq a) = F.foldr1' f   a
+
+    foldl   f e (Seq a) = F.foldl   f e a
+    foldl'  f e (Seq a) = F.foldl'  f e a
+    foldl1  f   (Seq a) = F.foldl1  f   a
+--     foldl1' f   (Seq a) = F.foldl1' f   a
 
 -------------------------------------------------------------------------------
 -- | This is a thin wrapper around Data.Map

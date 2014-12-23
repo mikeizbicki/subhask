@@ -2,10 +2,10 @@
 module SubHask.Algebra.Metric
     where
 
-import Control.Monad
-
 import SubHask.Category
 import SubHask.Algebra
+import SubHask.Monad
+import SubHask.Compatibility.Base
 import SubHask.Internal.Prelude
 
 -------------------
@@ -21,8 +21,15 @@ data Box v = Box
     }
     deriving (Read,Show)
 
+instance Arbitrary v => Arbitrary (Box v) where
+    arbitrary = do
+        v1 <- arbitrary
+        v2 <- arbitrary
+        return $ Box v1 v2
+
 type instance Scalar (Box v) = Scalar v
 type instance Logic (Box v) = Logic v
+type instance Elem (Box v) = v
 
 instance (Eq v, Eq (Scalar v)) => Eq_ (Box v) where
     b1==b2 = smallest b1 == smallest b2 && largest b1 == largest b2
@@ -38,6 +45,13 @@ instance (Lattice v, MetricSpace v) => Lattice_ (Box v) where
         { smallest = inf (smallest b1) (smallest b2)
         , largest = sup (largest b1) (largest b2)
         }
+
+instance (Lattice v, MetricSpace v) => Semigroup (Box v) where
+    (+) = inf
+
+instance (Lattice v, MetricSpace v) => Container (Box v) where
+    elem e b = e >= smallest b && e <= largest b
+    notElem = not elem
 
 -------------------
 

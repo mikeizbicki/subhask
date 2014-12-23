@@ -197,6 +197,10 @@ import Data.Ratio
 import Data.Typeable
 import Test.QuickCheck (Arbitrary (..), frequency)
 
+import GHC.Prim
+import GHC.Types
+import GHC.Magic
+
 import SubHask.Internal.Prelude
 import SubHask.Category
 import SubHask.SubType
@@ -254,7 +258,10 @@ instance Eq_ Int      where (==) = (P.==); (/=) = (P./=)
 instance Eq_ Integer  where (==) = (P.==); (/=) = (P./=)
 instance Eq_ Rational where (==) = (P.==); (/=) = (P./=)
 instance Eq_ Float    where (==) = (P.==); (/=) = (P./=)
-instance Eq_ Double   where (==) = (P.==); (/=) = (P./=)
+-- instance Eq_ Double   where (==) = (P.==); (/=) = (P./=)
+instance Eq_ Double   where
+    (D# x) == (D# y) = isTrue# (x ==## y)
+    (/=) = (P./=)
 
 instance Eq_ b => Eq_ (a -> b) where
     (f==g) a = f a == f a
@@ -1582,7 +1589,7 @@ type family Elem s
 --   lists/sequences
 --   fuzzy sets?
 --   bloom filters
-class (Monoid s, Eq_ s) => Container s where
+class (Semigroup s, Eq_ s) => Container s where
     elem :: Elem s -> s -> Logic s
 
     notElem :: Elem s -> s -> Logic s
@@ -1590,11 +1597,11 @@ class (Monoid s, Eq_ s) => Container s where
 law_Container_preservation :: (Heyting (Logic s), Container s) => s -> s -> Elem s -> Logic s
 law_Container_preservation s1 s2 e = (e `elem` s1 || e `elem` s2) ==> (e `elem` (s1+s2))
 
-law_Container_empty :: Container s => s -> Elem s -> Logic s
+law_Container_empty :: (Monoid s, Container s) => s -> Elem s -> Logic s
 law_Container_empty s e = notElem e (empty `asTypeOf` s)
 
 -- | a slightly more suggestive name for a container's monoid identity
-empty :: Container s => s
+empty :: (Monoid s, Container s) => s
 empty = zero
 
 -- type family Index s :: *
@@ -1662,7 +1669,7 @@ class (Boolean s, Container s) => Topology s where
 --
 -- TODO: How is this related to Constuctable sets?
 -- https://en.wikipedia.org/wiki/Constructible_set_%28topology%29
-class Container s => Unfoldable s where
+class (Monoid s, Container s) => Unfoldable s where
     -- | creates the smallest container with the given element
     --
     -- > elem x (singleton x) == True
@@ -1775,6 +1782,10 @@ class Monoid s => Foldable s where
 --                 where
 --                     y = i-c
 --                     t' = t+y
+
+{-# INLINE[1] convertContainer #-}
+convertContainer :: (Foldable s, Unfoldable t, Elem s ~ Elem t) => s -> t
+convertContainer = fromList . toList
 
 {-# INLINE reduce #-}
 reduce :: (Monoid (Elem s), Foldable s) => s -> Elem s
