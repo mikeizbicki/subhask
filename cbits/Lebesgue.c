@@ -95,6 +95,9 @@ float isFartherThan_l2_m128(__m128 *p1, __m128 *p2, int len, float dist)
     for (i*=4; i<len; i++) {
         ret += pow(((float*)p1)[i]-((float*)p2)[i],2);
     }
+    if (ret > dist2) {
+        return NAN;
+    }
 
     return sqrt(ret);
 }

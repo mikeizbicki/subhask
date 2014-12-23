@@ -122,8 +122,8 @@ instance (Ord k, Eq v) => Container (Map k v) where
 instance (Ord k, Eq v) => Indexed (Map k v) where
     (Map m) !! k = P.fmap unWithPreludeOrd $ M.lookup (WithPreludeOrd k) m
     hasIndex k (Map m) = M.member (WithPreludeOrd k) m
---     indices (Map m) = map unWithPreludeOrd $ M.keys m
---     values (Map m) = map unWithPreludeOrd $ M.elems m
+    indices (Map m) = map unWithPreludeOrd $ M.keys m
+    values (Map m) = map unWithPreludeOrd $ M.elems m
 
 instance (Ord k, Eq v) => Unfoldable (Map k v) where
     singleton (k,v) = Map $ M.singleton (WithPreludeOrd k) (WithPreludeOrd v)

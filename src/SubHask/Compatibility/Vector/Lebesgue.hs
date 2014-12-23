@@ -188,10 +188,10 @@ instance
         where
 
     {-# INLINE[1] distance #-}
-    distance v1 v2 = distance_l2_hask v1 v2
+    distance v1 v2 = {-# SCC l2_distance #-} distance_l2_hask v1 v2
 
     {-# INLINE[1] isFartherThanWithDistanceCanError #-}
-    isFartherThanWithDistanceCanError v1 v2 = isFartherThan_l2_hask v1 v2
+    isFartherThanWithDistanceCanError v1 v2 = {-# SCC l2_isFartherThan #-} isFartherThan_l2_hask v1 v2
 
 {-# INLINE[1] distance_l2_hask #-}
 distance_l2_hask ::
@@ -199,7 +199,7 @@ distance_l2_hask ::
     , Ord r
     , Floating r
     ) => L2 v r -> L2 v r -> r
-distance_l2_hask (L2 v1) (L2 v2) = {-# SCC l2_distance #-} sqrt $ go 0 0
+distance_l2_hask (L2 v1) (L2 v2) = {-# SCC l2_distance_hask #-} sqrt $ go 0 0
     where
         go !tot !i =  if i>VG.length v1-4
             then goEach tot i
@@ -229,7 +229,7 @@ isFartherThan_l2_hask ::
     , Floating r
     , CanError r
     ) => L2 v r -> L2 v r -> r -> r
-isFartherThan_l2_hask (L2 v1) (L2 v2) !dist = {-# SCC isFartherThan_l2 #-}
+isFartherThan_l2_hask (L2 v1) (L2 v2) !dist = {-# SCC l2_isFartherThan_hask #-}
     sqrt $ go 0 0
     where
         dist2=dist*dist
@@ -294,7 +294,7 @@ distance_l2_m128_storable (L2 v1) (L2 v2) = unsafeDupablePerformIO $
         (fp2,n2) = VS.unsafeToForeignPtr0 v2
 
 distance_l2_m128_unboxed :: L2 UnboxedVector Float -> L2 UnboxedVector Float -> Float
-distance_l2_m128_unboxed (L2 v1) (L2 v2) = unsafeDupablePerformIO $
+distance_l2_m128_unboxed (L2 v1) (L2 v2) = {-# SCC l2_distance_m128_unboxed #-}unsafeDupablePerformIO $
     distance_l2_m128_ p1 p2 n1
     where
         (p1,n1) = unsafeUV2Ptr v1
@@ -313,7 +313,7 @@ isFartherThan_l2_m128_storable (L2 v1) (L2 v2) dist = unsafeDupablePerformIO $
         (fp2,n2) = VS.unsafeToForeignPtr0 v2
 
 isFartherThan_l2_m128_unboxed :: L2 UnboxedVector Float -> L2 UnboxedVector Float -> Float -> Float
-isFartherThan_l2_m128_unboxed (L2 v1) (L2 v2) dist = unsafeDupablePerformIO $
+isFartherThan_l2_m128_unboxed (L2 v1) (L2 v2) dist = {-# SCC l2_isFartherThan_m128_unboxed  #-}unsafeDupablePerformIO $
     isFartherThan_l2_m128_ p1 p2 n1 dist
     where
         (p1,n1) = unsafeUV2Ptr v1
