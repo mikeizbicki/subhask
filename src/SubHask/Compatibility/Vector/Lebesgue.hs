@@ -40,7 +40,7 @@ import Unsafe.Coerce
 -- L1
 
 newtype L1 v a = L1 { unL1 :: v a }
-    deriving (Read,Show,POrd_,Lattice_,Ord,Arbitrary,FromRecord,NFData, P.Ord)
+    deriving (Read,Show,POrd_,Lattice_,Ord_,Arbitrary,FromRecord,NFData, P.Ord)
 
 type instance Logic (L1 v a) = Logic (v a)
 
@@ -188,10 +188,10 @@ instance
         where
 
     {-# INLINE[1] distance #-}
-    distance v1 v2 = {-# SCC l2_distance #-} distance_l2_hask v1 v2
+    distance v1 v2 = distance_l2_hask v1 v2
 
     {-# INLINE[1] isFartherThanWithDistanceCanError #-}
-    isFartherThanWithDistanceCanError v1 v2 = {-# SCC l2_isFartherThan #-} isFartherThan_l2_hask v1 v2
+    isFartherThanWithDistanceCanError v1 v2 = isFartherThan_l2_hask v1 v2
 
 {-# INLINE[1] distance_l2_hask #-}
 distance_l2_hask ::
@@ -262,16 +262,16 @@ isFartherThan_l2_hask (L2 v1) (L2 v2) !dist = {-# SCC l2_isFartherThan_hask #-}
 
 --------------------------------------------------------------------------------
 
-{-# RULES
-
-"subhask/distance_l2_m128_storable"        distance = distance_l2_m128_storable
-"subhask/distance_l2_m128_unboxed"         distance = distance_l2_m128_unboxed
-"subhask/distance_l2_m128d_storable"       distance = distance_l2_m128d_storable
-"subhask/isFartherThan_l2_m128_storable"   isFartherThanWithDistanceCanError=isFartherThan_l2_m128_storable
-"subhask/isFartherThan_l2_m128_unboxed"    isFartherThanWithDistanceCanError=isFartherThan_l2_m128_unboxed
-"subhask/isFartherThan_l2_m128d_storable"  isFartherThanWithDistanceCanError=isFartherThan_l2_m128d_storable
-
-  #-}
+-- {-# RULES
+--
+-- "subhask/distance_l2_m128_storable"        distance = distance_l2_m128_storable
+-- "subhask/distance_l2_m128_unboxed"         distance = distance_l2_m128_unboxed
+-- "subhask/distance_l2_m128d_storable"       distance = distance_l2_m128d_storable
+-- "subhask/isFartherThan_l2_m128_storable"   isFartherThanWithDistanceCanError=isFartherThan_l2_m128_storable
+-- "subhask/isFartherThan_l2_m128_unboxed"    isFartherThanWithDistanceCanError=isFartherThan_l2_m128_unboxed
+-- "subhask/isFartherThan_l2_m128d_storable"  isFartherThanWithDistanceCanError=isFartherThan_l2_m128d_storable
+--
+--   #-}
 
 -- | FIXME: super dangerous :)
 data UnsafeUnboxed = UnsafeUnboxed !Int !Int !ByteArray

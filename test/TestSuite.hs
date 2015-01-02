@@ -59,12 +59,12 @@ main = defaultMain
 --             ]
 --         ]
     , testGroup "containers"
-        [ $( mkSpecializedClassTests [t| []            Char |] [ ''FreeMonoid ] )
-        , $( mkSpecializedClassTests [t| Array         Char |] [ ''FreeMonoid ] )
-        , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''FreeMonoid ] )
-        , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''FreeMonoid ] )
+        [ $( mkSpecializedClassTests [t| []            Char |] [ ''FreeMonoid,''Partitionable ] )
+        , $( mkSpecializedClassTests [t| Array         Char |] [ ''FreeMonoid,''Partitionable ] )
+        , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''FreeMonoid,''Partitionable ] )
+        , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''FreeMonoid,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Set           Char |] [ ''FreeMonoid ] )
-        , $( mkSpecializedClassTests [t| Seq           Char |] [ ''FreeMonoid ] )
+        , $( mkSpecializedClassTests [t| Seq           Char |] [ ''FreeMonoid,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Map  Char Int |] [ ''POrd, ''Indexed ] )
         , $( mkSpecializedClassTests [t| Map' Char Int |] [ ''POrd, ''Indexed ] )
         , testGroup "transformers"

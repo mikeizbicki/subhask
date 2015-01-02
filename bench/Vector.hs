@@ -6,6 +6,7 @@ import Criterion.Main
 import System.IO
 
 import SubHask
+import SubHask.Monad
 import SubHask.Compatibility.Vector.Lebesgue
 
 import Foreign.C

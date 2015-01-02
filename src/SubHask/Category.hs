@@ -98,6 +98,8 @@ type Hask = (->)
 instance Category (->) where
     type ValidCategory (->) (a :: *) = ()
     id = P.id
+
+    {-# NOINLINE (.) #-}
     (.) = (P..)
 
 -- | The category with categories as objects and functors as arrows.
@@ -179,10 +181,9 @@ type Concrete cat = cat <: (->)
 --
 -- > f $ 5
 
+infixr 0 $
 ($) :: Concrete subcat => subcat a b -> a -> b
 ($) = embedType2
-
-infixr 0 $
 
 -- | Embeds a unary function into 'Hask'
 embedHask :: Concrete subcat => subcat a b -> a -> b

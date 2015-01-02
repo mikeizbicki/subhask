@@ -28,6 +28,9 @@ module SubHask.Compatibility.Vector
     , eqVectorFloat
     , eqVectorDouble
     , eqVectorInt
+    , eqUnboxedVectorFloat
+    , eqUnboxedVectorDouble
+    , eqUnboxedVectorInt
     )
     where
 
@@ -79,13 +82,13 @@ eq (Stream step1 s1 _) (Stream step2 s2 _) = eq_loop0 SPEC s1 s2
 -- For some reason, the comparison function above is slower than the standard one.
 -- So we need these rewrite opts for speed.
 -- Is there a more generic way to write these?
-{-# RULES
-
-"subhask/eqVectorDouble"  (==) = eqVectorDouble
-"subhask/eqVectorFloat"  (==) = eqVectorFloat
-"subhask/eqVectorInt"  (==) = eqVectorInt
-
-  #-}
+-- {-# RULES
+--
+-- "subhask/eqVectorDouble"  (==) = eqVectorDouble
+-- "subhask/eqVectorFloat"  (==) = eqVectorFloat
+-- "subhask/eqVectorInt"  (==) = eqVectorInt
+--
+--   #-}
 
 eqVectorFloat :: VS.Vector Float -> VS.Vector Float -> Bool
 eqVectorFloat = (P.==)
@@ -95,6 +98,15 @@ eqVectorDouble = (P.==)
 
 eqVectorInt :: VS.Vector Int -> VS.Vector Int -> Bool
 eqVectorInt = (P.==)
+
+eqUnboxedVectorFloat :: VU.Vector Float -> VU.Vector Float -> Bool
+eqUnboxedVectorFloat = (P.==)
+
+eqUnboxedVectorDouble :: VU.Vector Double -> VU.Vector Double -> Bool
+eqUnboxedVectorDouble = (P.==)
+
+eqUnboxedVectorInt :: VU.Vector Int -> VU.Vector Int -> Bool
+eqUnboxedVectorInt = (P.==)
 
 --------------------------------------------------------------------------------
 -- Mutability
@@ -285,6 +297,25 @@ vecfold !f !tot !v = {-# SCC vecfold #-} if VG.length v > 0
         goEach !i !tot = if i>=VG.length v
             then tot
             else goEach (i+1) $ f (v `VG.unsafeIndex` i) tot
+
+instance
+    ( ClassicalLogic a
+    , ClassicalLogic (v a)
+    , Eq_ (v a)
+    , Eq_ a
+    , VG.Vector v a
+    ) => Partitionable (ArrayT v a)
+        where
+    partition n (ArrayT vec) = go 0
+        where
+            go i = if i>=VG.length vec
+                then []
+                else (ArrayT $ VG.slice i len vec):(go $ i+lenmax)
+                where
+                    len = if i+lenmax >= VG.length vec
+                        then (VG.length vec)-i
+                        else lenmax
+                    lenmax = ceiling $ (fromIntegral $ VG.length vec :: Double) / (fromIntegral n)
 
 instance (Eq (v r), POrd r, VG.Vector v r) => POrd_ (ArrayT v r) where
     inf (ArrayT v1) (ArrayT v2) = ArrayT $ VG.fromList $ inf (VG.toList v1) (VG.toList v2)

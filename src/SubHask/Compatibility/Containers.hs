@@ -78,6 +78,20 @@ instance Eq a => Foldable (Seq a) where
     foldl1  f   (Seq a) = F.foldl1  f   a
 --     foldl1' f   (Seq a) = F.foldl1' f   a
 
+instance (Eq a, Boolean (Logic a)) => Partitionable (Seq a) where
+    partition n (Seq xs) = go xs
+        where
+            go :: Seq.Seq a -> [Seq a]
+            go xs = if Seq.null xs
+                then []
+                else Seq a:go b
+                where
+                    (a,b) = Seq.splitAt len xs
+
+            size = Seq.length xs
+            len = size `div` n
+                + if size `rem` n == 0 then 0 else 1
+
 -------------------------------------------------------------------------------
 -- | This is a thin wrapper around Data.Map
 

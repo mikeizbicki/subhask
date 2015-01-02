@@ -6,6 +6,7 @@ module SubHask.Algebra
     (
     -- * Comparisons
     Logic
+    , ClassicalLogic
     , Eq_ (..)
     , Eq
     , law_Eq_reflexive
@@ -103,9 +104,9 @@ module SubHask.Algebra
     , Indexed (..)
     , law_Indexed_cons
     , Foldable (..)
+    , foldtree1
     , length
     , reduce
-    , foldtList
     , concat
     , headMaybe
     , tailMaybe
@@ -113,6 +114,12 @@ module SubHask.Algebra
     , initMaybe
     , Index
     , Value
+
+    , Partitionable (..)
+    , law_Partitionable_length
+    , law_Partitionable_monoid
+    , parallelN
+    , parallel
 
     , Topology (..)
     , FreeMonoid
@@ -157,6 +164,10 @@ module SubHask.Algebra
     , law_Integral_toFromInverse
     , fromIntegral
     , Field(..)
+    , RationalField(..)
+    , convertRationalField
+    , toFloat
+    , toDouble
     , BoundedField(..)
     , infinity
     , negInfinity
@@ -191,11 +202,14 @@ module SubHask.Algebra
 import qualified Prelude as P
 import qualified Data.List as L
 
--- import Prelude (Eq(..), Ordering (..))
 import Prelude (Ordering (..))
 import Data.Ratio
 import Data.Typeable
 import Test.QuickCheck (Arbitrary (..), frequency)
+
+import Control.Concurrent
+import Control.Parallel.Strategies
+import System.IO.Unsafe -- used in the parallel function
 
 import GHC.Prim
 import GHC.Types
@@ -226,6 +240,10 @@ type instance Logic Float = Bool
 type instance Logic Double = Bool
 type instance Logic (a->b) = a -> Logic b
 type instance Logic (a,b) = Logic a
+
+-- | Classical logic is implemented using the Prelude's Bool type.
+class Logic a ~ Bool => ClassicalLogic a
+instance Logic a ~ Bool => ClassicalLogic a
 
 -- | Defines equivalence classes over the type.
 -- The types need not have identical representations in the machine to be equal.
@@ -1177,11 +1195,35 @@ class Ring r => Field r where
     fromRational :: Rational -> r
     fromRational r = fromInteger (numerator r) / fromInteger (denominator r)
 
-instance Field Float      where (/) = (P./)
-instance Field Double     where (/) = (P./)
-instance Field Rational   where (/) = (P./)
+
+instance Field Float      where (/) = (P./); fromRational=P.fromRational
+instance Field Double     where (/) = (P./); fromRational=P.fromRational
+instance Field Rational   where (/) = (P./); fromRational=P.fromRational
 
 instance Field b => Field (a -> b) where reciprocal f = reciprocal . f
+
+----------------------------------------
+
+-- | A Rational field is a field with only a single dimension.
+class Field r => RationalField r where
+    toRational :: r -> Rational
+
+instance RationalField Float    where  toRational=P.toRational
+instance RationalField Double   where  toRational=P.toRational
+instance RationalField Rational where  toRational=P.toRational
+
+convertRationalField :: (RationalField a, RationalField b) => a -> b
+convertRationalField = fromRational . toRational
+
+-- |
+--
+-- FIXME:
+-- These functions don't work for Int's, but they should
+toFloat :: RationalField a => a -> Float
+toFloat = convertRationalField
+
+toDouble :: RationalField a => a -> Double
+toDouble = convertRationalField
 
 ---------------------------------------
 
@@ -1240,6 +1282,20 @@ mkQuotientField(Double,Int)
 mkQuotientField(Double,Integer)
 mkQuotientField(Rational,Int)
 mkQuotientField(Rational,Integer)
+
+instance QuotientField Int Int where
+    truncate = id
+    round = id
+    ceiling = id
+    floor = id
+    (^^) = (P.^)
+
+instance QuotientField Integer Integer where
+    truncate = id
+    round = id
+    ceiling = id
+    floor = id
+    (^^) = (P.^)
 
 ---------------------------------------
 
@@ -1783,6 +1839,17 @@ class Monoid s => Foldable s where
 --                     y = i-c
 --                     t' = t+y
 
+-- | This fold is not in any of the standard libraries.
+foldtree1 :: Monoid a => [a] -> a
+foldtree1 as = case go as of
+    []  -> zero
+    [a] -> a
+    as  -> foldtree1 as
+    where
+        go []  = []
+        go [a] = [a]
+        go (a1:a2:as) = (a1+a2):go as
+
 {-# INLINE[1] convertContainer #-}
 convertContainer :: (Foldable s, Unfoldable t, Elem s ~ Elem t) => s -> t
 convertContainer = fromList . toList
@@ -1862,17 +1929,6 @@ infimum = infimum_ maxBound
 infimum_ :: (Foldable bs, Elem bs~b, POrd_ b) => b -> bs -> b
 infimum_ = foldl' inf
 
--- FIXME: this is really slow; does it have a space leak? or is it just cache misses?
-foldtList :: forall a. Monoid a => (a -> a -> a) -> a -> [a] -> a
-foldtList f x0 xs = case go xs of
-    [] -> x0
-    (x:xs) -> f x0 x
-    where
-        go :: [a] -> [a]
-        go [] = []
-        go (x:[]) = [x]
-        go (x1:x2:xs) = go $ f x1 x2 : go xs
-
 {-# INLINE concat #-}
 concat :: (Monoid (Elem s), Foldable s) => s -> Elem s
 concat = foldl' (+) zero
@@ -1892,6 +1948,68 @@ lastMaybe = P.fmap snd . unSnoc
 {-# INLINE initMaybe #-}
 initMaybe :: Foldable s => s -> Maybe s
 initMaybe = P.fmap fst . unSnoc
+
+-- | A Partitionable container can be split up into an arbitrary number of subcontainers of roughly equal size.
+class (Monoid t, Container t) => Partitionable t where
+
+    -- | The Int must be >0
+    partition :: Int -> t -> [t]
+
+law_Partitionable_length :: (ClassicalLogic t, Partitionable t) => Int -> t -> Bool
+law_Partitionable_length n t
+    | n > 0 = length (partition n t) <= n
+    | otherwise = True
+
+law_Partitionable_monoid :: (ClassicalLogic t, Partitionable t) => Int -> t -> Bool
+law_Partitionable_monoid n t
+    | n > 0 = sum (partition n t) == t
+    | otherwise = True
+
+instance (Eq_ a, Boolean (Logic a)) => Partitionable [a] where
+    partition n xs = go xs
+        where
+            go [] = []
+            go xs =  a:go b
+                where
+                    (a,b) = P.splitAt len xs
+
+            size = length xs
+            len = size `div` n
+                + if size `rem` n == 0 then 0 else 1
+
+-- | This is an alternative definition for list partitioning.
+-- It should be faster on large lists because it only requires one traversal.
+-- But it also breaks parallelism for non-commutative operations.
+partition_noncommutative :: Int -> [a] -> [[a]]
+partition_noncommutative n xs = [map snd $ P.filter (\(i,x)->i `mod` n==j) ixs | j<-[0..n-1]]
+    where
+        ixs = addIndex 0 xs
+        addIndex i [] = []
+        addIndex i (x:xs) = (i,x):(addIndex (i+1) xs)
+
+
+-- | Parallelizes any batch trainer to run over multiple processors on a single machine.
+{-# INLINE [2] parallelN #-}
+parallelN ::
+    ( Partitionable domain
+    , Monoid range
+    , NFData range
+    ) => Int -- ^ number of parallel threads
+      -> (domain -> range) -- ^ sequential batch trainer
+      -> (domain -> range) -- ^ parallel batch trainer
+parallelN n f =  foldtree1 . parMap rdeepseq f . partition n
+
+-- | Parallelizes any monoid homomorphism.
+-- The function automatically detects the number of available processors and parallelizes the function accordingly.
+-- This requires the use of unsafePerformIO, however, the result is safe.
+{-# INLINE [2] parallel #-}
+parallel ::
+    ( Partitionable domain
+    , Monoid range
+    , NFData range
+    ) => (domain -> range) -- ^ sequential batch trainer
+      -> (domain -> range) -- ^ parallel batch trainer
+parallel = parallelN (unsafePerformIO getNumCapabilities)
 
 -------------------
 

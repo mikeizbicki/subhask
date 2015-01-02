@@ -145,6 +145,10 @@ testMap = Map.fromList
     , ( "Foldable",
         [
         ] )
+    , ( "Partitionable",
+        [ "law_Partitionable_length"
+        , "law_Partitionable_monoid"
+        ] )
     , ( "FreeMonoid", [])
     ]
 

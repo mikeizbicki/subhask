@@ -89,13 +89,24 @@ library
     c-sources:
         cbits/Lebesgue.c
 
+    cc-options:
+        -O3
+        -msse2
+--         -mavx
+        -ffast-math
+        -fassociative-math
+        -ftree-vectorize
+--         -march=native
+        -mfpmath=sse
+
     build-depends:
         base            >= 4.7 && <4.8,
         ghc-prim,
         template-haskell,
         haskell-src-meta>= 0.6.0,
 
-        -- widely used classes
+        -- special functionality
+        parallel        >= 3.2.0.4,
         deepseq         >= 1.3,
         primitive       >= 0.5.3,
         cassava         >= 0.4.1,
@@ -105,8 +116,6 @@ library
         vector          >= 0.10.0,
         hmatrix         >= 0.16.0.5,
         hmatrix-glpk    >= 0.4.0.2,
-
-        memoize         >= 0.6,
 
         -- testing
         QuickCheck      >= 2.7,
@@ -154,6 +163,9 @@ Test-Suite TestSuite
     build-depends:
         base            >= 4.7 && <4.8,
         ghc-prim,
+
+        -- special functionality
+        parallel        >= 3.2.0.4,
         deepseq         >= 1.3,
         primitive       >= 0.5.3,
 
@@ -190,29 +202,16 @@ benchmark Vector
         -optlo-enable-no-nans-fp-math
         -optlo-enable-unsafe-fp-math
 
-        -ddump-rule-firings
-        -ddump-rule-rewrites
-        -ddump-rules
-        -ddump-to-file
-        -ddump-cmm
-        -ddump-simpl
-        -ddump-simpl-stats
-        -dppr-debug
-        -dsuppress-module-prefixes
-        -dsuppress-uniques
-        -dsuppress-idinfo
-        -dsuppress-coercions
-        -dsuppress-type-applications
-
-    c-sources:
-        cbits/Lebesgue.c
-
-    cc-options:
-        -O3
-        -msse2
---         -mavx
-        -ffast-math
-        -fassociative-math
-        -ftree-vectorize
---         -march=native
-        -mfpmath=sse
+--         -ddump-rule-firings
+--         -ddump-rule-rewrites
+--         -ddump-rules
+--         -ddump-to-file
+--         -ddump-cmm
+--         -ddump-simpl
+--         -ddump-simpl-stats
+--         -dppr-debug
+--         -dsuppress-module-prefixes
+--         -dsuppress-uniques
+--         -dsuppress-idinfo
+--         -dsuppress-coercions
+--         -dsuppress-type-applications
