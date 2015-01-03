@@ -42,3 +42,11 @@ instance (Bounded (Logic a), Eq_ a) => Eq_ (Maybe a) where
     _         == _         = false
 
 
+instance Semigroup b => Semigroup (Either a b) where
+    (Left a) + _ = Left a
+    _ + (Left a) = Left a
+    (Right b1)+(Right b2) = Right $ b1+b2
+
+instance Monoid b => Monoid (Either a b) where
+    zero = Right zero
+

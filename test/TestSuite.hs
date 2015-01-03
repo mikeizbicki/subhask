@@ -5,6 +5,7 @@ import SubHask.Algebra.Group
 import SubHask.Algebra.Container
 import SubHask.Algebra.Logic
 import SubHask.Algebra.Metric
+import SubHask.Compatibility.ByteString
 import SubHask.Compatibility.Vector
 import SubHask.Compatibility.Containers
 
@@ -67,6 +68,7 @@ main = defaultMain
         , $( mkSpecializedClassTests [t| Seq           Char |] [ ''FreeMonoid,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Map  Char Int |] [ ''POrd, ''Indexed ] )
         , $( mkSpecializedClassTests [t| Map' Char Int |] [ ''POrd, ''Indexed ] )
+        , $( mkSpecializedClassTests [t| ByteString Lazy Char |] [ ''FreeMonoid, ''Partitionable ] )
         , testGroup "transformers"
             [ $( mkSpecializedClassTests [t| Lexical        [Char] |] [''Ord,''MinBound] )
             , $( mkSpecializedClassTests [t| ComponentWise  [Char] |] [''Lattice,''MinBound] )

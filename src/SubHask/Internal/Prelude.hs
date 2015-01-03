@@ -9,6 +9,7 @@ module SubHask.Internal.Prelude
 
     -- * data types
     , String
+    , FilePath
     , Char
     , Int
     , Integer
