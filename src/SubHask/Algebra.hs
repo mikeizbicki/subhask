@@ -93,6 +93,7 @@ module SubHask.Algebra
     , law_Container_preservation
     , law_Container_empty
     , Unfoldable (..)
+    , singletonAt
     , insert
     , fromString
     , law_Unfoldable_singleton
@@ -1772,6 +1773,13 @@ defn_Unfoldable_cons s e = cons e s == singleton e + s
 defn_Unfoldable_snoc :: Unfoldable s => s -> Elem s -> Logic s
 defn_Unfoldable_snoc s e = snoc s e == s + singleton e
 
+-- | curried version of singleton
+singletonAt ::
+    ( Unfoldable a
+    , Elem a ~ (k,v)
+    ) => k -> v -> a
+singletonAt k v = singleton (k,v)
+
 -- | Insert an element into the container
 insert :: Unfoldable s => Elem s -> s -> s
 insert = cons
@@ -1966,16 +1974,17 @@ law_Partitionable_monoid n t
     | otherwise = True
 
 instance (Eq_ a, Boolean (Logic a)) => Partitionable [a] where
-    partition n xs = go xs
-        where
-            go [] = []
-            go xs =  a:go b
-                where
-                    (a,b) = P.splitAt len xs
-
-            size = length xs
-            len = size `div` n
-                + if size `rem` n == 0 then 0 else 1
+    partition = partition_noncommutative
+--     partition n xs = go xs
+--         where
+--             go [] = []
+--             go xs =  a:go b
+--                 where
+--                     (a,b) = P.splitAt len xs
+--
+--             size = length xs
+--             len = size `div` n
+--                 + if size `rem` n == 0 then 0 else 1
 
 -- | This is an alternative definition for list partitioning.
 -- It should be faster on large lists because it only requires one traversal.
@@ -2009,7 +2018,12 @@ parallel ::
     , NFData range
     ) => (domain -> range) -- ^ sequential batch trainer
       -> (domain -> range) -- ^ parallel batch trainer
-parallel = parallelN (unsafePerformIO getNumCapabilities)
+parallel = if dopar
+    then parallelN numproc
+    else id
+    where
+        numproc = unsafePerformIO getNumCapabilities
+        dopar = numproc > 1
 
 -------------------
 

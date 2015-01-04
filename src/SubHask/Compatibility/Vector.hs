@@ -279,8 +279,8 @@ instance VG.Vector v r => Foldable (ArrayT v r) where
     {-# INLINE foldl1 #-}
     {-# INLINE foldl1' #-}
     foldr   f x (ArrayT v) = VG.foldr   f x v
---     foldr'  f x (ArrayT v) = {-# SCC foldr' #-} VG.foldr'  f x v
-    foldr'  f x (ArrayT v) = {-# SCC foldr' #-} vecfold  f x v
+    foldr'  f x (ArrayT v) = {-# SCC foldr' #-} VG.foldr'  f x v
+--     foldr'  f x (ArrayT v) = {-# SCC foldr' #-} vecfold  f x v
     foldr1  f   (ArrayT v) = VG.foldr1  f   v
     foldr1' f   (ArrayT v) = VG.foldr1' f   v
     foldl   f x (ArrayT v) = VG.foldl   f x v

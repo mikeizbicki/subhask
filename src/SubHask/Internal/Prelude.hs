@@ -22,7 +22,7 @@ module SubHask.Internal.Prelude
     , Maybe (..)
     , Either (..)
 
-    -- * functions
+    -- * Prelude functions
     , build
     , (++)
 
@@ -30,11 +30,14 @@ module SubHask.Internal.Prelude
     , map
 
     , asTypeOf
-    , ifThenElse
     , undefined
     , otherwise
     , error
     , seq
+
+    -- * subhask functions
+    , assert
+    , ifThenElse
 
     -- * Modules
     , module Data.Proxy
@@ -66,3 +69,14 @@ import Foreign.Storable
 ifThenElse a b c = case a of
     True -> b
     False -> c
+
+-- |
+--
+-- FIXME:
+-- Move to a better spot
+-- Add rewrite rules to remove with optimization -O
+assert :: String -> Bool -> a -> a
+assert str b = if b
+    then id
+    else error $ "ASSERT FAILED: "++str
+

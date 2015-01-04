@@ -187,77 +187,66 @@ instance
     ) => MetricSpace (L2 v r)
         where
 
+--     {-# INLINE[1] distance #-}
+--     distance v1 v2 = distance_l2_hask v1 v2
+--
+--     {-# INLINE[1] isFartherThanWithDistanceCanError #-}
+--     isFartherThanWithDistanceCanError v1 v2 = isFartherThan_l2_hask v1 v2
+
     {-# INLINE[1] distance #-}
-    distance v1 v2 = distance_l2_hask v1 v2
+    distance (L2 v1) (L2 v2) = {-# SCC l2_distance_hask #-} sqrt $ go 0 0
+        where
+            go !tot !i =  if i>VG.length v1-4
+                then goEach tot i
+                else go tot' (i+4)
+                where
+                    tot' = tot
+                        +(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                        *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                        +(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                        *(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                        +(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                        *(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                        +(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+                        *(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+
+            goEach !tot !i = if i>= VG.length v1
+                then tot
+                else goEach tot' (i+1)
+                where
+                    tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                              *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
 
     {-# INLINE[1] isFartherThanWithDistanceCanError #-}
-    isFartherThanWithDistanceCanError v1 v2 = isFartherThan_l2_hask v1 v2
+    isFartherThanWithDistanceCanError (L2 v1) (L2 v2) !dist = {-# SCC l2_isFartherThan_hask #-}
+        sqrt $ go 0 0
+        where
+            dist2=dist*dist
 
-{-# INLINE[1] distance_l2_hask #-}
-distance_l2_hask ::
-    ( VG.Vector v r
-    , Ord r
-    , Floating r
-    ) => L2 v r -> L2 v r -> r
-distance_l2_hask (L2 v1) (L2 v2) = {-# SCC l2_distance_hask #-} sqrt $ go 0 0
-    where
-        go !tot !i =  if i>VG.length v1-4
-            then goEach tot i
-            else go tot' (i+4)
-            where
-                tot' = tot
-                    +(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-                    *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-                    +(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
-                    *(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
-                    +(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
-                    *(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
-                    +(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
-                    *(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+            go !tot !i = if i>VG.length v1-4
+                then goEach tot i
+                else if tot'>dist2
+                    then errorVal
+                    else go tot' (i+4)
+                where
+                    tot' = tot
+                        +(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                        *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                        +(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                        *(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                        +(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                        *(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                        +(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+                        *(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
 
-        goEach !tot !i = if i>= VG.length v1
-            then tot
-            else goEach tot' (i+1)
-            where
-                tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-                          *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-
-{-# INLINE[1] isFartherThan_l2_hask #-}
-isFartherThan_l2_hask ::
-    ( VG.Vector v r
-    , Ord r
-    , Floating r
-    , CanError r
-    ) => L2 v r -> L2 v r -> r -> r
-isFartherThan_l2_hask (L2 v1) (L2 v2) !dist = {-# SCC l2_isFartherThan_hask #-}
-    sqrt $ go 0 0
-    where
-        dist2=dist*dist
-
-        go !tot !i = if i>VG.length v1-4
-            then goEach tot i
-            else if tot'>dist2
-                then errorVal
-                else go tot' (i+4)
-            where
-                tot' = tot
-                    +(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-                    *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-                    +(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
-                    *(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
-                    +(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
-                    *(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
-                    +(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
-                    *(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
-
-        goEach !tot !i = if i>= VG.length v1
-            then tot
-            else if tot'>dist2
-                then errorVal
-                else goEach tot' (i+1)
-            where
-                tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-                          *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+            goEach !tot !i = if i>= VG.length v1
+                then tot
+                else if tot'>dist2
+                    then errorVal
+                    else goEach tot' (i+1)
+                where
+                    tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                              *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
 
 
 --------------------------------------------------------------------------------
