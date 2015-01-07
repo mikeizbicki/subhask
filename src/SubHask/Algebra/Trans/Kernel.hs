@@ -65,7 +65,7 @@ deriveHierarchy ''ExponentialKernel
 instance (KnownNat n, InnerProductSpace v) => MetricSpace (ExponentialKernel n v) where
     distance = kernel2distance rbf
         where
-            rbf (ExponentialKernel v1) (ExponentialKernel v2) = exp $ -(abs $ v1 - v2) / sigma2
+            rbf (ExponentialKernel v1) (ExponentialKernel v2) = exp $ -(size $ v1 - v2) / sigma2
             sigma2=10
 
 -------------------------------------------------------------------------------
@@ -82,7 +82,7 @@ deriveHierarchy ''RBF
 instance (KnownNat n, InnerProductSpace v) => MetricSpace (RBF n v) where
     distance = kernel2distance rbf
         where
-            rbf (RBF v1) (RBF v2) = exp $ -(abs $ v1 - v2)**2 / sigma2
+            rbf (RBF v1) (RBF v2) = exp $ -(size $ v1 - v2)**2 / sigma2
             sigma2=1/100
 
 -------------------------------------------------------------------------------

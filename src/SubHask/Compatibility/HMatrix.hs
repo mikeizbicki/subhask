@@ -177,7 +177,7 @@ instance
     , Logic r~Bool
     ) => Normed (Matrix r)
         where
-    abs = innerProductNorm
+    size = innerProductNorm
 
 ---------
 

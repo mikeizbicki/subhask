@@ -43,7 +43,7 @@ instance
     , Boolean (Logic a)
     ) => MetricSpace (Jaccard a)
         where
-    distance (Jaccard xs) (Jaccard ys) = 1 - abs (xs && ys) / abs (xs || ys)
+    distance (Jaccard xs) (Jaccard ys) = 1 - size (xs && ys) / size (xs || ys)
 
 ----------------------------------------
 
@@ -74,8 +74,8 @@ instance
         go (toList xs) (toList ys) 0
         where
             go [] [] i = i
-            go xs [] i = i + fromIntegral (abs xs)
-            go [] ys i = i + fromIntegral (abs ys)
+            go xs [] i = i + fromIntegral (size xs)
+            go [] ys i = i + fromIntegral (size ys)
             go (x:xs) (y:ys) i = go xs ys $ i + if x==y
                 then 0
                 else 1
@@ -93,8 +93,8 @@ instance
                         then 0
                         else 1
                     go_ [] [] i = i
-                    go_ xs [] i = i + fromIntegral (abs xs)
-                    go_ [] ys i = i + fromIntegral (abs ys)
+                    go_ xs [] i = i + fromIntegral (size xs)
+                    go_ [] ys i = i + fromIntegral (size ys)
 
 ----------------------------------------
 

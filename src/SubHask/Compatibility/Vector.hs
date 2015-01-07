@@ -201,7 +201,7 @@ instance NFData (v r) => NFData (ArrayT v r) where
 --     (ArrayT v1)==(ArrayT v2) = v1==v2
 
 instance VG.Vector v r => Normed (ArrayT v r) where
-    abs = VG.length
+    size = VG.length
 
 instance VG.Vector v a => VG.Vector (ArrayT v) a where
     {-# INLINE basicUnsafeFreeze #-}
@@ -409,7 +409,7 @@ instance
     , VU.Unbox r
     ) => Normed (VU.Vector r)
         where
-    abs = innerProductNorm
+    size = innerProductNorm
 
 instance
     ( IsScalar r
@@ -523,7 +523,7 @@ instance
     , Floating r
     ) => Normed (V.Vector r)
         where
-    abs = innerProductNorm
+    size = innerProductNorm
 
 instance
     ( IsScalar r
@@ -639,7 +639,7 @@ instance
     , VS.Storable r
     ) => Normed (VS.Vector r)
         where
-    abs = innerProductNorm
+    size = innerProductNorm
 
 instance
     ( IsScalar r

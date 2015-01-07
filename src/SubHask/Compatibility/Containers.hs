@@ -35,7 +35,7 @@ instance (Eq a, Arbitrary a) => Arbitrary (Seq a) where
     arbitrary = P.fmap fromList arbitrary
 
 instance Normed (Seq a) where
-    abs (Seq s) = Seq.length s
+    size (Seq s) = Seq.length s
 
 instance Eq a => Eq_ (Seq a) where
     (Seq a1)==(Seq a2) = F.toList a1==F.toList a2
@@ -108,7 +108,7 @@ instance (Eq v, Ord k, Semigroup v, Arbitrary k, Arbitrary v) => Arbitrary (Map 
     arbitrary = P.fmap fromList arbitrary
 
 instance Normed (Map k v) where
-    abs (Map m) = M.size m
+    size (Map m) = M.size m
 
 instance (Eq k, Eq v) => Eq_ (Map k v) where
     (Map m1)==(Map m2) = m1 P.== m2
@@ -156,7 +156,7 @@ instance (Eq v, Ord k, Semigroup v, Arbitrary k, Arbitrary v) => Arbitrary (Map'
     arbitrary = P.fmap fromList arbitrary
 
 instance Normed (Map' k v) where
-    abs (Map' m) = MS.size m
+    size (Map' m) = MS.size m
 
 instance (Eq k, Eq v) => Eq_ (Map' k v) where
     (Map' m1)==(Map' m2) = m1 P.== m2
@@ -216,7 +216,7 @@ type instance Logic (Set a) = Logic a
 type instance Elem (Set a) = a
 
 instance Normed (Set a) where
-    abs (Set s) = Set.size s
+    size (Set s) = Set.size s
 
 instance Eq a => Eq_ (Set a) where
     (Set s1)==(Set s2) = s1'==s2'

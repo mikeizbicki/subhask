@@ -189,6 +189,7 @@ module SubHask.Algebra
 
     -- ** Sizes
     , Normed (..)
+    , abs
 --     , KernelSpace (..)
 --     , mkSelfKernel
 --     , SelfKernel
@@ -784,8 +785,8 @@ relativeSemigroupError ::
     , Field (Scalar g)
     ) => g -> g -> g -> Scalar g
 relativeSemigroupError g1 g2 g3
-    = abs (   g1 + ( g2    + g3 ) )
-    / abs ( ( g1 +   g2  ) + g3   )
+    = size (   g1 + ( g2    + g3 ) )
+    / size ( ( g1 +   g2  ) + g3   )
 
 -- | A generalization of 'Data.List.cycle' to an arbitrary 'Semigroup'.
 -- May fail to terminate for some values in some semigroups.
@@ -989,13 +990,16 @@ class
     ( Ord_ (Scalar g)
     , HasScalar g
     ) => Normed g where
-    abs :: g -> Scalar g
+    size :: g -> Scalar g
 
-instance Normed Int       where abs = P.abs
-instance Normed Integer   where abs = P.abs
-instance Normed Float     where abs = P.abs
-instance Normed Double    where abs = P.abs
-instance Normed Rational  where abs = P.abs
+abs :: (Ring g, Normed g) => g -> Scalar g
+abs = size
+
+instance Normed Int       where size = P.abs
+instance Normed Integer   where size = P.abs
+instance Normed Float     where size = P.abs
+instance Normed Double    where size = P.abs
+instance Normed Rational  where size = P.abs
 
 ---------------------------------------
 
@@ -1869,7 +1873,7 @@ reduce s = foldl' (+) zero s
 -- | For anything foldable, the norm must be compatible with the folding structure.
 {-# INLINE length #-}
 length :: (Normed s, Unfoldable s) => s -> Scalar s
-length = abs
+length = size
 
 {-# INLINE and #-}
 and :: (Foldable bs, Elem bs~b, Boolean b) => bs -> b
@@ -2048,7 +2052,7 @@ instance (Logic a~Bool, POrd_ a) => MinBound_ [a] where
     minBound = []
 
 instance Normed [a] where
-    abs = P.length
+    size = P.length
 
 instance Semigroup [a] where
     (+) = (P.++)
