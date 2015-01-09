@@ -40,7 +40,6 @@ module SubHask.Algebra
     , supremum_
     , infimum
     , infimum_
-    , disjoint
     , Heyting (..)
     , modusPonens
     , law_Heyting_maxbound
@@ -88,10 +87,16 @@ module SubHask.Algebra
 
     -- * Set-like
     , Elem
+    , PreContainer (..)
+    , law_PreContainer_preservation
+    , defn_PreContainer_sizeDisjoint
     , Container (..)
     , empty
-    , law_Container_preservation
     , law_Container_empty
+    , law_Container_MonoidMinBound
+    , law_Container_MonoidNormed
+    , defn_Container_infDisjoint
+    , defn_Container_null
     , Unfoldable (..)
     , singletonAt
     , insert
@@ -348,12 +353,6 @@ law_MinBound_inf b = inf b minBound == minBound
 -- | "false" is an upper bound because `a && false = false` for all a.
 false :: MinBound_ b => b
 false = minBound
-
--- | Two sets are disjoint if their infimum is the empty set.
--- This function generalizes the notion of disjointness for any lower bounded lattice.
--- FIXME: add other notions of disjoint
-disjoint :: (Eq b, MinBound_ b) => b -> b -> Bool
-disjoint b1 b2 = (inf b1 b2) == minBound
 
 instance MinBound_ Bool where minBound = False
 instance MinBound_ Char where minBound = P.minBound
@@ -1338,8 +1337,8 @@ type family Scalar m
 
 -- FIXME: made into classes due to TH limitations
 -- > type IsScalar r = (Ring r, Scalar r ~ r)
-class (Ring r, Scalar r~r) => IsScalar r
-instance (Ring r, Scalar r~r) => IsScalar r
+class (Logic r~Bool, Ring r, Scalar r~r) => IsScalar r
+instance (Logic r~Bool, Ring r, Scalar r~r) => IsScalar r
 
 -- FIXME: made into classes due to TH limitations
 -- > type HasScalar a = IsScalar (Scalar a)
@@ -1643,23 +1642,63 @@ instance (Monoid s, Container s, MinBound_ s, Unfoldable s, Foldable s) => FreeM
 type Item s = Elem s
 type family Elem s
 
--- |
--- concept must be generic enough for:
+-- NOTE:
+-- these containers must be generic enough for:
 --   maps
 --   hash tables
 --   lists/sequences
 --   fuzzy sets?
 --   bloom filters
-class (Semigroup s, Eq_ s) => Container s where
-    elem :: Elem s -> s -> Logic s
 
+-- | The class of container-like types that do not necessarily have an empty value
+class
+    ( Semigroup s
+    , Eq_ s
+    , Normed s
+    , Logic (Scalar s) ~ Logic s
+    , Logic (Logic s) ~ Logic s
+    , Eq_ (Logic s)
+    ) => PreContainer s
+        where
+    elem :: Elem s -> s -> Logic s
     notElem :: Elem s -> s -> Logic s
 
-law_Container_preservation :: (Heyting (Logic s), Container s) => s -> s -> Elem s -> Logic s
-law_Container_preservation s1 s2 e = (e `elem` s1 || e `elem` s2) ==> (e `elem` (s1+s2))
+    sizeDisjoint :: s -> s -> Logic s
+    sizeDisjoint s1 s2 = size s1 + size s2 == size (s1+s2)
 
-law_Container_empty :: (Monoid s, Container s) => s -> Elem s -> Logic s
+law_PreContainer_preservation :: (Heyting (Logic s), PreContainer s) => s -> s -> Elem s -> Logic s
+law_PreContainer_preservation s1 s2 e = (e `elem` s1 || e `elem` s2) ==> (e `elem` (s1+s2))
+
+defn_PreContainer_sizeDisjoint :: (Normed s, PreContainer s) => s -> s -> Logic s
+defn_PreContainer_sizeDisjoint s1 s2
+    = sizeDisjoint s1 s2
+   == (size s1 + size s2 == size (s1+s2))
+
+-- | The class of containers that do have an empty value
+class (PreContainer s, Monoid s, MinBound_ s) => Container s where
+    null :: s -> Logic s
+    null = (==zero)
+
+    -- | Two sets are disjoint if their infimum is the empty set.
+    -- This function generalizes the notion of disjointness for any lower bounded lattice.
+    -- FIXME: add other notions of disjoint
+    infDisjoint :: s -> s -> Logic s
+    infDisjoint s1 s2 = null $ inf s1 s2
+
+law_Container_MonoidMinBound :: forall s. Container s => s -> Logic s
+law_Container_MonoidMinBound _ = (zero::s)==(minBound::s)
+
+law_Container_MonoidNormed :: forall s. Container s => s -> Logic s
+law_Container_MonoidNormed _ = (size (zero::s) == 0)
+
+law_Container_empty :: Container s => s -> Elem s -> Logic s
 law_Container_empty s e = notElem e (empty `asTypeOf` s)
+
+defn_Container_null :: (Heyting $ Logic s, Container s) => s -> Elem s -> Logic s
+defn_Container_null s e = (null s ==> s==empty)
+
+defn_Container_infDisjoint :: Container s => s -> s -> Logic s
+defn_Container_infDisjoint s1 s2 = infDisjoint s1 s2 == null (inf s1 s2)
 
 -- | a slightly more suggestive name for a container's monoid identity
 empty :: (Monoid s, Container s) => s
@@ -1667,6 +1706,8 @@ empty = zero
 
 -- type family Index s :: *
 -- type family Value s :: *
+
+type ($) a b = a b
 
 type family Fst a where
     Fst (a,b) = a
@@ -1730,7 +1771,7 @@ class (Boolean s, Container s) => Topology s where
 --
 -- TODO: How is this related to Constuctable sets?
 -- https://en.wikipedia.org/wiki/Constructible_set_%28topology%29
-class (Monoid s, Container s) => Unfoldable s where
+class (PreContainer s, Monoid s) => Unfoldable s where
     -- | creates the smallest container with the given element
     --
     -- > elem x (singleton x) == True
@@ -1768,8 +1809,8 @@ theorem_Unfoldable_insert s e = elem e (cons e s)
 defn_Unfoldable_fromList :: Unfoldable s => s -> [Elem s] -> Logic s
 defn_Unfoldable_fromList s es = fromList es `asTypeOf` s == foldr cons zero es
 
-defn_Unfoldable_fromListN :: (Eq (Elem s), Unfoldable s) => s -> [Elem s] -> Logic s
-defn_Unfoldable_fromListN s es = (fromList es `asTypeOf` s)==fromListN (length es) es
+defn_Unfoldable_fromListN :: (Eq $ Elem s, Unfoldable s) => s -> [Elem s] -> Logic s
+defn_Unfoldable_fromListN s es = (fromList es `asTypeOf` s)==fromListN (size es) es
 
 defn_Unfoldable_cons :: Unfoldable s => s -> Elem s -> Logic s
 defn_Unfoldable_cons s e = cons e s == singleton e + s
@@ -1977,7 +2018,7 @@ law_Partitionable_monoid n t
     | n > 0 = sum (partition n t) == t
     | otherwise = True
 
-instance (Eq_ a, Boolean (Logic a)) => Partitionable [a] where
+instance (POrd a, Boolean (Logic a)) => Partitionable [a] where
     partition = partition_noncommutative
 --     partition n xs = go xs
 --         where
@@ -2060,13 +2101,15 @@ instance Semigroup [a] where
 instance Monoid [a] where
     zero = []
 
-instance (Boolean (Logic a), Eq_ a) => Container [a] where
+instance (Boolean (Logic a), Eq a) => PreContainer [a] where
     elem _ []       = false
     elem x (y:ys)   = x==y || elem x ys
 
     notElem = not elem
 
-instance (Boolean (Logic a), Eq_ a) => Unfoldable [a] where
+instance (Boolean (Logic a), POrd a) => Container [a]
+
+instance (Boolean (Logic a), POrd a) => Unfoldable [a] where
     singleton a = [a]
     cons x xs = x:xs
 

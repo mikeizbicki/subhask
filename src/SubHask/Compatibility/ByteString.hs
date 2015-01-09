@@ -51,9 +51,14 @@ instance Semigroup (ByteString Lazy Char) where
 instance Monoid (ByteString Lazy Char) where
     zero = BSLC BS.empty
 
-instance Container (ByteString Lazy Char) where
+instance PreContainer (ByteString Lazy Char) where
     elem x (BSLC xs) = BS.elem x xs
     notElem x (BSLC xs) = BS.notElem x xs
+
+instance Container (ByteString Lazy Char)
+
+instance Normed (ByteString Lazy Char) where
+    size (BSLC xs) = fromIntegral $ P.toInteger $ BS.length xs
 
 instance Foldable (ByteString Lazy Char) where
     unCons (BSLC xs) = case BS.uncons xs of

@@ -43,7 +43,8 @@ import qualified Data.Vector as V
 import qualified Data.Vector.Fusion.Stream as Stream
 import Test.QuickCheck (frequency)
 
-import Data.Vector.Fusion.Stream (Step(..),null)
+import Data.Vector.Fusion.Stream (Step(..))
+import qualified Data.Vector.Fusion.Stream as VFS
 import Data.Vector.Fusion.Stream.Monadic (Stream(..), SPEC(..))
 import Data.Vector.Fusion.Stream.Size (Size(..))
 import Data.Vector.Fusion.Util (Id(..))
@@ -70,7 +71,7 @@ eq (Stream step1 s1 _) (Stream step2 s2 _) = eq_loop0 SPEC s1 s2
     eq_loop0 !sPEC s1 s2 = case unId (step1 s1) of
                              Yield x s1' -> eq_loop1 SPEC x s1' s2
                              Skip    s1' -> eq_loop0 SPEC   s1' s2
-                             Done        -> null (Stream step2 s2 Unknown)
+                             Done        -> VFS.null (Stream step2 s2 Unknown)
 
     eq_loop1 !sPEC x s1 s2 = case unId (step2 s2) of
                                Yield y s2' -> x == y && eq_loop0 SPEC   s1 s2'
@@ -245,9 +246,11 @@ instance VG.Vector v r => Semigroup (ArrayT v r) where
 instance VG.Vector v r => Monoid (ArrayT v r) where
     zero = ArrayT $ VG.empty
 
-instance (VG.Vector v r, Eq r, Eq (v r)) => Container (ArrayT v r) where
+instance (VG.Vector v r, Eq r, Eq (v r)) => PreContainer (ArrayT v r) where
     elem r (ArrayT v) = elem r $ VG.toList v
     notElem r (ArrayT v) = not $ elem r $ VG.toList v
+
+instance (VG.Vector v r, POrd r, Eq (v r)) => Container (ArrayT v r)
 
 instance (VG.Vector v r, Eq r, Eq (v r)) => Unfoldable (ArrayT v r) where
     singleton r = ArrayT $ VG.singleton r
@@ -302,7 +305,7 @@ instance
     ( ClassicalLogic a
     , ClassicalLogic (v a)
     , Eq_ (v a)
-    , Eq_ a
+    , POrd_ a
     , VG.Vector v a
     ) => Partitionable (ArrayT v a)
         where

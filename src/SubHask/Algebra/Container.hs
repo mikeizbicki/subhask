@@ -151,7 +151,7 @@ dist a b
 			where me = if ach == bch then nw else 1 + min3 (head w) nw (head n)
 		    firstelt = 1 + head diagBelow
 		    thisdiag = firstelt : doDiag a b firstelt diagAbove (tail diagBelow)
-	  lab = length a - length b
+	  lab = size a - size b
           min3 x y z = if x < y then x else min y z
 
 ----------------------------------------
@@ -211,6 +211,7 @@ instance Foldable s => Foldable (Uncompensated s) where
 newtype Lexical a = Lexical { unLexical :: a }
 
 deriveHierarchy ''Lexical [ ''Foldable, ''Unfoldable, ''Monoid ]
+-- deriveHierarchy ''Lexical [ ''Eq_, ''Monoid ]
 
 instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a) => POrd_ (Lexical a) where
     inf a1 a2 = if a1<a2 then a1 else a2
@@ -250,6 +251,7 @@ instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a) => Ord_ (Lexical
 newtype ComponentWise a = ComponentWise { unComponentWise :: a }
 
 deriveHierarchy ''ComponentWise [ ''Foldable, ''Unfoldable, ''Monoid ]
+-- deriveHierarchy ''ComponentWise [ ''Monoid ]
 
 class (Boolean (Logic a), Logic (Elem a) ~ Logic a) => SimpleContainerLogic a
 instance (Boolean (Logic a), Logic (Elem a) ~ Logic a) => SimpleContainerLogic a

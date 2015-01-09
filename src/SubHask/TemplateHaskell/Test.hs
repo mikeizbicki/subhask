@@ -126,9 +126,16 @@ testMap = Map.fromList
         , "law_MetricSpace_triangle"
         ] )
 
+    , ( "PreContainer",
+        [ "law_PreContainer_preservation"
+        , "defn_PreContainer_sizeDisjoint"
+        ] )
     , ( "Container",
---         [ "law_Container_empty"
-        [ "law_Container_preservation"
+        [ "law_Container_empty"
+        , "law_Container_MonoidMinBound"
+        , "law_Container_MonoidNormed"
+        , "defn_Container_infDisjoint"
+        , "defn_Container_null"
         ] )
     , ( "Indexed",
         [ "law_Indexed_cons"

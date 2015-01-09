@@ -83,9 +83,11 @@ instance (Lattice v, MetricSpace v) => Lattice_ (Box v) where
 instance (Lattice v, MetricSpace v) => Semigroup (Box v) where
     (+) = inf
 
-instance (Lattice v, MetricSpace v) => Container (Box v) where
-    elem e b = e >= smallest b && e <= largest b
-    notElem = not elem
+-- FIXME: This can't be a PreContainer because of the Normed requirement
+--
+-- instance (Lattice v, MetricSpace v) => PreContainer (Box v) where
+--     elem e b = e >= smallest b && e <= largest b
+--     notElem = not elem
 
 -------------------
 
