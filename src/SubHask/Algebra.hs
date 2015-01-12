@@ -752,13 +752,32 @@ class Semigroup g where
     infixl 6 +
     (+) :: g -> g -> g
 
+    sgErrorBound :: HasScalar g => g -> Scalar g
+    sgErrorBound = 0
 
-    -- | this quantity is related to the concept of machine precision and floating point error
---     associativeEpsilon :: Ring (Scalar g) => g -> Scalar g
---     associativeEpsilon _ = 0
+law_Semigroup_associativity ::
+    ( HasScalar g
+    , Semigroup g
+    , MetricSpace g
+    ) => g -> g -> g -> Bool
+law_Semigroup_associativity g1 g2 g3 = associator g1 g2 g3 <= sgErrorBound g1
 
-law_Semigroup_associativity :: (Eq g, Semigroup g ) => g -> g -> g -> Bool
-law_Semigroup_associativity g1 g2 g3 = g1 + (g2 + g3) == (g1 + g2) + g3
+associator :: (Semigroup g, MetricSpace g) => g -> g -> g -> Scalar g
+associator g1 g2 g3 = distance ((g1+g2)+g3) (g1+(g2+g3))
+
+-- normedAssociator g1 g2 g3
+--     = abs $ 1 - (toRational_ $ size ((g1+g2)+g3))
+--               / (toRational_ $ size (g1+(g2+g3)))
+
+toRational_ :: (a <: Rational) => a -> Rational
+toRational_ = embedType
+
+-- law_Semigroup_associativity :: (Eq g, Semigroup g ) => g -> g -> g -> Logic g
+-- law_Semigroup_associativity g1 g2 g3 = case assiciativityType g1 of
+--     Associativity_True -> g1 + (g2 + g3) == (g1 + g2) + g3
+--     Associativity_BoundedError epsilon -> errorSemigroup g1 g2 g3 <= epsilon
+--
+-- errorSemigroup :: (Semigroup g,
 
 -- theorem_Semigroup_associativity ::
 --     ( Ring (Scalar g)
@@ -786,6 +805,9 @@ relativeSemigroupError ::
 relativeSemigroupError g1 g2 g3
     = size (   g1 + ( g2    + g3 ) )
     / size ( ( g1 +   g2  ) + g3   )
+
+-- associator :: ( Group g ) => g -> g -> g -> g
+-- associator g1 g2 g3 = ((g1+g2)+g3) - (g1+(g2+g3))
 
 -- | A generalization of 'Data.List.cycle' to an arbitrary 'Semigroup'.
 -- May fail to terminate for some values in some semigroups.
@@ -1655,7 +1677,7 @@ class
     ( Semigroup s
     , Eq_ s
     , Normed s
-    , Logic (Scalar s) ~ Logic s
+--     , Logic (Scalar s) ~ Logic s
     , Logic (Logic s) ~ Logic s
     , Eq_ (Logic s)
     ) => PreContainer s
@@ -1663,13 +1685,13 @@ class
     elem :: Elem s -> s -> Logic s
     notElem :: Elem s -> s -> Logic s
 
-    sizeDisjoint :: s -> s -> Logic s
+    sizeDisjoint :: s -> s -> Bool -- Logic s
     sizeDisjoint s1 s2 = size s1 + size s2 == size (s1+s2)
 
 law_PreContainer_preservation :: (Heyting (Logic s), PreContainer s) => s -> s -> Elem s -> Logic s
 law_PreContainer_preservation s1 s2 e = (e `elem` s1 || e `elem` s2) ==> (e `elem` (s1+s2))
 
-defn_PreContainer_sizeDisjoint :: (Normed s, PreContainer s) => s -> s -> Logic s
+defn_PreContainer_sizeDisjoint :: (Normed s, PreContainer s, Logic s~Bool) => s -> s -> Logic s
 defn_PreContainer_sizeDisjoint s1 s2
     = sizeDisjoint s1 s2
    == (size s1 + size s2 == size (s1+s2))
@@ -1688,7 +1710,7 @@ class (PreContainer s, Monoid s, MinBound_ s) => Container s where
 law_Container_MonoidMinBound :: forall s. Container s => s -> Logic s
 law_Container_MonoidMinBound _ = (zero::s)==(minBound::s)
 
-law_Container_MonoidNormed :: forall s. Container s => s -> Logic s
+law_Container_MonoidNormed :: forall s. (Logic s~Bool, Container s) => s -> Logic s
 law_Container_MonoidNormed _ = (size (zero::s) == 0)
 
 law_Container_empty :: Container s => s -> Elem s -> Logic s
@@ -1913,7 +1935,7 @@ reduce s = foldl' (+) zero s
 
 -- | For anything foldable, the norm must be compatible with the folding structure.
 {-# INLINE length #-}
-length :: (Normed s, Unfoldable s) => s -> Scalar s
+length :: Normed s => s -> Scalar s
 length = size
 
 {-# INLINE and #-}
@@ -2101,7 +2123,7 @@ instance Semigroup [a] where
 instance Monoid [a] where
     zero = []
 
-instance (Boolean (Logic a), Eq a) => PreContainer [a] where
+instance (Boolean (Logic a), Logic (Logic a)~Logic a, Eq_ a) => PreContainer [a] where
     elem _ []       = false
     elem x (y:ys)   = x==y || elem x ys
 
@@ -2109,7 +2131,8 @@ instance (Boolean (Logic a), Eq a) => PreContainer [a] where
 
 instance (Boolean (Logic a), POrd a) => Container [a]
 
-instance (Boolean (Logic a), POrd a) => Unfoldable [a] where
+-- instance (Boolean (Logic a), POrd a) => Unfoldable [a] where
+instance (Boolean (Logic a), Logic (Logic a)~Logic a, Eq_ a) => Unfoldable [a] where
     singleton a = [a]
     cons x xs = x:xs
 
