@@ -17,6 +17,7 @@ import qualified Data.Set as Set
 import SubHask.Algebra
 import SubHask.Algebra.Ord
 import SubHask.Category
+import SubHask.Compatibility.Base
 import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
@@ -210,10 +211,17 @@ instance Foldable s => Foldable (Uncompensated s) where
 -- FIXME: there are more container orderings that probably deserve implementation
 newtype Lexical a = Lexical { unLexical :: a }
 
-deriveHierarchy ''Lexical [ ''Foldable, ''Unfoldable, ''Monoid ]
+deriveHierarchy ''Lexical [ ''Eq_, ''Foldable, ''Unfoldable, ''Monoid ]
 -- deriveHierarchy ''Lexical [ ''Eq_, ''Monoid ]
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a) => POrd_ (Lexical a) where
+instance
+    (Logic a~Bool
+    , Ord (Elem a)
+    , Foldable a
+    , Unfoldable a
+    , Eq_ a
+    ) => POrd_ (Lexical a)
+        where
     inf a1 a2 = if a1<a2 then a1 else a2
 
     (Lexical a1)<(Lexical a2) = go (toList a1) (toList a2)
@@ -227,10 +235,10 @@ instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a) => POrd_ (Lexica
             go [] _  = True
             go _  [] = False
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a) => MinBound_ (Lexical a) where
+instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a, Eq_ a) => MinBound_ (Lexical a) where
     minBound = Lexical zero
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a) => Lattice_ (Lexical a) where
+instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a, Eq_ a) => Lattice_ (Lexical a) where
     sup a1 a2 = if a1>a2 then a1 else a2
 
     (Lexical a1)>(Lexical a2) = go (toList a1) (toList a2)
@@ -244,13 +252,13 @@ instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a) => Lattice_ (Lex
             go [] _  = False
             go _  [] = True
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a) => Ord_ (Lexical a) where
+instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a, Eq_ a) => Ord_ (Lexical a) where
 
 ---------------------------------------
 
 newtype ComponentWise a = ComponentWise { unComponentWise :: a }
 
-deriveHierarchy ''ComponentWise [ ''Foldable, ''Unfoldable, ''Monoid ]
+deriveHierarchy ''ComponentWise [ ''Eq_, ''Foldable, ''Unfoldable, ''Monoid ]
 -- deriveHierarchy ''ComponentWise [ ''Monoid ]
 
 class (Boolean (Logic a), Logic (Elem a) ~ Logic a) => SimpleContainerLogic a
@@ -259,16 +267,16 @@ instance (Boolean (Logic a), Logic (Elem a) ~ Logic a) => SimpleContainerLogic a
 -- instance (SimpleContainerLogic a, Eq_ (Elem a), Foldable a) => Eq_ (ComponentWise a) where
 --     (ComponentWise a1)==(ComponentWise a2) = toList a1==toList a2
 
-instance (SimpleContainerLogic a, POrd_ (Elem a), Foldable a, Unfoldable a) => POrd_ (ComponentWise a) where
+instance (SimpleContainerLogic a, Eq_ a, POrd_ (Elem a), Foldable a, Unfoldable a) => POrd_ (ComponentWise a) where
     inf (ComponentWise a1) (ComponentWise a2) = fromList $ go (toList a1) (toList a2)
         where
             go (x:xs) (y:ys) = inf x y:go xs ys
             go _ _ = []
 
-instance (SimpleContainerLogic a, POrd_ (Elem a), Foldable a, Unfoldable a) => MinBound_ (ComponentWise a) where
+instance (SimpleContainerLogic a, Eq_ a, POrd_ (Elem a), Foldable a, Unfoldable a) => MinBound_ (ComponentWise a) where
     minBound = ComponentWise zero
 
-instance (SimpleContainerLogic a, Lattice_ (Elem a), Foldable a, Unfoldable a) => Lattice_ (ComponentWise a) where
+instance (SimpleContainerLogic a, Eq_ a, Lattice_ (Elem a), Foldable a, Unfoldable a) => Lattice_ (ComponentWise a) where
     sup (ComponentWise a1) (ComponentWise a2) = fromList $ go (toList a1) (toList a2)
         where
             go (x:xs) (y:ys) = sup x y:go xs ys

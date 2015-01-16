@@ -2,12 +2,13 @@ module SubHask.Compatibility.ByteString
     where
 
 import SubHask
-import SubHask.Compatibility.Base
-import SubHask.Monad
+-- import SubHask.Compatibility.Base
+-- import SubHask.Monad
 import SubHask.TemplateHaskell.Deriving
 
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Prelude as P
+import Control.Monad
 
 --------------------------------------------------------------------------------
 
@@ -51,11 +52,15 @@ instance Semigroup (ByteString Lazy Char) where
 instance Monoid (ByteString Lazy Char) where
     zero = BSLC BS.empty
 
-instance PreContainer (ByteString Lazy Char) where
+instance Container (ByteString Lazy Char) where
     elem x (BSLC xs) = BS.elem x xs
     notElem x (BSLC xs) = BS.notElem x xs
 
-instance Container (ByteString Lazy Char)
+instance Constructible (ByteString Lazy Char) where
+    fromList1 x xs = BSLC $ BS.pack (x:xs)
+    singleton = BSLC . BS.singleton
+
+instance Unfoldable (ByteString Lazy Char)
 
 instance Normed (ByteString Lazy Char) where
     size (BSLC xs) = fromIntegral $ P.toInteger $ BS.length xs
@@ -76,10 +81,6 @@ instance Foldable (ByteString Lazy Char) where
     foldl'  f a (BSLC xs) = BS.foldl'  f a xs
     foldl1  f   (BSLC xs) = BS.foldl1  f   xs
     foldl1' f   (BSLC xs) = BS.foldl1' f   xs
-
-instance Unfoldable (ByteString Lazy Char) where
-    fromList = BSLC . BS.pack
-    singleton = BSLC . BS.singleton
 
 instance Partitionable (ByteString Lazy Char) where
     partition n (BSLC xs) = go xs

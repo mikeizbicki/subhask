@@ -52,6 +52,9 @@ testMap = Map.fromList
     , ("Bounded",
         [ "law_Bounded_sup"
         ] )
+    , ("Complemented",
+        [ "law_Complemented_not"
+        ] )
     , ("Heyting",
         [ "law_Heyting_maxbound"
         , "law_Heyting_infleft"
@@ -85,6 +88,7 @@ testMap = Map.fromList
     , ( "Monoid",
         [ "law_Monoid_leftid"
         , "law_Monoid_rightid"
+        , "defn_Monoid_isZero"
         ] )
     , ( "Abelian",
         [ "law_Abelian_commutative"
@@ -126,28 +130,28 @@ testMap = Map.fromList
         , "law_MetricSpace_triangle"
         ] )
 
-    , ( "PreContainer",
-        [ "law_PreContainer_preservation"
-        , "defn_PreContainer_sizeDisjoint"
-        ] )
     , ( "Container",
-        [ "law_Container_empty"
-        , "law_Container_MonoidMinBound"
-        , "law_Container_MonoidNormed"
-        , "defn_Container_infDisjoint"
-        , "defn_Container_null"
+        [ "law_Container_preservation"
+        , "law_Constructible_singleton"
+        , "theorem_Constructible_insert"
         ] )
     , ( "Indexed",
         [ "law_Indexed_cons"
         ] )
 
+    , ( "Constructible",
+        [ "defn_Constructible_cons"
+        , "defn_Constructible_snoc"
+        , "defn_Constructible_fromList"
+        , "defn_Constructible_fromListN"
+        ] )
     , ( "Unfoldable",
-        [ "law_Unfoldable_singleton"
-        , "theorem_Unfoldable_insert"
-        , "defn_Unfoldable_cons"
-        , "defn_Unfoldable_snoc"
-        , "defn_Unfoldable_fromList"
-        , "defn_Unfoldable_fromListN"
+        [
+--         [ "law_Container_empty"
+--         , "law_Container_MonoidMinBound"
+--         , "law_Container_MonoidNormed"
+--         , "defn_Container_infDisjoint"
+--         , "defn_Container_null"
         ] )
     , ( "Foldable",
         [

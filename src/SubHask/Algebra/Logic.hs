@@ -176,27 +176,27 @@ deriveHierarchy ''Boolean2Ring [ ''Boolean ]
 mkBoolean2Ring :: Boolean b => b -> Boolean2Ring b
 mkBoolean2Ring = Boolean2Ring
 
-instance Boolean b => Semigroup (Boolean2Ring b) where
+instance (Boolean b, ValidLogic b) => Semigroup (Boolean2Ring b) where
 --     (Boolean2Ring b1)+(Boolean2Ring b2) = Boolean2Ring $ (b1 && not b2) || (not b1 && b2)
     (Boolean2Ring b1)+(Boolean2Ring b2) = Boolean2Ring $ (b1 || b2) && not (b1 && b2)
 
-instance Boolean b => Abelian (Boolean2Ring b)
+instance (Boolean b, ValidLogic b) => Abelian (Boolean2Ring b)
 
-instance Boolean b => Monoid (Boolean2Ring b) where
+instance (Boolean b, ValidLogic b) => Monoid (Boolean2Ring b) where
     zero = Boolean2Ring $ false
 
-instance Boolean b => Cancellative (Boolean2Ring b) where
+instance (Boolean b, ValidLogic b) => Cancellative (Boolean2Ring b) where
     (-)=(+)
 --     b1-b2 = b1+negate b2
 
-instance Boolean b => Group (Boolean2Ring b) where
+instance (Boolean b, ValidLogic b) => Group (Boolean2Ring b) where
     negate = id
 --     negate (Boolean2Ring b) = Boolean2Ring $ not b
 
-instance Boolean b => Rg (Boolean2Ring b) where
+instance (Boolean b, ValidLogic b) => Rg (Boolean2Ring b) where
     (Boolean2Ring b1)*(Boolean2Ring b2) = Boolean2Ring $ b1 && b2
 
-instance Boolean b => Rig (Boolean2Ring b) where
+instance (Boolean b, ValidLogic b) => Rig (Boolean2Ring b) where
     one = Boolean2Ring $ true
 
-instance Boolean b => Ring (Boolean2Ring b)
+instance (Boolean b, ValidLogic b) => Ring (Boolean2Ring b)

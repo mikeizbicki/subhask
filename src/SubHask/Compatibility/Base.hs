@@ -13,6 +13,7 @@ import Control.Arrow
 import Control.Monad.ST
 import GHC.Conc.Sync
 import Text.ParserCombinators.ReadP
+import Text.ParserCombinators.ReadPrec
 
 import SubHask.Algebra
 import SubHask.Category
@@ -33,20 +34,36 @@ deriveAllInScope ''M.Monad          mkPreludeMonad
 
 fromPreludeEq [t|TypeRep|]
 
+type instance Logic (Either a b) = Logic b
 
-type instance Logic (Maybe a) = Logic a
-
-instance (Bounded (Logic a), Eq_ a) => Eq_ (Maybe a) where
-    (Just a1) == (Just a2) = a1==a2
-    Nothing   == Nothing   = true
+instance (Logic a~Logic b, ValidEq a, ValidEq b) => Eq_ (Either a b) where
+    (Left a1) ==(Left  a2) = a1==a2
+    (Right b1)==(Right b2) = b1==b2
     _         == _         = false
 
-
-instance Semigroup b => Semigroup (Either a b) where
+instance (Semigroup b) => Semigroup (Either a b) where
     (Left a) + _ = Left a
     _ + (Left a) = Left a
     (Right b1)+(Right b2) = Right $ b1+b2
 
-instance Monoid b => Monoid (Either a b) where
+instance (Monoid b) => Monoid (Either a b) where
     zero = Right zero
 
+instance P.Monad Maybe' where
+    return = Just'
+    Nothing' >>= f = Nothing'
+    (Just' a) >>= f = f a
+
+instance Functor Hask Maybe' where
+    fmap f Nothing' = Nothing'
+    fmap f (Just' a) = Just' $ f a
+
+instance Then Maybe' where
+    Nothing' >> _ = Nothing'
+    _        >> a = a
+
+instance Monad Hask Maybe' where
+    return_ = Just'
+    join Nothing' = Nothing'
+    join (Just' Nothing') = Nothing'
+    join (Just' (Just' a)) = Just' a

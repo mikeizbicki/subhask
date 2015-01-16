@@ -59,6 +59,7 @@ import SubHask.Algebra
 import SubHask.Algebra.Container
 import SubHask.Algebra.Ord
 import SubHask.Category
+import SubHask.Compatibility.Base
 
 
 -- | This function is copied and paster from the original library;
@@ -112,6 +113,7 @@ eqUnboxedVectorInt = (P.==)
 --------------------------------------------------------------------------------
 -- Mutability
 
+{-
 type family MutableVersion a :: * -> *
 type family ImmutableVersion (a :: * -> *) :: *
 
@@ -177,6 +179,10 @@ instance Semigroup g => SemigroupM (BoxedVector g) (MBoxedVector g) where
                     g2 <- VGM.unsafeRead mv2 i
                     VGM.unsafeWrite mv1 i (g1 + g2)
                     go (i+1)
+-}
+
+class (ValidEq (v r), ValidEq r, VG.Vector v r, Logic (v r)~Logic r) => ValidVector v r
+instance (ValidEq (v r), ValidEq r, VG.Vector v r, Logic (v r)~Logic r) => ValidVector v r
 
 -------------------------------------------------------------------------------
 
@@ -188,12 +194,13 @@ newtype ArrayT v r = ArrayT { unArrayT :: v r }
     deriving (Read,Show,Arbitrary)
 
 type instance Scalar (ArrayT v r) = Int
-type instance Logic (ArrayT v r) = Bool -- Logic (v r)
+type instance Logic (ArrayT v r) = Logic r
+-- type instance Logic (ArrayT v r) = Logic (v r)
 type instance Elem (ArrayT v r) = r
 
-instance Eq (v r) => Eq_ (ArrayT v r) where
+instance ValidVector v r => Eq_ (ArrayT v r) where
     (ArrayT v1)==(ArrayT v2) = v1==v2
-    (ArrayT v1)/=(ArrayT v2) = not $ v1==v2
+    (ArrayT v1)/=(ArrayT v2) = v1/=v2
 
 instance NFData (v r) => NFData (ArrayT v r) where
     rnf (ArrayT v) = rnf v
@@ -201,7 +208,7 @@ instance NFData (v r) => NFData (ArrayT v r) where
 -- instance Eq (v r) => Eq (ArrayT v r) where
 --     (ArrayT v1)==(ArrayT v2) = v1==v2
 
-instance VG.Vector v r => Normed (ArrayT v r) where
+instance ValidVector v r => Normed (ArrayT v r) where
     size = VG.length
 
 instance VG.Vector v a => VG.Vector (ArrayT v) a where
@@ -240,37 +247,51 @@ instance VGM.MVector v a => VGM.MVector (ArrayTM v) a where
 
 type instance VG.Mutable (ArrayT v) = ArrayTM (VG.Mutable v)
 
-instance VG.Vector v r => Semigroup (ArrayT v r) where
+instance ValidVector v r => Semigroup (ArrayT v r) where
     (ArrayT v1)+(ArrayT v2) = ArrayT $ v1 VG.++ v2
 
-instance VG.Vector v r => Monoid (ArrayT v r) where
+instance ValidVector v r => Monoid (ArrayT v r) where
     zero = ArrayT $ VG.empty
 
-instance (VG.Vector v r, Eq r, Eq (v r)) => PreContainer (ArrayT v r) where
+instance ValidVector v r => Container (ArrayT v r) where
     elem r (ArrayT v) = elem r $ VG.toList v
     notElem r (ArrayT v) = not $ elem r $ VG.toList v
 
-instance (VG.Vector v r, POrd r, Eq (v r)) => Container (ArrayT v r)
-
-instance (VG.Vector v r, Eq r, Eq (v r)) => Unfoldable (ArrayT v r) where
+instance ValidVector v r => Constructible (ArrayT v r) where
     singleton r = ArrayT $ VG.singleton r
 
-    fromList = ArrayT . VG.fromList
+    fromList1 x xs = ArrayT $ VG.fromList (x:xs)
 
-    fromListN n = ArrayT . VG.fromListN n
+    fromList1N n x xs = ArrayT $ VG.fromListN n (x:xs)
 
-instance VG.Vector v r => Foldable (ArrayT v r) where
+instance (ValidVector v r, Eq r, Eq (v r)) => Unfoldable (ArrayT v r) where
+
+instance ValidVector v r => Foldable (ArrayT v r) where
 
     {-# INLINE toList #-}
     toList (ArrayT v) = VG.toList v
 
+    {-# INLINE unCons #-}
     unCons (ArrayT v) = if VG.null v
         then Nothing
         else Just (VG.head v, ArrayT $ VG.tail v)
+
+    {-# INLINE unCons' #-}
+    unCons' (ArrayT v) = if VG.null v
+        then Nothing'
+        else Just' (VG.head v, ArrayT $ VG.tail v)
+
+    {-# INLINE unSnoc #-}
     unSnoc (ArrayT v) = if VG.null v
         then Nothing
         else Just (ArrayT $ VG.init v, VG.last v)
 
+    {-# INLINE unSnoc' #-}
+    unSnoc' (ArrayT v) = if VG.null v
+        then Nothing'
+        else Just' (ArrayT $ VG.init v, VG.last v)
+
+    {-# INLINE foldMap #-}
     foldMap f   (ArrayT v) = VG.foldl' (\a e -> a + f e) zero v
 
     {-# INLINE foldr #-}
@@ -320,23 +341,27 @@ instance
                         else lenmax
                     lenmax = ceiling $ (fromIntegral $ VG.length vec :: Double) / (fromIntegral n)
 
-instance (Eq (v r), POrd r, VG.Vector v r) => POrd_ (ArrayT v r) where
+instance (Eq (v r), POrd r, ValidVector v r) => POrd_ (ArrayT v r) where
     inf (ArrayT v1) (ArrayT v2) = ArrayT $ VG.fromList $ inf (VG.toList v1) (VG.toList v2)
 
-instance (Eq (v r), POrd r, VG.Vector v r) => MinBound_ (ArrayT v r) where
+instance (Eq (v r), POrd r, ValidVector v r) => MinBound_ (ArrayT v r) where
     minBound = zero
 
 -------------------------------------------------------------------------------
 
 type UnboxedVector = VU.Vector
 
+type instance Scalar (VU.Vector r) = Scalar r
+type instance Logic (VU.Vector r) = Logic r
+
 instance (VU.Unbox r, Arbitrary r) => Arbitrary (VU.Vector r) where
     arbitrary = liftM VG.fromList arbitrary
     shrink v = map VG.fromList $ shrink (VG.toList v)
 
-instance (VU.Unbox r, Eq r) => Eq_ (VU.Vector r) where
+instance (VU.Unbox r, ValidEq r) => Eq_ (VU.Vector r) where
     {-# INLINE (==) #-}
-    xs == ys = eq (VG.stream xs) (VG.stream ys)
+    xs == ys = toList (ArrayT xs) == toList (ArrayT ys)
+--     xs == ys = eq (VG.stream xs) (VG.stream ys)
 
 instance (VU.Unbox r, Ord r) => POrd_ (VU.Vector r) where
     inf v1 v2 = unArrayT $ unLexical $ inf (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
@@ -381,9 +406,6 @@ instance (VU.Unbox r,  Cancellative r) => Cancellative (VU.Vector r) where
 instance (VU.Unbox r,  Group r) => Group (VU.Vector r) where
     {-# INLINE negate #-}
     negate v = VG.map negate v
-
-type instance Scalar (VU.Vector r) = Scalar r
-type instance Logic (VU.Vector r) = Bool
 
 instance (VU.Unbox r,  Module r, IsScalar (Scalar r)) => Module (VU.Vector r) where
     {-# INLINE (*.) #-}
@@ -446,13 +468,17 @@ instance
 
 type BoxedVector = V.Vector
 
+type instance Scalar (V.Vector r) = Scalar r
+type instance Logic (V.Vector r) = Logic r
+
 instance Arbitrary r => Arbitrary (V.Vector r) where
     arbitrary = liftM VG.fromList arbitrary
     shrink v = map VG.fromList $ shrink (VG.toList v)
 
-instance (Eq r) => Eq_ (V.Vector r) where
+instance ValidEq r => Eq_ (V.Vector r) where
     {-# INLINE (==) #-}
-    xs == ys = eq (VG.stream xs) (VG.stream ys)
+    xs == ys = toList (ArrayT xs) == toList (ArrayT ys)
+--     xs == ys = eq (VG.stream xs) (VG.stream ys)
 
 instance (VG.Vector V.Vector r, Ord r) => POrd_ (V.Vector r) where
     inf v1 v2 = unArrayT $ unLexical $ inf (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
@@ -496,9 +522,6 @@ instance ( Cancellative r) => Cancellative (V.Vector r) where
 instance ( Group r) => Group (V.Vector r) where
     {-# INLINE negate #-}
     negate v = VG.map negate v
-
-type instance Scalar (V.Vector r) = Scalar r
-type instance Logic (V.Vector r) = Bool
 
 instance ( Module r, IsScalar (Scalar r)) => Module (V.Vector r) where
     {-# INLINE (*.) #-}
@@ -557,6 +580,9 @@ instance
 
 -------------------------------------------------------------------------------
 
+type instance Scalar (VS.Vector r) = Scalar r
+type instance Logic (VS.Vector r) = Logic r
+
 instance (Storable r, Arbitrary r) => Arbitrary (VS.Vector r) where
 --     arbitrary = liftM VG.fromList arbitrary
 --     shrink v = map VG.fromList $ shrink (VG.toList v)
@@ -565,9 +591,10 @@ instance (Storable r, Arbitrary r) => Arbitrary (VS.Vector r) where
 --         , (1, return VG.empty)
         ]
 
-instance (VG.Vector VS.Vector r, Storable r, Eq r) => Eq_ (VS.Vector r) where
+instance (VG.Vector VS.Vector r, Storable r, ValidEq r) => Eq_ (VS.Vector r) where
     {-# INLINE[1] (==) #-}
-    xs == ys = eq (VG.stream xs) (VG.stream ys)
+    xs == ys = toList (ArrayT xs) == toList (ArrayT ys)
+--     xs == ys = eq (VG.stream xs) (VG.stream ys)
 
 instance (VG.Vector VS.Vector r, Ord r, Storable r) => POrd_ (VS.Vector r) where
     inf v1 v2 = unArrayT $ unLexical $ inf (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
@@ -611,9 +638,6 @@ instance (Storable r, Cancellative r) => Cancellative (VS.Vector r) where
 instance (Storable r, Group r) => Group (VS.Vector r) where
     {-# INLINE negate #-}
     negate v = VG.map negate v
-
-type instance Scalar (VS.Vector r) = Scalar r
-type instance Logic (VS.Vector r) = Bool
 
 instance (Storable r, Module r, IsScalar (Scalar r)) => Module (VS.Vector r) where
     {-# INLINE (*.) #-}

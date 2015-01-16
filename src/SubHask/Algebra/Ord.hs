@@ -51,7 +51,7 @@ instance Show a => Show (WithPreludeOrd a) where
 
 -- | FIXME: for some reason, our deriving mechanism doesn't work on Show here;
 -- It causes's Set's show to enter an infinite loop
-deriveHierarchyFiltered ''WithPreludeOrd [ ''Enum, ''Boolean, ''Ring, ''MetricSpace ] [ ''Show ]
+deriveHierarchyFiltered ''WithPreludeOrd [ ''Eq_, ''Enum, ''Boolean, ''Ring, ''MetricSpace ] [ ''Show ]
 
 instance Eq a => P.Eq (WithPreludeOrd a) where
     a==b = a==b

@@ -129,19 +129,14 @@ deriveSingleInstance typename classname = do
             if alreadyInstance
                 then return []
                 else do
-                    -- FIXME: we need a special case for show otherwise we'll hit an infinite loop somehow on the Set type
---                     funcL <- if (nameBase classname=="Show"
---                         then
---                         else mapM subNewtype decs
-
                     funcL <- mapM subNewtype decs
 
+--                     trace ("classname="++show classname++"; typename="++show typename)
+--                         $ trace ("  funcL="++show funcL)
+--                         $ return ()
                     return [ InstanceD
                             ( ClassP classname [typeapp] : map (substitutePat varname typeapp) ctx )
                             ( AppT (ConT classname) $ apply2varlist (ConT typename) typekind )
---                             ( AppT (ConT classname) (AppT (ConT typename) typeapp ))
---                             ( ClassP classname [VarT varname] : ctx )
---                             ( AppT (ConT classname) (AppT (ConT typename) (VarT varname) ))
                             funcL
                          ]
             where

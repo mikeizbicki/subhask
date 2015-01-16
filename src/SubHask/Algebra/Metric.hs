@@ -5,9 +5,10 @@ module SubHask.Algebra.Metric
 import SubHask.Category
 import SubHask.Algebra
 import SubHask.Algebra.Ord
-import SubHask.Monad
-import SubHask.Compatibility.Base
+-- import SubHask.Monad
+-- import SubHask.Compatibility.Base
 import SubHask.Internal.Prelude
+import Control.Monad
 
 import Data.List (nubBy,permutations,sort)
 import System.IO

@@ -22,16 +22,16 @@ newtype NonNegative t = NonNegative { unNonNegative :: t }
 
 deriveHierarchy ''NonNegative [ ''Enum, ''Boolean, ''Rig, ''MetricSpace ]
 
-instance (Ord t, Group t) => Cancellative (NonNegative t) where
-    (NonNegative t1)-(NonNegative t2) = if diff>zero
-        then NonNegative diff
-        else NonNegative zero
-        where
-            diff=t1-t2
+-- instance (Ord t, Group t) => Cancellative (NonNegative t) where
+--     (NonNegative t1)-(NonNegative t2) = if diff>zero
+--         then NonNegative diff
+--         else NonNegative zero
+--         where
+--             diff=t1-t2
 
 -------------------
 
-
+{-
 newtype a +> b = HomHask { unHomHask :: a -> b }
 infixr +>
 
@@ -83,6 +83,7 @@ i1 = 5 :: Int
 i2 = 3 :: Int
 j1 = 5 :: Integer
 j2 = 3 :: Integer
+-}
 
 -------------------------------------------------------------------------------
 -- integers modulo n

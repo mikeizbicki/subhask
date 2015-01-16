@@ -23,6 +23,11 @@ import SubHask.Internal.Prelude
 import Debug.Trace
 
 --------------------------------------------------------------------------------
+
+type instance Logic Dec = Bool
+instance Eq_ Dec where (==) = (P.==)
+
+--------------------------------------------------------------------------------
 -- derive monad instances
 
 deriveAllInScope :: Name -> (Cxt -> Type -> Q [Dec]) -> Q [Dec]

@@ -144,6 +144,7 @@ forM            :: Monad Hask m => [a] -> (a -> m b) -> m [b]
 {-# INLINE forM #-}
 forM            = flip mapM
 
+
 -- | 'forM_' is 'mapM_' with its arguments flipped
 forM_           :: Monad Hask m => [a] -> (a -> m b) -> m ()
 {-# INLINE forM_ #-}
@@ -270,3 +271,5 @@ is equivalent to
 
 ap                :: (Monad Hask m) => m (a -> b) -> m a -> m b
 ap                =  liftM2 id
+
+

@@ -52,21 +52,32 @@ instance Semigroup (Seq a) where
 instance Monoid (Seq a) where
     zero = Seq $ Seq.empty
 
-instance Eq a => PreContainer (Seq a) where
+instance Eq a => Container (Seq a) where
     elem e (Seq a) = elem e $ F.toList a
     notElem = not elem
 
-instance POrd a => Container (Seq a)
-
-instance Eq a => Unfoldable (Seq a) where
+instance Constructible (Seq a) where
     cons e (Seq a) = Seq $ e Seq.<| a
     snoc (Seq a) e = Seq $ a Seq.|> e
     singleton e = Seq $ Seq.singleton e
 
-    fromList xs = Seq $ Seq.fromList xs
+    fromList1 x xs = Seq $ Seq.fromList (x:xs)
+
+instance Unfoldable (Seq a)
 
 instance Eq a => Foldable (Seq a) where
+
     toList (Seq a) = F.toList a
+
+    {-# INLINE unCons #-}
+    unCons (Seq a) = if Seq.null a
+        then Nothing
+        else Just (Seq.index a 0, Seq $ Seq.drop 1 a)
+
+    {-# INLINE unSnoc #-}
+    unSnoc (Seq v) = if Seq.null v
+        then Nothing
+        else Just (Seq $ Seq.take (Seq.length v-1) v, Seq.index v 0)
 
 --     foldMap f   (Seq a) = F.foldMap f   a
 
@@ -80,7 +91,7 @@ instance Eq a => Foldable (Seq a) where
     foldl1  f   (Seq a) = F.foldl1  f   a
 --     foldl1' f   (Seq a) = F.foldl1' f   a
 
-instance (POrd a, Boolean (Logic a)) => Partitionable (Seq a) where
+instance (ValidLogic a) => Partitionable (Seq a) where
     partition n (Seq xs) = go xs
         where
             go :: Seq.Seq a -> [Seq a]
@@ -126,7 +137,7 @@ instance Ord k => Semigroup (Map k v) where
 instance Ord k => Monoid (Map k v) where
     zero = Map $ M.empty
 
-instance (Ord k, Eq v) => PreContainer (Map k v) where
+instance (Ord k, Eq v) => Container (Map k v) where
     elem (k,v) (Map m) = case M.lookup (WithPreludeOrd k) m of
         Nothing -> False
         Just (WithPreludeOrd v') -> v==v'
@@ -135,7 +146,10 @@ instance (Ord k, Eq v) => PreContainer (Map k v) where
         Nothing -> True
         Just (WithPreludeOrd v') -> v/=v'
 
-instance (Ord k, POrd v) => Container (Map k v)
+instance (Ord k, Eq v) => Constructible (Map k v) where
+    singleton (k,v) = Map $ M.singleton (WithPreludeOrd k) (WithPreludeOrd v)
+
+instance (Ord k, Eq v) => Unfoldable (Map k v)
 
 instance (Ord k, POrd v) => MinBound_ (Map k v) where
     minBound = zero
@@ -145,9 +159,6 @@ instance (Ord k, Eq v) => Indexed (Map k v) where
     hasIndex k (Map m) = M.member (WithPreludeOrd k) m
     indices (Map m) = map unWithPreludeOrd $ M.keys m
     values (Map m) = map unWithPreludeOrd $ M.elems m
-
-instance (Ord k, Eq v) => Unfoldable (Map k v) where
-    singleton (k,v) = Map $ M.singleton (WithPreludeOrd k) (WithPreludeOrd v)
 
 ----------------------------------------
 -- | This is a thin wrapper around Data.Map.Strict
@@ -179,7 +190,7 @@ instance Ord k => Semigroup (Map' k v) where
 instance Ord k => Monoid (Map' k v) where
     zero = Map' $ MS.empty
 
-instance (Ord k, Eq v) => PreContainer (Map' k v) where
+instance (Ord k, Eq v) => Container (Map' k v) where
     elem (k,v) (Map' m) = case MS.lookup (WithPreludeOrd k) m of
         Nothing -> False
         Just (WithPreludeOrd v') -> v==v'
@@ -188,7 +199,11 @@ instance (Ord k, Eq v) => PreContainer (Map' k v) where
         Nothing -> True
         Just (WithPreludeOrd v') -> v/=v'
 
-instance (Ord k, POrd v) => Container (Map' k v)
+instance (Ord k, Eq v) => Constructible (Map' k v) where
+    singleton (k,v) = Map' $ MS.singleton (WithPreludeOrd k) (WithPreludeOrd v)
+    fromList1 x xs = Map' $ MS.fromList $ map (\(k,v) -> (WithPreludeOrd k,WithPreludeOrd v)) $ P.reverse (x:xs)
+
+instance (Ord k, Eq v) => Unfoldable (Map' k v)
 
 instance (Ord k, POrd v) => MinBound_ (Map' k v) where
     minBound = zero
@@ -205,10 +220,6 @@ mapIndices f (Map' m) = Map' $ MS.mapKeys (\(WithPreludeOrd k) -> WithPreludeOrd
 
 mapValues :: (Ord k, Eq v1, Eq v2) => (v1 -> v2) -> Map' k v1 -> Map' k v2
 mapValues f (Map' m) = Map' $ MS.map (\(WithPreludeOrd v) -> WithPreludeOrd $ f v) m
-
-instance (Ord k, Eq v) => Unfoldable (Map' k v) where
-    singleton (k,v) = Map' $ MS.singleton (WithPreludeOrd k) (WithPreludeOrd v)
-    fromList xs = Map' $ MS.fromList $ map (\(k,v) -> (WithPreludeOrd k,WithPreludeOrd v)) $ P.reverse xs
 
 instance (Ord k, Eq v) => Foldable (Map' k v) where
     toList (Map' m) = map (\(WithPreludeOrd k,WithPreludeOrd v) -> (k,v))
@@ -255,16 +266,16 @@ instance Ord a => Monoid (Set a) where
 
 instance Ord a => Abelian (Set a)
 
-instance Ord a => PreContainer (Set a) where
+instance Ord a => Container (Set a) where
     elem a (Set s) = Set.member (WithPreludeOrd a) s
     notElem a (Set s) = not $ Set.member (WithPreludeOrd a) s
 
-instance Ord a => Container (Set a)
-
-instance Ord a => Unfoldable (Set a) where
+instance Ord a => Constructible (Set a) where
     singleton a = Set $ Set.singleton (WithPreludeOrd a)
 
-    fromList as = Set $ Set.fromList $ map WithPreludeOrd as
+    fromList1 a as = Set $ Set.fromList $ map WithPreludeOrd (a:as)
+
+instance Ord a => Unfoldable (Set a)
 
 instance Ord a => Foldable (Set a) where
     foldl   f a (Set s) = Set.foldl   (\a (WithPreludeOrd e) -> f a e) a s
@@ -310,19 +321,19 @@ instance Semigroup (LexSet a) where
 instance Ord a => Monoid (LexSet a) where
     zero = LexSet zero
 
-instance (Ord a ) => PreContainer (LexSet a) where
+instance (Ord a ) => Container (LexSet a) where
     elem x (LexSet s) = elem x s
 
-instance (Ord a ) => Container (LexSet a)
+instance (Ord a ) => Constructible (LexSet a) where
+    fromList1 a as = LexSet $ fromList1 a as
+
+instance (Ord a ) => Unfoldable (LexSet a)
 
 instance (Ord a ) => Normed (LexSet a) where
     size (LexSet s) = size s
 
 instance (Ord a ) => MinBound_ (LexSet a) where
     minBound = zero
-
-instance (Ord a ) => Unfoldable (LexSet a) where
-    fromList = LexSet . fromList
 
 instance (Ord a ) => Foldable (LexSet a) where
     foldl   f a (LexSet s) = foldl   f a s
