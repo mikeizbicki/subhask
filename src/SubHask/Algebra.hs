@@ -223,6 +223,7 @@ import Data.Typeable
 import Test.QuickCheck (Arbitrary (..), frequency)
 
 import Control.Concurrent
+import Control.Parallel
 import Control.Parallel.Strategies
 import System.IO.Unsafe -- used in the parallel function
 
@@ -1877,6 +1878,19 @@ foldtree1 as = case go as of
         go [a] = [a]
         go (a1:a2:as) = (a1+a2):go as
 
+-- | Like foldtree1, but parallel
+parfoldtree1 :: Monoid a => [a] -> a
+parfoldtree1 as = case go as of
+    []  -> zero
+    [a] -> a
+    as  -> parfoldtree1 as
+    where
+        go []  = []
+        go [a] = [a]
+        go (a1:a2:as) = par a12 $ a12:go as
+            where
+                a12=a1+a2
+
 {-# INLINE[1] convertUnfoldable #-}
 convertUnfoldable :: (Foldable s, Unfoldable t, Elem s ~ Elem t) => s -> t
 convertUnfoldable = fromList . toList
@@ -2025,7 +2039,7 @@ parallelN ::
     ) => Int -- ^ number of parallel threads
       -> (domain -> range) -- ^ sequential batch trainer
       -> (domain -> range) -- ^ parallel batch trainer
-parallelN n f =  foldtree1 . parMap rdeepseq f . partition n
+parallelN n f = parfoldtree1 . parMap rdeepseq f . partition n
 
 -- | Parallelizes any monoid homomorphism.
 -- The function automatically detects the number of available processors and parallelizes the function accordingly.
