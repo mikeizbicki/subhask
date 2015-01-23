@@ -140,6 +140,7 @@ module SubHask.Algebra
     -- * Maybe
     , CanError (..)
     , Maybe' (..)
+    , Labeled' (..)
 
     -- * Number-like
     -- ** Classes with one operator
@@ -1756,6 +1757,7 @@ type family Snd a where
 type Index s = Fst (Elem s)
 type Value s = Snd (Elem s)
 
+
 -- | An indexed container us a container of tuples (a,b).
 -- Every value of type a is associated with a value of type b.
 class (Elem s~(Index s, Value s), Unfoldable s) => Indexed s where
@@ -2215,3 +2217,44 @@ instance (Logic a~Logic b, VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => 
 instance (Logic a~Logic b, VectorSpace a,VectorSpace b, VectorSpace c, Scalar a ~ Scalar b, Scalar c~Scalar b) => VectorSpace (a,b,c) where
     (a,b,c) ./ r = (a./r,b./r,c./r)
     (a1,b1,c1)./.(a2,b2,c2) = (a1./.a2,b1./.b2,c1./.c2)
+
+--------------------------------------------------------------------------------
+
+data Labeled' x y = Labeled' { xLabeled' :: !x, yLabeled' :: !y }
+
+type instance Scalar (Labeled' x y) = Scalar x
+type instance Logic (Labeled' x y) = Logic x
+type instance Elem (Labeled' x y) = Elem x
+
+-----
+
+instance Eq_ x => Eq_ (Labeled' x y) where
+    (Labeled' x1 y1) == (Labeled' x2 y2) = x1==x2
+
+instance (ClassicalLogic x, Ord_ x) => POrd_ (Labeled' x y) where
+    inf (Labeled' x1 y1) (Labeled' x2 y2) = if x1 < x2
+        then Labeled' x1 y1
+        else Labeled' x2 y2
+    (Labeled' x1 _)< (Labeled' x2 _) = x1< x2
+    (Labeled' x1 _)<=(Labeled' x2 _) = x1<=x2
+
+instance (ClassicalLogic x, Ord_ x) => Lattice_ (Labeled' x y) where
+    sup (Labeled' x1 y1) (Labeled' x2 y2) = if x1 >= x2
+        then Labeled' x1 y1
+        else Labeled' x2 y2
+    (Labeled' x1 _)> (Labeled' x2 _) = x1> x2
+    (Labeled' x1 _)>=(Labeled' x2 _) = x1>=x2
+
+instance (ClassicalLogic x, Ord_ x) => Ord_ (Labeled' x y) where
+
+-----
+
+instance MetricSpace x => MetricSpace (Labeled' x y) where
+    distance (Labeled' x1 y1) (Labeled' x2 y2) = distance x1 x2
+    isFartherThan (Labeled' x1 y1) (Labeled' x2 y2) = isFartherThan x1 x2
+    isFartherThanWithDistanceCanError (Labeled' x1 y1) (Labeled' x2 y2) = isFartherThanWithDistanceCanError x1 x2
+
+instance Normed x => Normed (Labeled' x y) where
+    size (Labeled' x _) = size x
+
+
