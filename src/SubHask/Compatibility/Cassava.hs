@@ -12,6 +12,7 @@ module SubHask.Compatibility.Cassava
     where
 
 import SubHask
+import SubHask.Algebra.Parallel
 import SubHask.Compatibility.ByteString
 import SubHask.Compatibility.Vector
 

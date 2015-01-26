@@ -20,7 +20,7 @@ main = do
 
     putStrLn "initializing variables"
 
-    let veclen = 1000
+    let veclen = 10
     xs1 <- P.fmap (P.take veclen) getRandoms
     xs2 <- P.fmap (P.take veclen) getRandoms
     xs3 <- P.fmap (P.take veclen) getRandoms

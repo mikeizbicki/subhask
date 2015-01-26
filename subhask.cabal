@@ -26,6 +26,7 @@ library
         SubHask.Algebra.Logic
         SubHask.Algebra.Metric
         SubHask.Algebra.Ord
+        SubHask.Algebra.Parallel
         SubHask.Algebra.Trans.Kernel
 
         SubHask.Category
@@ -80,6 +81,7 @@ library
         TemplateHaskell,
         BangPatterns,
         FunctionalDependencies,
+        TupleSections,
 
         AutoDeriveTypeable,
         RebindableSyntax

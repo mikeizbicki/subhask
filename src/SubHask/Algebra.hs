@@ -128,11 +128,11 @@ module SubHask.Algebra
     , Index
     , Value
 
-    , Partitionable (..)
-    , law_Partitionable_length
-    , law_Partitionable_monoid
-    , parallelN
-    , parallel
+--     , Partitionable (..)
+--     , law_Partitionable_length
+--     , law_Partitionable_monoid
+--     , parallelN
+--     , parallel
 
     , Topology (..)
     , FreeMonoid
@@ -219,6 +219,7 @@ import qualified Prelude as P
 import qualified Data.List as L
 
 import Prelude (Ordering (..))
+import Control.Monad
 import Data.Ratio
 import Data.Typeable
 import Test.QuickCheck (Arbitrary (..), frequency)
@@ -664,14 +665,14 @@ max = sup
 class (Eq a, Ord_ a) => Ord a
 instance (Eq a, Ord_ a) => Ord a
 
-instance Ord_ ()
-instance Ord_ Char
-instance Ord_ Int
-instance Ord_ Integer
-instance Ord_ Float
-instance Ord_ Double
-instance Ord_ Rational
-instance Ord_ Bool
+instance Ord_ ()        --where compare = P.compare
+instance Ord_ Char      where compare = P.compare
+instance Ord_ Int       where compare = P.compare
+instance Ord_ Integer   where compare = P.compare
+instance Ord_ Float     where compare = P.compare
+instance Ord_ Double    where compare = P.compare
+instance Ord_ Rational  where compare = P.compare
+instance Ord_ Bool      where compare = P.compare
 
 -------------------
 
@@ -1880,19 +1881,6 @@ foldtree1 as = case go as of
         go [a] = [a]
         go (a1:a2:as) = (a1+a2):go as
 
--- | Like foldtree1, but parallel
-parfoldtree1 :: Monoid a => [a] -> a
-parfoldtree1 as = case go as of
-    []  -> zero
-    [a] -> a
-    as  -> parfoldtree1 as
-    where
-        go []  = []
-        go [a] = [a]
-        go (a1:a2:as) = par a12 $ a12:go as
-            where
-                a12=a1+a2
-
 {-# INLINE[1] convertUnfoldable #-}
 convertUnfoldable :: (Foldable s, Unfoldable t, Elem s ~ Elem t) => s -> t
 convertUnfoldable = fromList . toList
@@ -1992,6 +1980,7 @@ lastMaybe = P.fmap snd . unSnoc
 initMaybe :: Foldable s => s -> Maybe s
 initMaybe = P.fmap fst . unSnoc
 
+{-
 -- | A Partitionable container can be split up into an arbitrary number of subcontainers of roughly equal size.
 class (Monoid t, Constructible t) => Partitionable t where
 
@@ -2008,7 +1997,7 @@ law_Partitionable_monoid n t
     | n > 0 = sum (partition n t) == t
     | otherwise = True
 
-instance (POrd a, Boolean (Logic a)) => Partitionable [a] where
+instance (Boolean (Logic a)) => Partitionable [a] where
     partition = partition_noncommutative
 --     partition n xs = go xs
 --         where
@@ -2043,6 +2032,19 @@ parallelN ::
       -> (domain -> range) -- ^ parallel batch trainer
 parallelN n f = parfoldtree1 . parMap rdeepseq f . partition n
 
+-- | Like foldtree1, but parallel
+parfoldtree1 :: Monoid a => [a] -> a
+parfoldtree1 as = case go as of
+    []  -> zero
+    [a] -> a
+    as  -> parfoldtree1 as
+    where
+        go []  = []
+        go [a] = [a]
+        go (a1:a2:as) = par a12 $ a12:go as
+            where
+                a12=a1+a2
+
 -- | Parallelizes any monoid homomorphism.
 -- The function automatically detects the number of available processors and parallelizes the function accordingly.
 -- This requires the use of unsafePerformIO, however, the result is safe.
@@ -2059,6 +2061,7 @@ parallel = if dopar
     where
         numproc = unsafePerformIO getNumCapabilities
         dopar = numproc > 1
+-}
 
 -------------------
 
@@ -2221,6 +2224,16 @@ instance (Logic a~Logic b, VectorSpace a,VectorSpace b, VectorSpace c, Scalar a 
 --------------------------------------------------------------------------------
 
 data Labeled' x y = Labeled' { xLabeled' :: !x, yLabeled' :: !y }
+    deriving (Read,Show)
+
+instance (NFData x, NFData y) => NFData (Labeled' x y) where
+    rnf (Labeled' x y) = deepseq x $ rnf y
+
+instance (Arbitrary x, Arbitrary y) => Arbitrary (Labeled' x y) where
+    arbitrary = do
+        x <- arbitrary
+        y <- arbitrary
+        return $ Labeled' x y
 
 type instance Scalar (Labeled' x y) = Scalar x
 type instance Logic (Labeled' x y) = Logic x

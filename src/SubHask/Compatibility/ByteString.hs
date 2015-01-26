@@ -4,6 +4,7 @@ module SubHask.Compatibility.ByteString
 import SubHask
 -- import SubHask.Compatibility.Base
 -- import SubHask.Monad
+import SubHask.Algebra.Parallel
 import SubHask.TemplateHaskell.Deriving
 
 import qualified Data.ByteString.Lazy.Char8 as BS

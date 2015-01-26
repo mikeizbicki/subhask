@@ -47,7 +47,66 @@ double isFartherThan_l2_double(double *p1, double *p2, int len, double dist)
 
 /******************************************************************************/
 /* __m128 */
+float distance_l2_m128(__m128 *p1, __m128 *p2, int len)
+{
+    float ret=0;
+    __m128 sum={0,0,0,0};
+    float fsum[4];
 
+    int i=0;
+    for (i=0; i<len/4; i++) {
+        __m128 diff;
+        diff = _mm_sub_ps(p1[i],p2[i]);
+        sum = _mm_add_ps(sum,_mm_mul_ps(diff,diff));
+    }
+
+    _mm_store_ps(fsum,sum);
+    ret = fsum[0] + fsum[1] + fsum[2] + fsum[3];
+
+    for (i*=4; i<len; i++) {
+        ret += pow(((float*)p1)[i]-((float*)p2)[i],2);
+    }
+
+    return sqrt(ret);
+}
+
+float isFartherThan_l2_m128(__m128 *p1, __m128 *p2, int len, float dist)
+{
+    float ret=0;
+    float dist2=dist*dist;
+    __m128 sum={0,0,0,0};
+    float fsum[4];
+
+    int i=0;
+    for (i=0; i<len/4; i++) {
+        __m128 diff;
+        diff = _mm_sub_ps(p1[i],p2[i]);
+        sum = _mm_add_ps(sum,_mm_mul_ps(diff,diff));
+
+        // moving information out of the simd registers is expensive,
+        // so we don't do it on every iteration
+        if (i%4==0) {
+            _mm_store_ss(fsum,sum);
+            if (fsum[0] > dist2/4) {
+                _mm_store_ps(fsum,sum);
+                if (fsum[0]+fsum[1]+fsum[2]+fsum[3] > dist2) {
+                    return NAN;
+                }
+            }
+        }
+    }
+
+    _mm_store_ps(fsum,sum);
+    ret = fsum[0] + fsum[1] + fsum[2] + fsum[3];
+
+    for (i*=4; i<len; i++) {
+        ret += pow(((float*)p1)[i]-((float*)p2)[i],2);
+    }
+
+    return sqrt(ret);
+}
+
+/*
 float distance_l2_m128(__m128 *p1, __m128 *p2, int len)
 {
     float ret=0;
@@ -123,6 +182,7 @@ float isFartherThan_l2_m128_nocheck(__m128 *p1, __m128 *p2, int len, float dist)
 
     return sqrt(ret);
 }
+*/
 
 /******************************************************************************/
 /* __m128d */

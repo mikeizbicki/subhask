@@ -58,6 +58,7 @@ import SubHask.Internal.Prelude
 import SubHask.Algebra
 import SubHask.Algebra.Container
 import SubHask.Algebra.Ord
+import SubHask.Algebra.Parallel
 import SubHask.Category
 import SubHask.Compatibility.Base
 

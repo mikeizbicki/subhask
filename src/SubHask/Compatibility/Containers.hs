@@ -13,6 +13,7 @@ import qualified Prelude as P
 import SubHask.Algebra
 import SubHask.Algebra.Container
 import SubHask.Algebra.Ord
+import SubHask.Algebra.Parallel
 import SubHask.Category
 import SubHask.Category.Trans.Constrained
 import SubHask.Category.Trans.Monotonic
@@ -65,7 +66,7 @@ instance Constructible (Seq a) where
 
 instance Unfoldable (Seq a)
 
-instance Eq a => Foldable (Seq a) where
+instance ValidEq a => Foldable (Seq a) where
 
     toList (Seq a) = F.toList a
 
@@ -91,7 +92,7 @@ instance Eq a => Foldable (Seq a) where
     foldl1  f   (Seq a) = F.foldl1  f   a
 --     foldl1' f   (Seq a) = F.foldl1' f   a
 
-instance (ValidLogic a) => Partitionable (Seq a) where
+instance (ValidEq a) => Partitionable (Seq a) where
     partition n (Seq xs) = go xs
         where
             go :: Seq.Seq a -> [Seq a]
