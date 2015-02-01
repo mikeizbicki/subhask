@@ -106,6 +106,18 @@ instance (ValidEq a) => Partitionable (Seq a) where
             len = size `div` n
                 + if size `rem` n == 0 then 0 else 1
 
+    partitionInterleaved n xs = foldl' go (P.replicate n empty) xs
+        where
+            go (r:rs) x = rs+[r`snoc`x]
+
+-- partitionInterleaved_list :: Int -> [a] -> [[a]]
+-- partitionInterleaved_list n xs = [map snd $ P.filter (\(i,x)->i `mod` n==j) ixs | j<-[0..n-1]]
+--     where
+--         ixs = addIndex 0 xs
+--         addIndex i [] = []
+--         addIndex i (x:xs) = (i,x):(addIndex (i+1) xs)
+
+
 -------------------------------------------------------------------------------
 -- | This is a thin wrapper around Data.Map
 

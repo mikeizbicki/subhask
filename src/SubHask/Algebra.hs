@@ -1519,6 +1519,13 @@ class
 
     distance :: v -> v -> Scalar v
 
+    -- | If the distance between two datapoints is less than or equal to the upper bound,
+    -- then this function will return the distance.
+    -- Otherwise, it will return some number greater than the upper bound.
+    {-# INLINE distanceUB #-}
+    distanceUB :: v -> v -> Scalar v -> Scalar v
+    distanceUB v1 v2 _ = {-# SCC distanceUB #-} distance v1 v2
+
     -- | FIXME: this should have a default implementation in terms of isFartherThanWithDistanceCanError
     -- the weird constraints on that function prevent this
     {-# INLINE isFartherThan #-}
@@ -2264,6 +2271,7 @@ instance (ClassicalLogic x, Ord_ x) => Ord_ (Labeled' x y) where
 
 instance MetricSpace x => MetricSpace (Labeled' x y) where
     distance (Labeled' x1 y1) (Labeled' x2 y2) = distance x1 x2
+    distanceUB (Labeled' x1 y1) (Labeled' x2 y2) = distanceUB x1 x2
     isFartherThan (Labeled' x1 y1) (Labeled' x2 y2) = isFartherThan x1 x2
     isFartherThanWithDistanceCanError (Labeled' x1 y1) (Labeled' x2 y2) = isFartherThanWithDistanceCanError x1 x2
 

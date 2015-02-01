@@ -118,6 +118,7 @@ deriveHierarchy ''PartitionOnNewline [''Monoid,''Boolean,''FreeMonoid]
 instance (a~ByteString Lazy Char, Partitionable a) => Partitionable (PartitionOnNewline a) where
     partition n (PartitionOnNewline xs) = map PartitionOnNewline $ go $ partition n xs
         where
+            go []  = []
             go [x] = [x]
             go (x1:x2:xs) = (x1+BSLC a):go (BSLC b:xs)
                 where
