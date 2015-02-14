@@ -93,10 +93,10 @@ mkPreludeMonad cxt t = validType t $ M.return
         )
         [ FunD ( mkName "return_" ) [ Clause [] (NormalB $ VarE $ mkName "M.return") [] ]
         , FunD ( mkName "join"    ) [ Clause [] (NormalB $ VarE $ mkName "M.join"  ) [] ]
-        , FunD ( mkName ">>="     ) [ Clause [] (NormalB $ VarE $ mkName ">>="     ) [] ]
-        , FunD ( mkName ">=>"     ) [ Clause [] (NormalB $ VarE $ mkName ">=>"     ) [] ]
-        , FunD ( mkName "=<<"     ) [ Clause [] (NormalB $ VarE $ mkName "=<<"     ) [] ]
-        , FunD ( mkName "<=<"     ) [ Clause [] (NormalB $ VarE $ mkName "<=<"     ) [] ]
+        , FunD ( mkName ">>="     ) [ Clause [] (NormalB $ VarE $ mkName "M.>>="   ) [] ]
+        , FunD ( mkName ">=>"     ) [ Clause [] (NormalB $ VarE $ mkName "M.>=>"   ) [] ]
+        , FunD ( mkName "=<<"     ) [ Clause [] (NormalB $ VarE $ mkName "M.=<<"   ) [] ]
+        , FunD ( mkName "<=<"     ) [ Clause [] (NormalB $ VarE $ mkName "M.<=<"   ) [] ]
         ]
     ]
     where
