@@ -17,8 +17,9 @@ data WithKernel (kernel::k) v where
     WithKernel :: (v -> v -> Scalar v) -> v -> WithKernel k v
 
 type instance Scalar (WithKernel k v) = Scalar v
+type instance Logic (WithKernel k v) = Logic v
 
-instance Eq v => Eq (WithKernel k v) where
+instance Eq v => Eq_ (WithKernel k v) where
     (WithKernel _ v1)==(WithKernel _ v2) = v1==v2
 
 instance
@@ -64,7 +65,7 @@ deriveHierarchy ''ExponentialKernel
 instance (KnownNat n, InnerProductSpace v) => MetricSpace (ExponentialKernel n v) where
     distance = kernel2distance rbf
         where
-            rbf (ExponentialKernel v1) (ExponentialKernel v2) = exp $ -(abs $ v1 - v2) / sigma2
+            rbf (ExponentialKernel v1) (ExponentialKernel v2) = exp $ -(size $ v1 - v2) / sigma2
             sigma2=10
 
 -------------------------------------------------------------------------------
@@ -81,7 +82,7 @@ deriveHierarchy ''RBF
 instance (KnownNat n, InnerProductSpace v) => MetricSpace (RBF n v) where
     distance = kernel2distance rbf
         where
-            rbf (RBF v1) (RBF v2) = exp $ -(abs $ v1 - v2)**2 / sigma2
+            rbf (RBF v1) (RBF v2) = exp $ -(size $ v1 - v2)**2 / sigma2
             sigma2=1/100
 
 -------------------------------------------------------------------------------

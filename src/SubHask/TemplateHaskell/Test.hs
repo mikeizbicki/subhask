@@ -20,50 +20,41 @@ import SubHask.TemplateHaskell.Deriving
 testMap :: Map.Map String [String]
 testMap = Map.fromList
     [ ( "Eq",[] )
-    , ( "POrd",
-        [ "law_POrd_reflexivity"
-        , "law_POrd_antisymmetry"
-        , "law_POrd_transitivity"
-        , "defn_POrd_pcompare"
-        , "defn_POrd_greaterthan"
---         , "defn_POrd_lessthaninf"
---         , "defn_POrd_lessthansup"
-        ] )
-    , ( "Graded",
-        [ "law_Graded_pred"
-        , "law_Graded_fromEnum"
-        ] )
-    , ( "Ord",
-        [ "law_Ord_totality"
-        , "defn_Ord_compare"
-        ] )
-    , ( "Enum",
-        [ "law_Enum_succ"
-        , "law_Enum_toEnum"
-        ] )
+    , ( "InfSemilatice",[])
+    , ( "MinBound",[])
+    , ( "Lattice",[])
+    , ( "Ord",[])
+    , ( "POrd",[])
 
-
-    , ( "InfSemilattice",
-        [ "law_InfSemilattice_commutative"
-        , "law_InfSemilattice_associative"
-        , "theorem_InfSemilattice_idempotent"
+    , ( "Eq_",
+        [ "law_Eq_reflexive"
+        , "law_Eq_symmetric"
+        , "law_Eq_transitive"
+        ] )
+    , ( "POrd_",
+        [ "law_POrd_commutative"
+        , "law_POrd_associative"
+        , "theorem_POrd_idempotent"
         ])
-    , ( "SupSemilattice",
-        [ "law_SupSemilattice_commutative"
-        , "law_SupSemilattice_associative"
-        , "theorem_SupSemilattice_idempotent"
+    , ("MinBound_",
+        [ "law_MinBound_inf"
         ] )
-    , ( "Lattice",
+    , ( "Lattice_",
         [ "law_Lattice_infabsorption"
         , "law_Lattice_supabsorption"
         ] )
-    , ("MinBound",
-        [ "law_MinBound_inf"
+--     , ( "Ord_",[])
+    , ( "Ord_",
+        [ "law_Ord_totality"
+        , "law_Ord_min"
+        , "law_Ord_max"
         ] )
-    , ("MaxBound",
-        [ "law_MaxBound_sup"
+    , ("Bounded",
+        [ "law_Bounded_sup"
         ] )
-    , ("Bounded",[])
+    , ("Complemented",
+        [ "law_Complemented_not"
+        ] )
     , ("Heyting",
         [ "law_Heyting_maxbound"
         , "law_Heyting_infleft"
@@ -76,6 +67,16 @@ testMap = Map.fromList
         , "law_Boolean_infdistributivity"
         , "law_Boolean_supdistributivity"
         ])
+    , ( "Graded",
+        [ "law_Graded_pred"
+        , "law_Graded_fromEnum"
+        ] )
+    , ( "Enum",
+        [ "law_Enum_succ"
+        , "law_Enum_toEnum"
+        ] )
+
+
 
     , ( "Semigroup" ,
         [ "law_Semigroup_associativity"
@@ -87,6 +88,7 @@ testMap = Map.fromList
     , ( "Monoid",
         [ "law_Monoid_leftid"
         , "law_Monoid_rightid"
+        , "defn_Monoid_isZero"
         ] )
     , ( "Abelian",
         [ "law_Abelian_commutative"
@@ -129,16 +131,34 @@ testMap = Map.fromList
         ] )
 
     , ( "Container",
-        [ "law_Container_empty"
-        , "law_Container_preservation"
+        [ "law_Container_preservation"
+        , "law_Constructible_singleton"
+        , "theorem_Constructible_insert"
+        ] )
+    , ( "Indexed",
+        [ "law_Indexed_cons"
         ] )
 
+    , ( "Constructible",
+        [ "defn_Constructible_cons"
+        , "defn_Constructible_snoc"
+        , "defn_Constructible_fromList"
+        , "defn_Constructible_fromListN"
+        ] )
     , ( "Unfoldable",
-        [ "law_Unfoldable_cons"
-        , "law_Unfoldable_snoc"
+        [
+--         [ "law_Container_empty"
+--         , "law_Container_MonoidMinBound"
+--         , "law_Container_MonoidNormed"
+--         , "defn_Container_infDisjoint"
+--         , "defn_Container_null"
         ] )
     , ( "Foldable",
         [
+        ] )
+    , ( "Partitionable",
+        [ "law_Partitionable_length"
+        , "law_Partitionable_monoid"
         ] )
     , ( "FreeMonoid", [])
     ]

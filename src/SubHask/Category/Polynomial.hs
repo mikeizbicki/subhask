@@ -33,8 +33,9 @@ pow r i = P.foldl (*) one $ P.replicate i r
 ---------------------------------------
 
 type instance Scalar (Polynomial r r) = Scalar r
+type instance Logic (Polynomial r r) = Logic r
 
-instance Eq r => Eq (Polynomial r r) where
+instance Eq r => Eq_ (Polynomial r r) where
     (Polynomial xs)==(Polynomial ys) = xs==ys
 
 instance Ring r => Semigroup (Polynomial r r) where

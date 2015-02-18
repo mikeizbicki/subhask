@@ -1,11 +1,12 @@
-module SubHask.Algebra.Trans.MiscMetrics
+module SubHask.Compatibility.Vector.HistogramMetrics
     where
 
+import Control.Monad
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Generic.Mutable as VGM
 
 import qualified Prelude as P
-import SubHask
+import SubHask hiding (Functor(..), Applicative(..), Monad(..), Then(..), fail, return, liftM)
 import SubHask.TemplateHaskell.Deriving
 
 -------------------------------------------------------------------------------
@@ -175,8 +176,6 @@ deriveHierarchy ''Xi2
     , ''VectorSpace
     , ''Ring
     ]
-
-deriving instance Functor v => Functor (Xi2 v)
 
 instance VG.Vector v a => VG.Vector (Xi2 v) a where
     {-# INLINE basicUnsafeFreeze #-}

@@ -19,17 +19,21 @@ import SubHask.Category.Trans.Constrained
 
 type Mon = MonT Hask
 
-type family ValidMon a :: Constraint where
-    ValidMon a = POrd a
+-- type family ValidMon a :: Constraint where
+--     ValidMon a = Ord_ a
 --     ValidMon (MonT (->) b c) = (ValidMon b, ValidMon c)
 --     ValidMon a = Ord a
+type ValidMon a = Ord a
 
-data MonT cat a b where
---     MonT :: (Ord a, Ord b) => cat a b -> MonT cat a b
+data MonT cat (a :: *) (b :: *) where
     MonT :: (ValidMon a, ValidMon b) => cat a b -> MonT cat a b
 
 unsafeProveMon :: (ValidMon a, ValidMon b) => cat a b -> MonT cat a b
+-- unsafeProveMon :: (Ord_ a, Ord_ b) => cat a b -> MonT cat a b
 unsafeProveMon = MonT
+
+class Category cat => Monotonic cat
+instance Category cat => Monotonic (MonT cat)
 
 -------------------
 
@@ -43,12 +47,12 @@ instance Sup b a c => Sup a (MonT b) c
 instance (subcat <: cat) => MonT subcat <: cat where
     embedType_ = Embed2 (\ (MonT f) -> embedType2 f)
 
-instance (ValidMon (TUnit cat), Monoidal cat) => Monoidal (MonT cat) where
-    type Tensor (MonT cat) = Tensor cat
-    tensor = error "FIXME: need to add a Hask Functor instance for this to work"
-
-    type TUnit (MonT cat) = TUnit cat
-    tunit _ = tunit (Proxy::Proxy cat)
+-- instance (ValidMon (TUnit cat), Monoidal cat) => Monoidal (MonT cat) where
+--     type Tensor (MonT cat) = Tensor cat
+--     tensor = error "FIXME: need to add a Hask Functor instance for this to work"
+--
+--     type TUnit (MonT cat) = TUnit cat
+--     tunit _ = tunit (Proxy::Proxy cat)
 
 -- instance (ValidMon (TUnit cat), Braided cat) => Braided (MonT cat) where
 --     braid   _ = braid   (Proxy :: Proxy cat)

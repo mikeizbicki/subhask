@@ -38,11 +38,43 @@ import qualified Data.Vector.Unboxed as VU
 import qualified Prelude as P
 
 import SubHask.Algebra
+import SubHask.Algebra.Group
 import SubHask.Category
-import SubHask.SubType
-import SubHask.Quotient
-import SubHask.Algebra.Objects
 import SubHask.Internal.Prelude
+import SubHask.SubType
+import SubHask.TemplateHaskell.Deriving
+
+-------------------------------------------------------------------------------
+
+-- | A type is finite if there is a bijection between it and the natural numbers.
+-- The 'index'/'deZIndex' functions implement this bijection.
+class KnownNat (Order a) => FiniteType a where
+    type Order a :: Nat
+    index :: a -> ZIndex a
+    deZIndex :: ZIndex a -> a
+    enumerate :: [a]
+    getOrder :: a -> Integer
+
+instance KnownNat n => FiniteType (Z n) where
+    type Order (Z n) = n
+    index i = ZIndex i
+    deZIndex (ZIndex i) = i
+    enumerate = [ mkQuotient i | i <- [0..n - 1] ]
+        where
+            n = natVal (Proxy :: Proxy n)
+    getOrder z = natVal (Proxy :: Proxy n)
+
+-- | The 'ZIndex' class is a newtype wrapper around the natural numbers 'Z'.
+--
+-- FIXME: remove this layer; I don't think it helps
+--
+newtype ZIndex a = ZIndex (Z (Order a))
+
+deriveHierarchy ''ZIndex [ ''Eq_, ''P.Ord ]
+
+-- | Swap the phantom type between two indices.
+swapZIndex :: Order a ~ Order b => ZIndex a -> ZIndex b
+swapZIndex (ZIndex i) = ZIndex i
 
 -------------------------------------------------------------------------------
 
@@ -206,35 +238,6 @@ proveDenseFunction :: forall a b.
 proveDenseFunction f = DenseFunction $ VU.generate n (index2int . index . f . deZIndex . int2index)
     where
         n = fromIntegral $ natVal (Proxy :: Proxy (Order a))
-
----------------------------------------
-
--- | A type is finite if there is a bijection between it and the natural numbers.
--- The 'index'/'deZIndex' functions implement this bijection.
-class KnownNat (Order a) => FiniteType a where
-    type Order a :: Nat
-    index :: a -> ZIndex a
-    deZIndex :: ZIndex a -> a
-    enumerate :: [a]
-    getOrder :: a -> Integer
-
-instance KnownNat n => FiniteType (Z n) where
-    type Order (Z n) = n
-    index i = ZIndex i
-    deZIndex (ZIndex i) = i
-    enumerate = [ quotient i | i <- [0..n - 1] ]
-        where
-            n = natVal (Proxy :: Proxy n)
-    getOrder z = natVal (Proxy :: Proxy n)
-
--- | The 'ZIndex' class is a newtype wrapper around the natural numbers 'Z'.
--- This gives us some additional type safety.
-newtype ZIndex a = ZIndex (Z (Order a))
-    deriving (Read,Show,Eq,{-POrd,Ord,Lattice,-} P.Ord)
-
--- | Swap the phantom type between two indices.
-swapZIndex :: Order a ~ Order b => ZIndex a -> ZIndex b
-swapZIndex (ZIndex i) = ZIndex i
 
 ---------------------------------------
 -- internal functions only

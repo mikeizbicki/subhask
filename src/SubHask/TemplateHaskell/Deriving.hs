@@ -2,14 +2,18 @@
 --
 -- FIXME: doesn't handle multiparameter classes like Integral and Vector
 --
--- FIXME: this should be separated out into another lib when finished
+-- FIXME: should this be separated out into another lib when finished?
 module SubHask.TemplateHaskell.Deriving
     (
     -- * template haskell functions
     deriveHierarchy
+    , deriveHierarchyFiltered
     , deriveSingleInstance
     , deriveTypefamilies
     , listSuperClasses
+
+    -- ** compatibility functions
+    , fromPreludeEq
 
     -- ** helpers
     , BasicType
@@ -18,12 +22,9 @@ module SubHask.TemplateHaskell.Deriving
     )
     where
 
-import Prelude (zip,reverse,ReadS)
-import Data.List (init,last,nub)
-
 import SubHask.Internal.Prelude
-import SubHask.Category
-import SubHask.Algebra
+import Prelude
+import Data.List (init,last,nub)
 
 import Language.Haskell.TH.Syntax
 import Control.Monad
@@ -63,7 +64,7 @@ listSuperClasses className = do
     where
         go var (ClassP name [VarT var']) = if var==var'
             then listSuperClasses name
-            else return [] -- ^ class depends on another type tested elsewhere
+            else return [] -- class depends on another type tested elsewhere
         go var _ = return []
 
 -- | creates the instance:
@@ -87,9 +88,13 @@ deriveTypefamilies familynameL typename = do
 -- You only need to list the final classes in the hierarchy that are supposed to be derived.
 -- All the intermediate classes will be derived automatically.
 deriveHierarchy :: Name -> [Name] -> Q [Dec]
-deriveHierarchy typename classnameL = do
+deriveHierarchy typename classnameL = deriveHierarchyFiltered typename classnameL []
+
+-- | Like "deriveHierarchy" except classes in the second list will not be derived.
+deriveHierarchyFiltered :: Name -> [Name] -> [Name] -> Q [Dec]
+deriveHierarchyFiltered typename classnameL filterL = do
     classL <- liftM concat $ mapM listSuperClasses $ mkName "BasicType":classnameL
-    instanceL <- mapM (deriveSingleInstance typename) $ nub classL
+    instanceL <- mapM (deriveSingleInstance typename) $ filter (\x -> not (elem x filterL)) $ nub classL
     return $ concat instanceL
 
 -- | Given a single newtype and single class, constructs newtype instances
@@ -104,43 +109,39 @@ deriveSingleInstance typename classname = do
     typefamilies <- deriveTypefamilies
         [ mkName "Scalar"
         , mkName "Elem"
-        , mkName "Index"
+--         , mkName "Index"
+        , mkName "Logic"
         ] typename
 
     classinfo <- reify classname
     liftM ( typefamilies++ ) $ case classinfo of
 
-        -- | if the class has exactly one instance that applies to everything,
+        -- if the class has exactly one instance that applies to everything,
         -- then don't create an overlapping instance
         -- These classes only exist because TH has problems with type families
         -- FIXME: this is probably not a robust solution
         ClassI (ClassD _ _ _ _ _) [InstanceD _ (VarT _) _] -> return []
         ClassI (ClassD _ _ _ _ _) [InstanceD _ (AppT (ConT _) (VarT _)) _] -> return []
 
-        -- | otherwise, create the instance
+        -- otherwise, create the instance
         ClassI classd@(ClassD ctx classname [PlainTV varname] [] decs) _ -> do
---           trace ("\nconname="++show conname) $ return ()
---           trace ("typekind="++show typekind) $ return ()
---           trace ("typeapp="++show typeapp) $ return ()
---           trace ("\nclassd="++show classd) $ return ()
             alreadyInstance <- isNewtypeInstance typename classname
             if alreadyInstance
                 then return []
                 else do
---                     trace ("aaa="++show (apply2varlist (ConT typename) typekind)) $ return ()
                     funcL <- mapM subNewtype decs
-                    return
-                        [ InstanceD
+
+--                     trace ("classname="++show classname++"; typename="++show typename)
+--                         $ trace ("  funcL="++show funcL)
+--                         $ return ()
+                    return [ InstanceD
                             ( ClassP classname [typeapp] : map (substitutePat varname typeapp) ctx )
                             ( AppT (ConT classname) $ apply2varlist (ConT typename) typekind )
---                             ( AppT (ConT classname) (AppT (ConT typename) typeapp ))
---                             ( ClassP classname [VarT varname] : ctx )
---                             ( AppT (ConT classname) (AppT (ConT typename) (VarT varname) ))
                             funcL
-                        ]
+                         ]
             where
 
-                subNewtype (SigD f sigtype) = {-trace ("\n\n\nfunction="++show (nameBase f)) $ -} do
+                subNewtype (SigD f sigtype) = do
                     body <- returnType2newtypeApplicator conname varname
                         (last (arrow2list sigtype))
                         (list2exp $ (VarE f):(typeL2expL $ init $ arrow2list sigtype ))
@@ -274,3 +275,21 @@ list2exp xs = go $ reverse xs
     where
         go (x:[]) = x
         go (x:xs) = AppE (go xs) x
+
+-- | Generate an Eq_ instance from the Prelude's Eq instance.
+-- This requires that Logic t = Bool, so we also generate this type instance.
+fromPreludeEq :: Q Type -> Q [Dec]
+fromPreludeEq qt = do
+    t<-qt
+    return
+        [ TySynInstD
+            ( mkName "Logic" )
+            ( TySynEqn [t] (ConT $ mkName "Bool" ))
+        , InstanceD
+            []
+            ( AppT ( ConT $ mkName "Eq_" ) t )
+            [ FunD
+                ( mkName "==" )
+                [ Clause [] (NormalB $ VarE $ mkName "P.==") [] ]
+            ]
+        ]

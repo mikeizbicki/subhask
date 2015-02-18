@@ -1,5 +1,16 @@
 {-# LANGUAGE BangPatterns #-}
-module SubHask.Algebra.Vector
+
+-- |
+--
+-- FIXME: Lots of operations are currently very slow:
+--
+-- 1. In order to generically support "zero" vectors, every add/mul/etc must do lots of extra checks.
+--
+-- 2. RULES support is very poor
+--
+-- 3. We'll need mutable algebraic operations
+--
+module SubHask.Compatibility.Vector
     (
     -- * Vectors
     VS.Vector
@@ -12,6 +23,14 @@ module SubHask.Algebra.Vector
     , StorableArray
     , ArrayT (..)
     , ArrayTM (..)
+
+    -- * RULES
+    , eqVectorFloat
+    , eqVectorDouble
+    , eqVectorInt
+    , eqUnboxedVectorFloat
+    , eqUnboxedVectorDouble
+    , eqUnboxedVectorInt
     )
     where
 
@@ -21,20 +40,81 @@ import qualified Data.Vector.Generic.Mutable as VGM
 import qualified Data.Vector.Storable as VS
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector as V
-
-import Control.Monad
+import qualified Data.Vector.Fusion.Stream as Stream
 import Test.QuickCheck (frequency)
 
-import SubHask.Internal.Prelude
-import SubHask.Algebra
-import SubHask.Category
+import Data.Vector.Fusion.Stream (Step(..))
+import qualified Data.Vector.Fusion.Stream as VFS
+import Data.Vector.Fusion.Stream.Monadic (Stream(..), SPEC(..))
+import Data.Vector.Fusion.Stream.Size (Size(..))
+import Data.Vector.Fusion.Util (Id(..))
 
+import Control.Monad
 import Control.Monad.Primitive
 import Control.Monad.ST
+
+import qualified Prelude as P
+import SubHask.Internal.Prelude
+import SubHask.Algebra
+import SubHask.Algebra.Container
+import SubHask.Algebra.Ord
+import SubHask.Algebra.Parallel
+import SubHask.Category
+import SubHask.Compatibility.Base
+
+
+-- | This function is copied and paster from the original library;
+-- this is sufficient to make it use our updated notion of equality and logic.
+eq :: Eq a => Stream Id a -> Stream Id a -> Bool
+{-# INLINE eq #-}
+-- {-# INLINE_STREAM eq #-}
+eq (Stream step1 s1 _) (Stream step2 s2 _) = eq_loop0 SPEC s1 s2
+  where
+    eq_loop0 !sPEC s1 s2 = case unId (step1 s1) of
+                             Yield x s1' -> eq_loop1 SPEC x s1' s2
+                             Skip    s1' -> eq_loop0 SPEC   s1' s2
+                             Done        -> VFS.null (Stream step2 s2 Unknown)
+
+    eq_loop1 !sPEC x s1 s2 = case unId (step2 s2) of
+                               Yield y s2' -> x == y && eq_loop0 SPEC   s1 s2'
+                               Skip    s2' ->           eq_loop1 SPEC x s1 s2'
+                               Done        -> False
+
+
+-- FIXME:
+-- For some reason, the comparison function above is slower than the standard one.
+-- So we need these rewrite opts for speed.
+-- Is there a more generic way to write these?
+-- {-# RULES
+--
+-- "subhask/eqVectorDouble"  (==) = eqVectorDouble
+-- "subhask/eqVectorFloat"  (==) = eqVectorFloat
+-- "subhask/eqVectorInt"  (==) = eqVectorInt
+--
+--   #-}
+
+eqVectorFloat :: VS.Vector Float -> VS.Vector Float -> Bool
+eqVectorFloat = (P.==)
+
+eqVectorDouble :: VS.Vector Double -> VS.Vector Double -> Bool
+eqVectorDouble = (P.==)
+
+eqVectorInt :: VS.Vector Int -> VS.Vector Int -> Bool
+eqVectorInt = (P.==)
+
+eqUnboxedVectorFloat :: VU.Vector Float -> VU.Vector Float -> Bool
+eqUnboxedVectorFloat = (P.==)
+
+eqUnboxedVectorDouble :: VU.Vector Double -> VU.Vector Double -> Bool
+eqUnboxedVectorDouble = (P.==)
+
+eqUnboxedVectorInt :: VU.Vector Int -> VU.Vector Int -> Bool
+eqUnboxedVectorInt = (P.==)
 
 --------------------------------------------------------------------------------
 -- Mutability
 
+{-
 type family MutableVersion a :: * -> *
 type family ImmutableVersion (a :: * -> *) :: *
 
@@ -61,19 +141,19 @@ class
             -> mg (PrimState m)
             -> m (mg (PrimState m))
 
-defn_SemigroupM :: forall g mg.
-    ( Eq g
-    , SemigroupM g mg
-    , Mutable g mg
-    ) => g -> g -> Bool
-defn_SemigroupM g1 g2 = g1+g2 == res
-    where
-        res = runST ( do
-            g1thaw <- thaw g1
-            g2thaw <- thaw g2
-            g1thaw += g2thaw
-            unsafeFreeze g1thaw
-            )
+-- defn_SemigroupM :: forall g mg.
+--     ( Eq g
+--     , SemigroupM g mg
+--     , Mutable g mg
+--     ) => g -> g -> Bool
+-- defn_SemigroupM g1 g2 = g1+g2 == res
+--     where
+--         res = runST ( do
+--             g1thaw <- thaw g1
+--             g2thaw <- thaw g2
+--             g1thaw += g2thaw
+--             unsafeFreeze g1thaw
+--             )
 
 newtype MBoxedVector a s = MBoxedVector (V.MVector s a)
 
@@ -100,6 +180,10 @@ instance Semigroup g => SemigroupM (BoxedVector g) (MBoxedVector g) where
                     g2 <- VGM.unsafeRead mv2 i
                     VGM.unsafeWrite mv1 i (g1 + g2)
                     go (i+1)
+-}
+
+class (ValidEq (v r), ValidEq r, VG.Vector v r, Logic (v r)~Logic r) => ValidVector v r
+instance (ValidEq (v r), ValidEq r, VG.Vector v r, Logic (v r)~Logic r) => ValidVector v r
 
 -------------------------------------------------------------------------------
 
@@ -107,11 +191,17 @@ type Array = ArrayT BoxedVector
 type UnboxedArray = ArrayT UnboxedVector
 type StorableArray = ArrayT VS.Vector
 
-newtype ArrayT v r = ArrayT (v r)
-    deriving (Eq,Read,Show,Arbitrary)
+newtype ArrayT v r = ArrayT { unArrayT :: v r }
+    deriving (Read,Show,Arbitrary)
 
 type instance Scalar (ArrayT v r) = Int
+type instance Logic (ArrayT v r) = Logic r
+-- type instance Logic (ArrayT v r) = Logic (v r)
 type instance Elem (ArrayT v r) = r
+
+instance ValidVector v r => Eq_ (ArrayT v r) where
+    (ArrayT v1)==(ArrayT v2) = v1==v2
+    (ArrayT v1)/=(ArrayT v2) = v1/=v2
 
 instance NFData (v r) => NFData (ArrayT v r) where
     rnf (ArrayT v) = rnf v
@@ -119,8 +209,8 @@ instance NFData (v r) => NFData (ArrayT v r) where
 -- instance Eq (v r) => Eq (ArrayT v r) where
 --     (ArrayT v1)==(ArrayT v2) = v1==v2
 
-instance VG.Vector v r => Normed (ArrayT v r) where
-    abs = VG.length
+instance ValidVector v r => Normed (ArrayT v r) where
+    size = VG.length
 
 instance VG.Vector v a => VG.Vector (ArrayT v) a where
     {-# INLINE basicUnsafeFreeze #-}
@@ -158,34 +248,51 @@ instance VGM.MVector v a => VGM.MVector (ArrayTM v) a where
 
 type instance VG.Mutable (ArrayT v) = ArrayTM (VG.Mutable v)
 
-instance VG.Vector v r => Semigroup (ArrayT v r) where
+instance ValidVector v r => Semigroup (ArrayT v r) where
     (ArrayT v1)+(ArrayT v2) = ArrayT $ v1 VG.++ v2
 
-instance VG.Vector v r => Monoid (ArrayT v r) where
+instance ValidVector v r => Monoid (ArrayT v r) where
     zero = ArrayT $ VG.empty
 
-instance (VG.Vector v r, Eq r) => Container (ArrayT v r) where
+instance ValidVector v r => Container (ArrayT v r) where
     elem r (ArrayT v) = elem r $ VG.toList v
+    notElem r (ArrayT v) = not $ elem r $ VG.toList v
 
-instance VG.Vector v r => Unfoldable (ArrayT v r) where
+instance ValidVector v r => Constructible (ArrayT v r) where
     singleton r = ArrayT $ VG.singleton r
 
-    fromList = ArrayT . VG.fromList
+    fromList1 x xs = ArrayT $ VG.fromList (x:xs)
 
-    fromListN n = ArrayT . VG.fromListN n
+    fromList1N n x xs = ArrayT $ VG.fromListN n (x:xs)
 
-instance VG.Vector v r => Foldable (ArrayT v r) where
+instance (ValidVector v r, Eq r, Eq (v r)) => Unfoldable (ArrayT v r) where
+
+instance ValidVector v r => Foldable (ArrayT v r) where
 
     {-# INLINE toList #-}
     toList (ArrayT v) = VG.toList v
 
+    {-# INLINE unCons #-}
     unCons (ArrayT v) = if VG.null v
         then Nothing
         else Just (VG.head v, ArrayT $ VG.tail v)
+
+    {-# INLINE unCons' #-}
+    unCons' (ArrayT v) = if VG.null v
+        then Nothing'
+        else Just' (VG.head v, ArrayT $ VG.tail v)
+
+    {-# INLINE unSnoc #-}
     unSnoc (ArrayT v) = if VG.null v
         then Nothing
         else Just (ArrayT $ VG.init v, VG.last v)
 
+    {-# INLINE unSnoc' #-}
+    unSnoc' (ArrayT v) = if VG.null v
+        then Nothing'
+        else Just' (ArrayT $ VG.init v, VG.last v)
+
+    {-# INLINE foldMap #-}
     foldMap f   (ArrayT v) = VG.foldl' (\a e -> a + f e) zero v
 
     {-# INLINE foldr #-}
@@ -197,8 +304,8 @@ instance VG.Vector v r => Foldable (ArrayT v r) where
     {-# INLINE foldl1 #-}
     {-# INLINE foldl1' #-}
     foldr   f x (ArrayT v) = VG.foldr   f x v
-    foldr'  f x (ArrayT v) = VG.foldr'  f x v
---     foldr'  f x (ArrayT v) = vecfold  f x v
+    foldr'  f x (ArrayT v) = {-# SCC foldr' #-} VG.foldr'  f x v
+--     foldr'  f x (ArrayT v) = {-# SCC foldr' #-} vecfold  f x v
     foldr1  f   (ArrayT v) = VG.foldr1  f   v
     foldr1' f   (ArrayT v) = VG.foldr1' f   v
     foldl   f x (ArrayT v) = VG.foldl   f x v
@@ -216,45 +323,55 @@ vecfold !f !tot !v = {-# SCC vecfold #-} if VG.length v > 0
             then tot
             else goEach (i+1) $ f (v `VG.unsafeIndex` i) tot
 
-instance (POrd r, VG.Vector v r) => InfSemilattice (ArrayT v r) where
+instance
+    ( ClassicalLogic a
+    , ClassicalLogic (v a)
+    , Eq_ (v a)
+    , POrd_ a
+    , VG.Vector v a
+    ) => Partitionable (ArrayT v a)
+        where
+    partition n (ArrayT vec) = go 0
+        where
+            go i = if i>=VG.length vec
+                then []
+                else (ArrayT $ VG.slice i len vec):(go $ i+lenmax)
+                where
+                    len = if i+lenmax >= VG.length vec
+                        then (VG.length vec)-i
+                        else lenmax
+                    lenmax = ceiling $ (fromIntegral $ VG.length vec :: Double) / (fromIntegral n)
+
+instance (Eq (v r), POrd r, ValidVector v r) => POrd_ (ArrayT v r) where
     inf (ArrayT v1) (ArrayT v2) = ArrayT $ VG.fromList $ inf (VG.toList v1) (VG.toList v2)
 
-instance (POrd r, VG.Vector v r) => MinBound (ArrayT v r) where
+instance (Eq (v r), POrd r, ValidVector v r) => MinBound_ (ArrayT v r) where
     minBound = zero
-
-instance (Eq (v r), POrd r, VG.Vector v r) => POrd (ArrayT v r) where
-    pcompare (ArrayT v1) (ArrayT v2) = pcompare (VG.toList v1) (VG.toList v2)
 
 -------------------------------------------------------------------------------
 
 type UnboxedVector = VU.Vector
 
+type instance Scalar (VU.Vector r) = Scalar r
+type instance Logic (VU.Vector r) = Logic r
+
 instance (VU.Unbox r, Arbitrary r) => Arbitrary (VU.Vector r) where
     arbitrary = liftM VG.fromList arbitrary
     shrink v = map VG.fromList $ shrink (VG.toList v)
 
+instance (VU.Unbox r, ValidEq r) => Eq_ (VU.Vector r) where
+    {-# INLINE (==) #-}
+    xs == ys = toList (ArrayT xs) == toList (ArrayT ys)
+--     xs == ys = eq (VG.stream xs) (VG.stream ys)
 
--- instance (VU.Unbox r, Eq r) => Eq (VU.Vector r) where
---     {-# INLINABLE (==) #-}
---     v1==v2 = if VG.length v1 /= VG.length v2
---         then False
---         else go 0
---         where
---             go !i = if i == VG.length v1
---                 then True
---                 else if v1 `VG.unsafeIndex` i /= v2 `VG.unsafeIndex` i
---                     then False
---                     else go (i+1)
+instance (VU.Unbox r, Ord r) => POrd_ (VU.Vector r) where
+    inf v1 v2 = unArrayT $ unLexical $ inf (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
 
-instance (VU.Unbox r, Ord r) => Lattice (VU.Vector r)
-instance (VU.Unbox r, Ord r) => InfSemilattice (VU.Vector r) where inf = min
-instance (VU.Unbox r, Ord r) => SupSemilattice (VU.Vector r) where sup = max
 
-instance (VU.Unbox r, Ord r) => POrd (VU.Vector r) where
-    {-# INLINABLE pcompare #-}
-    pcompare v1 v2 = pcompare (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
+instance (VU.Unbox r, Ord r) => Lattice_ (VU.Vector r) where
+    sup v1 v2 = unArrayT $ unLexical $ sup (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
 
-instance (VU.Unbox r, Ord r) => Ord (VU.Vector r)
+instance (VU.Unbox r, Ord r) => Ord_ (VU.Vector r) where
 
 instance (VU.Unbox r,  Semigroup r) => Semigroup (VU.Vector r) where
     {-# INLINE (+) #-}
@@ -291,8 +408,6 @@ instance (VU.Unbox r,  Group r) => Group (VU.Vector r) where
     {-# INLINE negate #-}
     negate v = VG.map negate v
 
-type instance Scalar (VU.Vector r) = Scalar r
-
 instance (VU.Unbox r,  Module r, IsScalar (Scalar r)) => Module (VU.Vector r) where
     {-# INLINE (*.) #-}
     r *. v = VG.map (r*.) v
@@ -314,16 +429,18 @@ instance (VU.Unbox r, VectorSpace r, IsScalar (Scalar r)) => VectorSpace (VU.Vec
 instance
     ( IsScalar r
     , Normed r
+    , Logic r~Bool
     , VectorSpace r
     , Floating r
     , VU.Unbox r
     ) => Normed (VU.Vector r)
         where
-    abs = innerProductNorm
+    size = innerProductNorm
 
 instance
     ( IsScalar r
     , Normed r
+    , Logic r~Bool
     , VectorSpace r
     , Floating r
     , VU.Unbox r
@@ -334,6 +451,7 @@ instance
 instance
     ( IsScalar r
     , Normed r
+    , Logic r~Bool
     , VectorSpace r
     , Floating r
     , VU.Unbox r
@@ -351,31 +469,25 @@ instance
 
 type BoxedVector = V.Vector
 
+type instance Scalar (V.Vector r) = Scalar r
+type instance Logic (V.Vector r) = Logic r
+
 instance Arbitrary r => Arbitrary (V.Vector r) where
     arbitrary = liftM VG.fromList arbitrary
     shrink v = map VG.fromList $ shrink (VG.toList v)
 
--- instance ( Eq r) => Eq (V.Vector r) where
---     {-# INLINABLE (==) #-}
---     v1==v2 = if VG.length v1 /= VG.length v2
---         then False
---         else go 0
---         where
---             go i = if i == VG.length v1
---                 then True
---                 else if v1 `VG.unsafeIndex` i /= v2 `VG.unsafeIndex` i
---                     then False
---                     else go (i+1)
+instance ValidEq r => Eq_ (V.Vector r) where
+    {-# INLINE (==) #-}
+    xs == ys = toList (ArrayT xs) == toList (ArrayT ys)
+--     xs == ys = eq (VG.stream xs) (VG.stream ys)
 
-instance (VG.Vector V.Vector r, Ord r) => Lattice (V.Vector r)
-instance (VG.Vector V.Vector r, Ord r) => InfSemilattice (V.Vector r) where inf = min
-instance (VG.Vector V.Vector r, Ord r) => SupSemilattice (V.Vector r) where sup = max
+instance (VG.Vector V.Vector r, Ord r) => POrd_ (V.Vector r) where
+    inf v1 v2 = unArrayT $ unLexical $ inf (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
 
-instance (VG.Vector V.Vector r, Ord r) => POrd (V.Vector r) where
-    {-# INLINABLE pcompare #-}
-    pcompare v1 v2 = pcompare (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
+instance (VG.Vector V.Vector r, Ord r) => Lattice_ (V.Vector r) where
+    sup v1 v2 = unArrayT $ unLexical $ sup (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
 
-instance (VG.Vector V.Vector r, Ord r) => Ord (V.Vector r)
+instance (VG.Vector V.Vector r, Ord r) => Ord_ (V.Vector r)
 
 instance ( Semigroup r) => Semigroup (V.Vector r) where
     {-# INLINE (+) #-}
@@ -412,8 +524,6 @@ instance ( Group r) => Group (V.Vector r) where
     {-# INLINE negate #-}
     negate v = VG.map negate v
 
-type instance Scalar (V.Vector r) = Scalar r
-
 instance ( Module r, IsScalar (Scalar r)) => Module (V.Vector r) where
     {-# INLINE (*.) #-}
     r *. v = VG.map (r*.) v
@@ -435,15 +545,17 @@ instance ( VectorSpace r, IsScalar (Scalar r)) => VectorSpace (V.Vector r) where
 instance
     ( IsScalar r
     , Normed r
+    , Logic r~Bool
     , VectorSpace r
     , Floating r
     ) => Normed (V.Vector r)
         where
-    abs = innerProductNorm
+    size = innerProductNorm
 
 instance
     ( IsScalar r
     , Normed r
+    , Logic r~Bool
     , VectorSpace r
     , Floating r
     ) => MetricSpace (V.Vector r)
@@ -453,6 +565,7 @@ instance
 instance
     ( IsScalar r
     , Normed r
+    , Logic r~Bool
     , VectorSpace r
     , Floating r
     ) => InnerProductSpace (V.Vector r)
@@ -468,8 +581,8 @@ instance
 
 -------------------------------------------------------------------------------
 
-u = VG.fromList [1..3] :: VS.Vector Float
-v = VG.fromList [1..2] :: VS.Vector Float
+type instance Scalar (VS.Vector r) = Scalar r
+type instance Logic (VS.Vector r) = Logic r
 
 instance (Storable r, Arbitrary r) => Arbitrary (VS.Vector r) where
 --     arbitrary = liftM VG.fromList arbitrary
@@ -479,27 +592,18 @@ instance (Storable r, Arbitrary r) => Arbitrary (VS.Vector r) where
 --         , (1, return VG.empty)
         ]
 
--- instance (Storable r, Eq r) => Eq (VS.Vector r) where
---     {-# INLINABLE (==) #-}
---     v1==v2 = if VG.length v1 /= VG.length v2
---         then False
---         else go 0
---         where
---             go i = if i == VG.length v1
---                 then True
---                 else if v1 `VG.unsafeIndex` i /= v2 `VG.unsafeIndex` i
---                     then False
---                     else go (i+1)
+instance (VG.Vector VS.Vector r, Storable r, ValidEq r) => Eq_ (VS.Vector r) where
+    {-# INLINE[1] (==) #-}
+    xs == ys = toList (ArrayT xs) == toList (ArrayT ys)
+--     xs == ys = eq (VG.stream xs) (VG.stream ys)
 
-instance (VG.Vector VS.Vector r, Ord r, Storable r) => Lattice (VS.Vector r)
-instance (VG.Vector VS.Vector r, Ord r, Storable r) => InfSemilattice (VS.Vector r) where inf = min
-instance (VG.Vector VS.Vector r, Ord r, Storable r) => SupSemilattice (VS.Vector r) where sup = max
+instance (VG.Vector VS.Vector r, Ord r, Storable r) => POrd_ (VS.Vector r) where
+    inf v1 v2 = unArrayT $ unLexical $ inf (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
 
-instance (VG.Vector VS.Vector r, Ord r, Storable r) => POrd (VS.Vector r) where
-    {-# INLINABLE pcompare #-}
-    pcompare v1 v2 = pcompare (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
+instance (VG.Vector VS.Vector r, Ord r, Storable r) => Lattice_ (VS.Vector r) where
+    sup v1 v2 = unArrayT $ unLexical $ sup (Lexical (ArrayT v1)) (Lexical (ArrayT v2))
 
-instance (VG.Vector VS.Vector r, Ord r, Storable r) => Ord (VS.Vector r)
+instance (VG.Vector VS.Vector r, Ord r, Storable r) => Ord_ (VS.Vector r)
 
 instance (Storable r, Semigroup r) => Semigroup (VS.Vector r) where
     {-# INLINE (+) #-}
@@ -536,8 +640,6 @@ instance (Storable r, Group r) => Group (VS.Vector r) where
     {-# INLINE negate #-}
     negate v = VG.map negate v
 
-type instance Scalar (VS.Vector r) = Scalar r
-
 instance (Storable r, Module r, IsScalar (Scalar r)) => Module (VS.Vector r) where
     {-# INLINE (*.) #-}
     r *. v = VG.map (r*.) v
@@ -559,16 +661,18 @@ instance (Storable r, VectorSpace r, IsScalar (Scalar r)) => VectorSpace (VS.Vec
 instance
     ( IsScalar r
     , Normed r
+    , Logic r~Bool
     , VectorSpace r
     , Floating r
     , VS.Storable r
     ) => Normed (VS.Vector r)
         where
-    abs = innerProductNorm
+    size = innerProductNorm
 
 instance
     ( IsScalar r
     , Normed r
+    , Logic r~Bool
     , VectorSpace r
     , Floating r
     , VS.Storable r
@@ -579,6 +683,7 @@ instance
 instance
     ( IsScalar r
     , Normed r
+    , Logic r~Bool
     , VectorSpace r
     , Floating r
     , VS.Storable r

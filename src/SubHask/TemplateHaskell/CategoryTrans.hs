@@ -1,7 +1,7 @@
-module SubHask.Category.Trans.Common
+module SubHask.TemplateHaskell.CategoryTrans
     where
 
-import Prelude 
+import Prelude
 import Language.Haskell.TH.Syntax
 import GHC.Exts
 
@@ -21,9 +21,9 @@ mkCatTrans cat constraint = do
 deriveSubCategory :: Name -> Q [Dec]
 deriveSubCategory cat = return
     [ InstanceD
-        [ ClassP 
+        [ ClassP
             (mkName "SubCategory")
-            [ VarT $ mkName "cat" 
+            [ VarT $ mkName "cat"
             , VarT $ mkName "supercat"
             ]
         ]
@@ -65,7 +65,7 @@ deriveSubCategory cat = return
 -- Note: assumes the value and type constructors of the cat have the same name.
 deriveCategory :: Name -> Name -> Q [Dec]
 deriveCategory cat constraint = return
-    [ InstanceD 
+    [ InstanceD
         [ ClassP (mkName "Category") [VarT $ mkName "cat"] ]
         ( AppT
             ( ConT $ mkName "Category" )
@@ -87,7 +87,7 @@ deriveCategory cat constraint = return
                         ( AppT ( ConT constraint ) ( VarT $ mkName "b" ) )
                     )
                     ( AppT
-                        ( AppT 
+                        ( AppT
                             ( AppT
                                 ( ConT $ mkName $ "ValidCategory" )
                                 ( VarT $ mkName "cat" )
@@ -131,7 +131,7 @@ deriveCategory cat constraint = return
                 [ ]
             ]
         ]
-    ]  
+    ]
     where
         constructor = mkName $ nameBase cat
-    
+

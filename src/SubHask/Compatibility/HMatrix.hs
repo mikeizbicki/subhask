@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -XNoRebindableSyntax #-}
 
-module SubHask.Algebra.HMatrix
+module SubHask.Compatibility.HMatrix
 --     ( Matrix
 --     , mkMatrix
 --     , fromHMatrix
@@ -40,7 +40,7 @@ import qualified Numeric.LinearAlgebra.Devel as HM (GMatrix)
 
 import SubHask.Internal.Prelude
 import SubHask.Algebra
-import SubHask.Algebra.Vector
+import SubHask.Compatibility.Vector
 import SubHask.Category
 
 import Debug.Trace
@@ -54,6 +54,7 @@ data Matrix r
     deriving (Show,Typeable)
 
 type instance Scalar (Matrix r) = r
+type instance Logic (Matrix r) = Bool
 
 instance (Storable r, NFData r) => NFData (Matrix r) where
     rnf Zero = ()
@@ -62,7 +63,7 @@ instance (Storable r, NFData r) => NFData (Matrix r) where
 
 ---------
 
-instance (P.Eq r, HM.Container HM.Matrix r) => Eq (Matrix r) where
+instance (P.Eq r, HM.Container HM.Matrix r) => Eq_ (Matrix r) where
     Zero == Zero = True
     Zero == _    = False
     _    == Zero = False
@@ -142,6 +143,7 @@ instance
     , IsScalar r
     , Floating r
     , Normed r
+    , Logic r~Bool
     ) => InnerProductSpace (Matrix r)
         where
     Zero <> _ = 0
@@ -159,6 +161,7 @@ instance
     , IsScalar r
     , Floating r
     , Normed r
+    , Logic r~Bool
     ) => MetricSpace (Matrix r)
         where
     distance m1 m2 = innerProductDistance m2 m2
@@ -171,9 +174,10 @@ instance
     , IsScalar r
     , Floating r
     , Normed r
+    , Logic r~Bool
     ) => Normed (Matrix r)
         where
-    abs = innerProductNorm
+    size = innerProductNorm
 
 ---------
 
