@@ -34,6 +34,18 @@ deriveAllInScope ''M.Monad          mkPreludeMonad
 
 fromPreludeEq [t|TypeRep|]
 
+instance POrd_ TypeRep where
+    inf x y = case P.compare x y of
+        LT -> x
+        _  -> y
+instance Lattice_ TypeRep where
+    sup x y = case P.compare x y of
+        GT -> x
+        _  -> y
+instance Ord_ TypeRep where compare = P.compare
+
+---------
+
 type instance Logic (Either a b) = Logic b
 
 instance (Logic a~Logic b, ValidEq a, ValidEq b) => Eq_ (Either a b) where

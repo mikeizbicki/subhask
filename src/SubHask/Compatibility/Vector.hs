@@ -17,6 +17,8 @@ module SubHask.Compatibility.Vector
     , BoxedVector
     , UnboxedVector
 
+    , listToVector
+
     -- * Arrays
     , Array
     , UnboxedArray
@@ -187,12 +189,17 @@ instance (ValidEq (v r), ValidEq r, VG.Vector v r, Logic (v r)~Logic r) => Valid
 
 -------------------------------------------------------------------------------
 
+listToVector :: VG.Vector v a => [a] -> v a
+listToVector = VG.fromList
+
+-------------------------------------------------------------------------------
+
 type Array = ArrayT BoxedVector
 type UnboxedArray = ArrayT UnboxedVector
 type StorableArray = ArrayT VS.Vector
 
 newtype ArrayT v r = ArrayT { unArrayT :: v r }
-    deriving (Read,Show,Arbitrary)
+    deriving (Read,Show,Arbitrary,Typeable)
 
 type instance Scalar (ArrayT v r) = Int
 type instance Logic (ArrayT v r) = Logic r
@@ -348,6 +355,16 @@ instance (Eq (v r), POrd r, ValidVector v r) => POrd_ (ArrayT v r) where
 instance (Eq (v r), POrd r, ValidVector v r) => MinBound_ (ArrayT v r) where
     minBound = zero
 
+type instance SetValue (ArrayT v s) s' = ArrayT v s'
+type instance Value (ArrayT v s) = s
+type instance Index (ArrayT v s) = Int
+
+instance Indexed (Array s) where
+    lookup i s = s VG.!? i
+    indices s = [0..VG.length s-1]
+    values = VG.toList
+    imap = VG.imap
+
 -------------------------------------------------------------------------------
 
 type UnboxedVector = VU.Vector
@@ -444,17 +461,6 @@ instance
     , VectorSpace r
     , Floating r
     , VU.Unbox r
-    ) => MetricSpace (VU.Vector r)
-        where
-    distance = innerProductDistance
-
-instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
-    , VU.Unbox r
     ) => InnerProductSpace (VU.Vector r)
         where
     v1 <> v2 = if VG.length v1 == 0
@@ -464,6 +470,49 @@ instance
             else if VG.length v1 /= VG.length v2
                 then error "inner product on storable vectors of different sizes"
                 else VG.foldl' (+) zero $ VG.zipWith (*) v1 v2
+
+instance
+    ( IsScalar r
+    , Normed r
+    , Logic r~Bool
+    , VectorSpace r
+    , Floating r
+    , VU.Unbox r
+    ) => MetricSpace (VU.Vector r)
+        where
+
+    distance = innerProductDistance
+
+    {-# INLINE[1] distanceUB #-}
+    distanceUB !v1 !v2 !dist = {-# SCC distanceUB_UVector #-}
+        go 0 0
+        where
+            dist2=dist*dist
+
+            go !tot !i = if i>VG.length v1-4
+                then goEach tot i
+                else if tot'>dist2
+                    then tot'
+                    else go tot' (i+4)
+                where
+                    tot' = tot
+                        +(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                        *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                        +(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                        *(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                        +(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                        *(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                        +(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+                        *(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+
+            goEach !tot !i = if i>= VG.length v1
+                then sqrt tot
+                else if tot'>dist2
+                    then tot'
+                    else goEach tot' (i+1)
+                where
+                    tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                              *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
 
 -------------------------------------------------------------------------------
 
@@ -543,40 +592,29 @@ instance ( VectorSpace r, IsScalar (Scalar r)) => VectorSpace (V.Vector r) where
         else error "(./.): u and v have different lengths"
 
 instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
+    ( InnerProductSpace r
+    , Floating (Scalar r)
     ) => Normed (V.Vector r)
         where
     size = innerProductNorm
 
 instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
+    ( InnerProductSpace r
+    , Floating (Scalar r)
     ) => MetricSpace (V.Vector r)
         where
     distance = innerProductDistance
 
 instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
+    ( InnerProductSpace r
+    , Floating (Scalar r)
     ) => InnerProductSpace (V.Vector r)
         where
-    v1 <> v2 = if VG.length v1 == 0
+    v1 <> v2 = if VG.length v1 == 0 || VG.length v2 == 0
         then zero
-        else if VG.length v2 == 0
-            then zero
-            else if VG.length v1 /= VG.length v2
-                then error "inner product on storable vectors of different sizes"
-                else VG.foldl' (+) zero $ VG.zipWith (*) v1 v2
+        else if VG.length v1 /= VG.length v2
+            then error "inner product on vectors of different sizes"
+            else VG.foldl' (+) zero $ VG.zipWith (<>) v1 v2
 
 
 -------------------------------------------------------------------------------

@@ -167,11 +167,11 @@ instance (Ord k, Eq v) => Unfoldable (Map k v)
 instance (Ord k, POrd v) => MinBound_ (Map k v) where
     minBound = zero
 
-instance (Ord k, Eq v) => Indexed (Map k v) where
-    (Map m) !! k = P.fmap unWithPreludeOrd $ M.lookup (WithPreludeOrd k) m
-    hasIndex k (Map m) = M.member (WithPreludeOrd k) m
-    indices (Map m) = map unWithPreludeOrd $ M.keys m
-    values (Map m) = map unWithPreludeOrd $ M.elems m
+-- instance (Ord k, Eq v) => Indexed (Map k v) where
+--     (Map m) !! k = P.fmap unWithPreludeOrd $ M.lookup (WithPreludeOrd k) m
+--     hasIndex k (Map m) = M.member (WithPreludeOrd k) m
+--     indices (Map m) = map unWithPreludeOrd $ M.keys m
+--     values (Map m) = map unWithPreludeOrd $ M.elems m
 
 ----------------------------------------
 -- | This is a thin wrapper around Data.Map.Strict
@@ -221,12 +221,24 @@ instance (Ord k, Eq v) => Unfoldable (Map' k v)
 instance (Ord k, POrd v) => MinBound_ (Map' k v) where
     minBound = zero
 
+type instance Index (Map' k v) = k
+type instance Value (Map' k v) = v
+type instance SetValue (Map' k v) v' = Map' k v'
+
 instance (Ord k, Eq v) => Indexed (Map' k v) where
-    (Map' m) !! k = P.fmap unWithPreludeOrd $ MS.lookup (WithPreludeOrd k) m
+    lookup k (Map' m) = P.fmap unWithPreludeOrd $ MS.lookup (WithPreludeOrd k) m
     hasIndex k (Map' m) = MS.member (WithPreludeOrd k) m
 
     indices (Map' m) = map unWithPreludeOrd $ MS.keys m
     values (Map' m) = map unWithPreludeOrd $ MS.elems m
+    imap f (Map' m) = Map' $ MS.mapWithKey go m
+        where
+            go (WithPreludeOrd k) (WithPreludeOrd v) = WithPreludeOrd $ f k v
+
+mapLookup :: Ord k => k -> Map' k v -> Maybe v
+mapLookup k (Map' m) = case MS.lookup (WithPreludeOrd k) m of
+    Nothing -> Nothing
+    Just (WithPreludeOrd v) -> Just v
 
 mapIndices :: (Ord k1, Ord k2) => (k1 -> k2) -> Map' k1 v -> Map' k2 v
 mapIndices f (Map' m) = Map' $ MS.mapKeys (\(WithPreludeOrd k) -> WithPreludeOrd $ f k) m

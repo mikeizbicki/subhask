@@ -30,6 +30,7 @@ instance Eq_ Dec where (==) = (P.==)
 --------------------------------------------------------------------------------
 -- derive monad instances
 
+-- | Constructs an instance using the given function for everything in scope.
 deriveAllInScope :: Name -> (Cxt -> Type -> Q [Dec]) -> Q [Dec]
 deriveAllInScope preludename f = do
     info <- reify preludename

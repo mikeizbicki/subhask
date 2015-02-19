@@ -13,6 +13,7 @@ import Control.Monad.ST
 import Control.Monad.Primitive
 import Control.DeepSeq
 import Data.Csv
+import Data.Typeable
 import Data.Primitive.MutVar
 import qualified Data.Foldable as F
 import qualified Data.Vector.Unboxed as VU
@@ -40,7 +41,7 @@ import Unsafe.Coerce
 -- L1
 
 newtype L1 v a = L1 { unL1 :: v a }
-    deriving (Read,Show,POrd_,Lattice_,Ord_,Arbitrary,FromRecord,NFData, P.Ord)
+    deriving (Read,Show,POrd_,Lattice_,Ord_,Arbitrary,FromRecord,NFData,Typeable,FromField, P.Ord)
 
 type instance Logic (L1 v a) = Logic (v a)
 
@@ -122,7 +123,7 @@ instance
 -- L2
 
 newtype L2 v a = L2 { unL2 :: v a }
-    deriving (Read,Show,POrd_,Lattice_,Ord_,Arbitrary,FromRecord,NFData, P.Ord)
+    deriving (Read,Show,POrd_,Lattice_,Ord_,Arbitrary,FromRecord,NFData,Typeable,FromField, P.Ord)
 
 type instance Logic (L2 v a) = Logic (v a)
 
@@ -429,7 +430,7 @@ isFartherThan_l2_m128d_storable (L2 v1) (L2 v2) dist = unsafeDupablePerformIO $
 
 {-
 newtype Linf v a = Linf { unLinf :: v a }
-    deriving (Read,Show,Arbitrary,FromRecord,NFData, P.Ord)
+    deriving (Read,Show,Arbitrary,FromRecord,NFData,Typeable,FromField, P.Ord)
 
 type instance Logic (L2 v a) = Logic (v a)
 
