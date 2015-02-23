@@ -14,7 +14,7 @@ maintainer:          mike@izbicki.me
 category:            Control
 build-type:          Simple
 extra-source-files:  README.md
-cabal-version:       >=1.10
+cabal-version:       >=1.20
 
 library
     exposed-modules:

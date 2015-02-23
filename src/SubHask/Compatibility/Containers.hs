@@ -5,7 +5,9 @@ module SubHask.Compatibility.Containers
 
 import qualified Data.Foldable as F
 import qualified Data.Map as M
+import qualified Data.IntMap as IM
 import qualified Data.Map.Strict as MS
+import qualified Data.IntMap.Strict as IMS
 import qualified Data.Set as Set
 import qualified Data.Sequence as Seq
 import qualified Prelude as P
@@ -407,4 +409,124 @@ pp = do
     a <- [1,2]
     b <- [10,11]
     return (a,b)
+
+-------------------------------------------------------------------------------
+-- | This is a thin wrapper around Data.IntMap
+
+newtype IntMap v = IntMap (IM.IntMap (WithPreludeOrd v))
+    deriving (Read,Show,NFData)
+
+-- deriveHierarchy ''Map []
+
+type instance Scalar (IntMap v) = Int
+type instance Logic (IntMap v) = Bool
+type instance Elem (IntMap v) = (IM.Key,v)
+
+instance (Eq v, Semigroup v, Arbitrary v) => Arbitrary (IntMap v) where
+    arbitrary = P.fmap fromList arbitrary
+
+instance Normed (IntMap v) where
+    size (IntMap m) = IM.size m
+
+instance (Eq v) => Eq_ (IntMap v) where
+    (IntMap m1)==(IntMap m2) = m1 P.== m2
+
+instance (Eq v) => POrd_ (IntMap v) where
+    inf (IntMap m1) (IntMap m2) = IntMap $ IM.differenceWith go (IM.intersection m1 m2) m2
+        where
+            go v1 v2 = if v1==v2 then Just v1 else Nothing
+
+instance Semigroup (IntMap v) where
+    (IntMap m1)+(IntMap m2) = IntMap $ IM.union m1 m2
+
+instance Monoid (IntMap v) where
+    zero = IntMap $ IM.empty
+
+instance (Eq v) => Container (IntMap v) where
+    elem (k,v) (IntMap m) = case IM.lookup k m of
+        Nothing -> False
+        Just (WithPreludeOrd v') -> v==v'
+
+    notElem (k,v) (IntMap m) = case IM.lookup k m of
+        Nothing -> True
+        Just (WithPreludeOrd v') -> v/=v'
+
+instance (Eq v) => Constructible (IntMap v) where
+    singleton (k,v) = IntMap $ IM.singleton k (WithPreludeOrd v)
+
+instance (Eq v) => Unfoldable (IntMap v)
+
+instance (POrd v) => MinBound_ (IntMap v) where
+    minBound = zero
+
+instance (Eq v) => Indexed (IntMap v) where
+    (IntMap m) !! k = P.fmap unWithPreludeOrd $ IM.lookup k m
+    hasIndex k (IntMap m) = IM.member k m
+    indices (IntMap m) = IM.keys m
+    values (IntMap m) = map unWithPreludeOrd $ IM.elems m
+
+----------------------------------------
+-- | This is a thin wrapper around Data.IntMap.Strict
+
+newtype IntMap' v = IntMap' (IMS.IntMap (WithPreludeOrd v))
+    deriving (Read,Show,NFData)
+
+type instance Scalar (IntMap' v) = Int
+type instance Logic (IntMap' v) = Bool
+type instance Elem (IntMap' v) = (IMS.Key,v)
+
+instance (Eq v, Semigroup v, Arbitrary v) => Arbitrary (IntMap' v) where
+    arbitrary = P.fmap fromList arbitrary
+
+instance Normed (IntMap' v) where
+    size (IntMap' m) = IMS.size m
+
+instance (Eq v) => Eq_ (IntMap' v) where
+    (IntMap' m1)==(IntMap' m2) = m1 P.== m2
+
+instance (Eq v) => POrd_ (IntMap' v) where
+    inf (IntMap' m1) (IntMap' m2) = IntMap' $ IMS.differenceWith go (IMS.intersection m1 m2) m2
+        where
+            go v1 v2 = if v1==v2 then Just v1 else Nothing
+
+instance Semigroup (IntMap' v) where
+    (IntMap' m1)+(IntMap' m2) = IntMap' $ IMS.union m1 m2
+
+instance Monoid (IntMap' v) where
+    zero = IntMap' $ IMS.empty
+
+instance (Eq v) => Container (IntMap' v) where
+    elem (k,v) (IntMap' m) = case IMS.lookup k m of
+        Nothing -> False
+        Just (WithPreludeOrd v') -> v==v'
+
+    notElem (k,v) (IntMap' m) = case IMS.lookup k m of
+        Nothing -> True
+        Just (WithPreludeOrd v') -> v/=v'
+
+instance (Eq v) => Constructible (IntMap' v) where
+    singleton (k,v) = IntMap' $ IMS.singleton k (WithPreludeOrd v)
+    fromList1 x xs = IntMap' $ IMS.fromList $ map (\(k,v) -> (k,WithPreludeOrd v)) $ P.reverse (x:xs)
+
+instance (Eq v) => Unfoldable (IntMap' v)
+
+instance (POrd v) => MinBound_ (IntMap' v) where
+    minBound = zero
+
+instance (Eq v) => Indexed (IntMap' v) where
+    (IntMap' m) !! k = P.fmap unWithPreludeOrd $ IMS.lookup k m
+    hasIndex k (IntMap' m) = IMS.member k m
+
+    indices (IntMap' m) = IMS.keys m
+    values (IntMap' m) = map unWithPreludeOrd $ IMS.elems m
+
+mapIndices' :: (IMS.Key -> IMS.Key) -> IntMap' v -> IntMap' v
+mapIndices' f (IntMap' m) = IntMap' $ IMS.mapKeys f m
+
+mapValues' :: (Eq v1, Eq v2) => (v1 -> v2) -> IntMap' v1 -> IntMap' v2
+mapValues' f (IntMap' m) = IntMap' $ IMS.map (\(WithPreludeOrd v) -> WithPreludeOrd $ f v) m
+
+instance (Eq v) => Foldable (IntMap' v) where
+    toList (IntMap' m) = map (\(k,WithPreludeOrd v) -> (k,v))
+                    $ IMS.toList m
 
