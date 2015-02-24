@@ -272,32 +272,20 @@ instance ValidVector v r => Constructible (ArrayT v r) where
 
     fromList1N n x xs = ArrayT $ VG.fromListN n (x:xs)
 
-instance (ValidVector v r, Eq r, Eq (v r)) => Unfoldable (ArrayT v r) where
-
 instance ValidVector v r => Foldable (ArrayT v r) where
 
     {-# INLINE toList #-}
     toList (ArrayT v) = VG.toList v
 
-    {-# INLINE unCons #-}
-    unCons (ArrayT v) = if VG.null v
+    {-# INLINE uncons #-}
+    uncons (ArrayT v) = if VG.null v
         then Nothing
         else Just (VG.head v, ArrayT $ VG.tail v)
 
-    {-# INLINE unCons' #-}
-    unCons' (ArrayT v) = if VG.null v
-        then Nothing'
-        else Just' (VG.head v, ArrayT $ VG.tail v)
-
-    {-# INLINE unSnoc #-}
-    unSnoc (ArrayT v) = if VG.null v
+    {-# INLINE unsnoc #-}
+    unsnoc (ArrayT v) = if VG.null v
         then Nothing
         else Just (ArrayT $ VG.init v, VG.last v)
-
-    {-# INLINE unSnoc' #-}
-    unSnoc' (ArrayT v) = if VG.null v
-        then Nothing'
-        else Just' (ArrayT $ VG.init v, VG.last v)
 
     {-# INLINE foldMap #-}
     foldMap f   (ArrayT v) = VG.foldl' (\a e -> a + f e) zero v
@@ -359,7 +347,7 @@ type instance SetValue (ArrayT v s) s' = ArrayT v s'
 type instance Value (ArrayT v s) = s
 type instance Index (ArrayT v s) = Int
 
-instance Indexed (Array s) where
+instance IxContainer (Array s) where
     lookup i s = s VG.!? i
     indices s = [0..VG.length s-1]
     values = VG.toList
@@ -461,7 +449,16 @@ instance
     , VectorSpace r
     , Floating r
     , VU.Unbox r
-    ) => InnerProductSpace (VU.Vector r)
+    ) => Banach (VU.Vector r)
+
+instance
+    ( IsScalar r
+    , Normed r
+    , Logic r~Bool
+    , VectorSpace r
+    , Floating r
+    , VU.Unbox r
+    ) => Hilbert (VU.Vector r)
         where
     v1 <> v2 = if VG.length v1 == 0
         then zero
@@ -478,7 +475,7 @@ instance
     , VectorSpace r
     , Floating r
     , VU.Unbox r
-    ) => MetricSpace (VU.Vector r)
+    ) => Metric (VU.Vector r)
         where
 
     distance = innerProductDistance
@@ -592,23 +589,28 @@ instance ( VectorSpace r, IsScalar (Scalar r)) => VectorSpace (V.Vector r) where
         else error "(./.): u and v have different lengths"
 
 instance
-    ( InnerProductSpace r
+    ( Hilbert r
     , Floating (Scalar r)
     ) => Normed (V.Vector r)
         where
     size = innerProductNorm
 
 instance
-    ( InnerProductSpace r
+    ( Hilbert r
     , Floating (Scalar r)
-    ) => MetricSpace (V.Vector r)
+    ) => Banach (V.Vector r)
+
+instance
+    ( Hilbert r
+    , Floating (Scalar r)
+    ) => Metric (V.Vector r)
         where
     distance = innerProductDistance
 
 instance
-    ( InnerProductSpace r
+    ( Hilbert r
     , Floating (Scalar r)
-    ) => InnerProductSpace (V.Vector r)
+    ) => Hilbert (V.Vector r)
         where
     v1 <> v2 = if VG.length v1 == 0 || VG.length v2 == 0
         then zero
@@ -714,7 +716,16 @@ instance
     , VectorSpace r
     , Floating r
     , VS.Storable r
-    ) => MetricSpace (VS.Vector r)
+    ) => Banach (VS.Vector r)
+
+instance
+    ( IsScalar r
+    , Normed r
+    , Logic r~Bool
+    , VectorSpace r
+    , Floating r
+    , VS.Storable r
+    ) => Metric (VS.Vector r)
         where
     distance = innerProductDistance
 
@@ -725,7 +736,7 @@ instance
     , VectorSpace r
     , Floating r
     , VS.Storable r
-    ) => InnerProductSpace (VS.Vector r)
+    ) => Hilbert (VS.Vector r)
         where
     v1 <> v2 = if VG.length v1 == 0
         then zero

@@ -123,11 +123,11 @@ testMap = Map.fromList
     , ( "Normed",
         [
         ] )
-    , ( "MetricSpace",
-        [ "law_MetricSpace_nonnegativity"
-        , "law_MetricSpace_indiscernables"
-        , "law_MetricSpace_symmetry"
-        , "law_MetricSpace_triangle"
+    , ( "Metric",
+        [ "law_Metric_nonnegativity"
+        , "law_Metric_indiscernables"
+        , "law_Metric_symmetry"
+        , "law_Metric_triangle"
         ] )
 
     , ( "Container",
@@ -135,8 +135,8 @@ testMap = Map.fromList
         , "law_Constructible_singleton"
         , "theorem_Constructible_insert"
         ] )
-    , ( "Indexed",
-        [ "law_Indexed_cons"
+    , ( "IxContainer",
+        [
         ] )
 
     , ( "Constructible",
@@ -160,7 +160,6 @@ testMap = Map.fromList
         [ "law_Partitionable_length"
         , "law_Partitionable_monoid"
         ] )
-    , ( "FreeMonoid", [])
     ]
 
 -- | makes tests for all instances of a class that take no type variables

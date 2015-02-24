@@ -96,10 +96,14 @@ module SubHask.Algebra
     , law_Container_preservation
 --     , law_Unfoldable_empty
 --     , defn_Container_sizeDisjoint
+
     , Constructible (..)
+    , fromString
     , fromList
     , fromListN
+    , insert
     , empty
+    , isEmpty
     , defn_Constructible_cons
     , defn_Constructible_snoc
     , defn_Constructible_fromList
@@ -107,15 +111,9 @@ module SubHask.Algebra
 --     , law_Constructible_MonoidMinBound
 --     , law_Constructible_MonoidNormed
 --     , defn_Constructible_infDisjoint
---     , defn_Constructible_null
-    , Unfoldable (..)
-    , singletonAt
-    , insert
-    , fromString
     , law_Constructible_singleton
     , theorem_Constructible_cons
-    , Indexed (..)
-    , law_Indexed_cons
+
     , Foldable (..)
     , foldtree1
     , length
@@ -125,17 +123,18 @@ module SubHask.Algebra
     , tailMaybe
     , lastMaybe
     , initMaybe
+
+    -- *** indexed containers
     , Index
+    , SetIndex
+
     , Value
+    , SetValue
 
---     , Partitionable (..)
---     , law_Partitionable_length
---     , law_Partitionable_monoid
---     , parallelN
---     , parallel
+    , IxConstructible (..)
+    , IxContainer (..)
+    , (!?)
 
-    , Topology (..)
-    , FreeMonoid
 
     -- * Maybe
     , CanError (..)
@@ -189,29 +188,31 @@ module SubHask.Algebra
     , Floating (..)
     , QuotientField(..)
 
+    -- ** Sizes
+    , Normed (..)
+    , abs
+    , Metric (..)
+    , isFartherThan
+    , lb2distanceUB
+    , law_Metric_nonnegativity
+    , law_Metric_indiscernables
+    , law_Metric_symmetry
+    , law_Metric_triangle
+
     -- ** Linear algebra
     , Scalar
     , IsScalar
     , HasScalar
     , Cone (..)
     , Module (..)
+    , (.*)
     , VectorSpace (..)
-    , InnerProductSpace (..)
+    , Banach (..)
+    , Hilbert (..)
     , innerProductDistance
     , innerProductNorm
     , OuterProductSpace (..)
 
-    -- ** Sizes
-    , Normed (..)
-    , abs
---     , KernelSpace (..)
---     , mkSelfKernel
---     , SelfKernel
-    , MetricSpace (..)
-    , law_MetricSpace_nonnegativity
-    , law_MetricSpace_indiscernables
-    , law_MetricSpace_symmetry
-    , law_MetricSpace_triangle
     )
     where
 
@@ -266,7 +267,7 @@ class Logic a ~ Bool => ClassicalLogic a
 instance Logic a ~ Bool => ClassicalLogic a
 
 -- | Defines equivalence classes over the type.
--- The types need not have identical representations in the machine to be equal.
+-- The values need not have identical representations in the machine to be equal.
 --
 -- See <https://en.wikipedia.org/wiki/Equivalence_class wikipedia>
 -- and <http://ncatlab.org/nlab/show/equivalence+class ncatlab> for more details.
@@ -531,7 +532,7 @@ infixr 2 ||
 -- | A chain is a collection of elements all of which can be compared
 isChain :: Lattice a => [a] -> Logic a
 isChain [] = true
-isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isAntichain xs
+isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isChain xs
 --
 -- | An antichain is a collection of elements none of which can be compared
 --
@@ -789,11 +790,11 @@ class Semigroup g where
 -- law_Semigroup_associativity ::
 --     ( HasScalar g
 --     , Semigroup g
---     , MetricSpace g
+--     , Metric g
 --     ) => g -> g -> g -> Bool
 -- law_Semigroup_associativity g1 g2 g3 = associator g1 g2 g3 <= sgErrorBound g1
 
-associator :: (Semigroup g, MetricSpace g) => g -> g -> g -> Scalar g
+associator :: (Semigroup g, Metric g) => g -> g -> g -> Scalar g
 associator g1 g2 g3 = distance ((g1+g2)+g3) (g1+(g2+g3))
 
 -- normedAssociator g1 g2 g3
@@ -805,8 +806,6 @@ toRational_ = embedType
 
 law_Semigroup_associativity :: (Eq g, Semigroup g ) => g -> g -> g -> Logic g
 law_Semigroup_associativity g1 g2 g3 = g1 + (g2 + g3) == (g1 + g2) + g3
-
--- errorSemigroup :: (Semigroup g,
 
 -- theorem_Semigroup_associativity ::
 --     ( Ring (Scalar g)
@@ -834,9 +833,6 @@ relativeSemigroupError ::
 relativeSemigroupError g1 g2 g3
     = size (   g1 + ( g2    + g3 ) )
     / size ( ( g1 +   g2  ) + g3   )
-
--- associator :: ( Group g ) => g -> g -> g -> g
--- associator g1 g2 g3 = ((g1+g2)+g3) - (g1+(g2+g3))
 
 -- | A generalization of 'Data.List.cycle' to an arbitrary 'Semigroup'.
 -- May fail to terminate for some values in some semigroups.
@@ -943,7 +939,7 @@ instance Cancellative () where
 instance Cancellative b => Cancellative (a -> b) where
     f-g = \a -> f a - g a
 
--- | The GrothendieckGroup is a general way to construct groups from cancellative groups.
+-- | The GrothendieckGroup is a general way to construct groups from cancellative semigroups.
 --
 -- FIXME: How should this be related to the Ratio type?
 --
@@ -997,26 +993,6 @@ instance Abelian Rational
 instance Abelian ()
 
 instance Abelian b => Abelian (a -> b)
-
----------------------------------------
-
--- | FIXME: What constraint should be here? Semigroup?
---
--- See <http://ncatlab.org/nlab/show/normed%20group ncatlab>
-class
-    ( Ord_ (Scalar g)
-    , HasScalar g
-    ) => Normed g where
-    size :: g -> Scalar g
-
-abs :: (Ring g, Normed g) => g -> Scalar g
-abs = size
-
-instance Normed Int       where size = P.abs
-instance Normed Integer   where size = P.abs
-instance Normed Float     where size = P.abs
-instance Normed Double    where size = P.abs
-instance Normed Rational  where size = P.abs
 
 ---------------------------------------
 
@@ -1354,14 +1330,12 @@ instance Floating Double where
 type family Scalar m
 
 -- FIXME: made into classes due to TH limitations
--- > type IsScalar r = (Ring r, Scalar r ~ r)
-class (Logic r~Bool, Ring r, Scalar r~r) => IsScalar r
-instance (Logic r~Bool, Ring r, Scalar r~r) => IsScalar r
+class (Ring r, Ord_ r, Scalar r~r, Normed r) => IsScalar r
+instance (Ring r, Ord_ r, Scalar r~r, Normed r) => IsScalar r
 
 -- FIXME: made into classes due to TH limitations
--- > type HasScalar a = IsScalar (Scalar a)
-class ({-Logic a~Logic (Scalar a), -}IsScalar (Scalar a)) => HasScalar a
-instance ({-Logic a~Logic (Scalar a), -}IsScalar (Scalar a)) => HasScalar a
+class (IsScalar (Scalar a)) => HasScalar a
+instance (IsScalar (Scalar a)) => HasScalar a
 
 type instance Scalar Int      = Int
 type instance Scalar Integer  = Integer
@@ -1374,6 +1348,27 @@ type instance Scalar (a,b,c) = Scalar a
 type instance Scalar (a,b,c,d) = Scalar a
 
 type instance Scalar (a -> b) = Scalar b
+
+---------------------------------------
+
+-- | FIXME: What constraint should be here? Semigroup?
+--
+-- See <http://ncatlab.org/nlab/show/normed%20group ncatlab>
+class
+    ( Ord_ (Scalar g)
+    , Scalar (Scalar g) ~ Scalar g
+    , Ring (Scalar g)
+    ) => Normed g where
+    size :: g -> Scalar g
+
+abs :: (Ring g, Normed g) => g -> Scalar g
+abs = size
+
+instance Normed Int       where size = P.abs
+instance Normed Integer   where size = P.abs
+instance Normed Float     where size = P.abs
+instance Normed Double    where size = P.abs
+instance Normed Rational  where size = P.abs
 
 ---------------------------------------
 
@@ -1402,7 +1397,7 @@ class (Cancellative m, HasScalar m, Rig (Scalar m)) => Cone m where
 
 ---------------------------------------
 
-class (Abelian m, Group m, HasScalar m, Ring (Scalar m)) => Module m where
+class (Abelian m, Group m, HasScalar m) => Module m where
     infixl 7 *.
     (*.) :: Scalar m -> m -> m
 
@@ -1435,13 +1430,6 @@ class (Module v, Field (Scalar v)) => VectorSpace v where
     infixl 7 ./.
     (./.) :: v -> v -> v
 
--- {-# INLINE normalize #-}
--- normalize :: (Normed v, VectorSpace v) => v -> v
--- normalize v = if abs v==zero
---     then v
---     else v ./ abs v
-
-
 instance VectorSpace Float     where (./) = (/); (./.) = (/)
 instance VectorSpace Double    where (./) = (/); (./.) = (/)
 instance VectorSpace Rational  where (./) = (/); (./.) = (/)
@@ -1450,44 +1438,53 @@ instance VectorSpace b => VectorSpace (a -> b) where g ./. f = \a -> g a ./. f a
 
 ---------------------------------------
 
--- |
+-- | A Banach space is a Vector Space equipped with a compatible Norm and Metric.
 --
--- Note: It is not axiomatic that an inner product space's field must be non-finite (and hence normed and ordered).
--- However, it necessarily follows from the axioms.
--- Therefore, we include these class constraints.
--- In practice, this greatly simplifies many type signatures.
--- See this <http://math.stackexchange.com/questions/49348/inner-product-spaces-over-finite-fields stackoverflow question> for a detailed explanation of these constraints.
+-- See <http://en.wikipedia.org/wiki/Banach_space wikipedia> for more details.
+class (VectorSpace v, Normed v, Metric v) => Banach v where
+    {-# INLINABLE normalize #-}
+    normalize :: v -> v
+    normalize v = v ./ size v
+
+law_Banach_distance :: Banach v => v -> v -> Logic (Scalar v)
+law_Banach_distance v1 v2 = size (v1 - v2) == distance v1 v2
+
+law_Banach_size :: Banach v => v -> Logic (Scalar v)
+law_Banach_size v
+    = isZero v
+   || size (normalize v) == 1
+
+instance Banach Float
+instance Banach Double
+instance Banach Rational
+
+---------------------------------------
+
+-- | Hilbert spaces are a natural generalization of Euclidean space that allows for infinite dimension.
 --
--- Note: Similarly, it is not axiomatic that every 'InnerProductSpace' is a 'MetricSpace'.
--- This is easy to see, however, since the "innerProductNorm" function can be used to define a metric on any inner product space.
--- The implementation will probably not be efficient, however.
---
--- Note: Machine learning papers often talk about Hilbert spaces, which are a minor extension of inner product spaces.
--- Specifically, the metric space must be complete.
--- I know of no useful complete metric spaces that can be represented in finite space on a computer, however, so we use the more general inner product spaces in this library.
+-- See <http://en.wikipedia.org/wiki/Hilbert_space wikipedia> for more details.
 class
-    ( VectorSpace v
-    , MetricSpace v
-    , Normed v
-    , HasScalar v
-    , Normed (Scalar v)
+    ( Banach v
     , Floating (Scalar v)
-    ) => InnerProductSpace v
+    ) => Hilbert v
         where
 
     infix 8 <>
     (<>) :: v -> v -> Scalar v
 
+instance Hilbert Float    where (<>) = (*)
+instance Hilbert Double   where (<>) = (*)
+
 {-# INLINE squaredInnerProductNorm #-}
-squaredInnerProductNorm :: InnerProductSpace v => v -> Scalar v
+squaredInnerProductNorm :: Hilbert v => v -> Scalar v
 squaredInnerProductNorm v = v<>v
 
 {-# INLINE innerProductNorm #-}
-innerProductNorm :: (Floating (Scalar v), InnerProductSpace v) => v -> Scalar v
+innerProductNorm :: Hilbert v => v -> Scalar v
 innerProductNorm = sqrt . squaredInnerProductNorm
 
 {-# INLINE innerProductDistance #-}
-innerProductDistance :: (Floating (Scalar v), InnerProductSpace v) => v -> v -> Scalar v
+innerProductDistance :: Hilbert v => v -> v -> Scalar v
 innerProductDistance v1 v2 = innerProductNorm $ v1-v2
 
 ---------------------------------------
@@ -1503,18 +1500,47 @@ class
     infix 8 ><
     (><) :: v -> v -> Outer v
 
+
+---------------------------------------
+
+{-
+-- | Bregman divergences generalize the squared Euclidean distance and the KL-divergence.
+-- They are closely related to exponential family distributions.
+--
+-- Mark Reid has a <http://mark.reid.name/blog/meet-the-bregman-divergences.html good tutorial>.
+--
+-- FIXME:
+-- The definition of divergence requires taking the derivative.
+-- How should this relate to categories?
+class
+    ( Hilbert v
+    ) => Bregman v
+        where
+
+    divergence :: v -> v -> Scalar v
+    divergence v1 v2 = f v1 - f v2 - (derivative f v2 <> v1 - v2)
+        where
+            f = bregmanFunction
+
+    bregmanFunction :: v -> Scalar v
+
+law_Bregman_nonnegativity :: v -> v -> Logic v
+law_Bregman_nonnegativity v1 v2 = divergence v1 v2 > 0
+
+law_Bregman_triangle ::
+-}
+
 ---------------------------------------
 
 -- | Metric spaces give us the most intuitive notion of distance between objects.
 --
 -- FIXME: There are many other notions of distance and we should make a while hierarchy.
 class
-    ( Ord_ (Scalar v)
-    , Ring (Scalar v)
+    ( HasScalar v
     , Eq_ v
     , Boolean (Logic v)
     , Logic (Scalar v) ~ Logic v
-    ) => MetricSpace v
+    ) => Metric v
         where
 
     distance :: v -> v -> Scalar v
@@ -1522,56 +1548,49 @@ class
     -- | If the distance between two datapoints is less than or equal to the upper bound,
     -- then this function will return the distance.
     -- Otherwise, it will return some number greater than the upper bound.
-    {-# INLINE distanceUB #-}
+    {-# INLINABLE distanceUB #-}
     distanceUB :: v -> v -> Scalar v -> Scalar v
     distanceUB v1 v2 _ = {-# SCC distanceUB #-} distance v1 v2
 
-    -- | FIXME: this should have a default implementation in terms of isFartherThanWithDistanceCanError
-    -- the weird constraints on that function prevent this
-    {-# INLINE isFartherThan #-}
-    isFartherThan :: v -> v -> Scalar v -> Logic v
-    isFartherThan s1 s2 b =
-        {-# SCC isFartherThan #-}
-        distance s1 s2 > b
+-- | Calling this function will be faster on some 'Metric's than manually checking if distance is greater than the bound.
+{-# INLINABLE isFartherThan #-}
+isFartherThan :: Metric v => v -> v -> Scalar v -> Logic v
+isFartherThan s1 s2 b = {-# SCC isFartherThan #-} distanceUB s1 s2 b > b
 
-    {-# INLINE isFartherThanWithDistanceCanError #-}
-    isFartherThanWithDistanceCanError ::
-        ( Logic (Scalar v)~Bool
-        , CanError (Scalar v)
-        ) => v
-          -> v
-          -> Scalar v
-          -> Scalar v
-    isFartherThanWithDistanceCanError s1 s2 b =
-        {-# SCC isFartherThanWithDistanceCanError  #-}
-        if dist > b
-            then errorVal
-            else dist
-        where
-            dist = distance s1 s2
+-- | This function constructs an efficient default implementation for 'distanceUB' given a function that lower bounds the distance metric.
+{-# INLINABLE lb2distanceUB #-}
+lb2distanceUB ::
+    ( Metric a
+    , ClassicalLogic a
+    ) => (a -> a -> Scalar a)
+      -> (a -> a -> Scalar a -> Scalar a)
+lb2distanceUB lb p q b = if lbpq > b
+    then lbpq
+    else distance p q
+    where
+        lbpq = lb p q
+law_Metric_nonnegativity :: Metric v => v -> v -> Logic v
+law_Metric_nonnegativity v1 v2 = distance v1 v2 >= 0
 
-law_MetricSpace_nonnegativity :: MetricSpace v => v -> v -> Logic v
-law_MetricSpace_nonnegativity v1 v2 = distance v1 v2 >= 0
-
-law_MetricSpace_indiscernables :: (Eq v, MetricSpace v) => v -> v -> Logic v
-law_MetricSpace_indiscernables v1 v2 = if v1 == v2
+law_Metric_indiscernables :: (Eq v, Metric v) => v -> v -> Logic v
+law_Metric_indiscernables v1 v2 = if v1 == v2
     then distance v1 v2 == 0
     else distance v1 v2 > 0
 
-law_MetricSpace_symmetry :: MetricSpace v => v -> v -> Logic v
-law_MetricSpace_symmetry v1 v2 = distance v1 v2 == distance v2 v1
+law_Metric_symmetry :: Metric v => v -> v -> Logic v
+law_Metric_symmetry v1 v2 = distance v1 v2 == distance v2 v1
 
-law_MetricSpace_triangle :: MetricSpace v => v -> v -> v -> Logic v
-law_MetricSpace_triangle m1 m2 m3
+law_Metric_triangle :: Metric v => v -> v -> v -> Logic v
+law_Metric_triangle m1 m2 m3
     = distance m1 m2 <= distance m1 m3 + distance m2 m3
    && distance m1 m3 <= distance m1 m2 + distance m2 m3
    && distance m2 m3 <= distance m1 m3 + distance m2 m1
 
-instance MetricSpace Int      where distance x1 x2 = abs $ x1 - x2
-instance MetricSpace Integer  where distance x1 x2 = abs $ x1 - x2
-instance MetricSpace Float    where distance x1 x2 = abs $ x1 - x2
-instance MetricSpace Double   where distance x1 x2 = abs $ x1 - x2
-instance MetricSpace Rational where distance x1 x2 = abs $ x1 - x2
+instance Metric Int      where distance x1 x2 = abs $ x1 - x2
+instance Metric Integer  where distance x1 x2 = abs $ x1 - x2
+instance Metric Float    where distance x1 x2 = abs $ x1 - x2
+instance Metric Double   where distance x1 x2 = abs $ x1 - x2
+instance Metric Rational where distance x1 x2 = abs $ x1 - x2
 
 ---------
 
@@ -1621,36 +1640,24 @@ instance CanError Double where
 -------------------------------------------------------------------------------
 -- set-like
 
-class (Monoid s, MinBound_ s, Unfoldable s, Foldable s) => FreeMonoid s
-instance (Monoid s, MinBound_ s, Unfoldable s, Foldable s) => FreeMonoid s
-
 type Item s = Elem s
+
 type family Elem s
+type family SetElem s t
 
 -- | Two sets are disjoint if their infimum is the empty set.
 -- This function generalizes the notion of disjointness for any lower bounded lattice.
 -- FIXME: add other notions of disjoint
-infDisjoint :: (Unfoldable s, MinBound s) => s -> s -> Logic s
-infDisjoint s1 s2 = null $ inf s1 s2
+infDisjoint :: (Constructible s, MinBound s, Monoid s) => s -> s -> Logic s
+infDisjoint s1 s2 = isEmpty $ inf s1 s2
 
-defn_Unfoldable_infDisjoint ::
-    (POrd s, MinBound s, Eq (Logic s), Logic (Logic s) ~ Logic s, Unfoldable s) => s -> s -> Logic s
-defn_Unfoldable_infDisjoint s1 s2 = infDisjoint s1 s2 == null (inf s1 s2)
-
-
-sizeDisjoint :: (Normed s, Constructible s) => s -> s -> Bool -- Logic s
+sizeDisjoint :: (Normed s, Constructible s) => s -> s -> Logic (Scalar s)
 sizeDisjoint s1 s2 = size s1 + size s2 == size (s1+s2)
-
--- defn_Container_sizeDisjoint :: (Normed s, Container s, Logic s~Bool) => s -> s -> Logic s
--- defn_Container_sizeDisjoint s1 s2
---     = sizeDisjoint s1 s2
---    == (size s1 + size s2 == size (s1+s2))
 
 -- | This is the class for any type that gets "constructed" from smaller types.
 -- It is a massive generalization of the notion of a constructable set in topology.
 --
 -- See <https://en.wikipedia.org/wiki/Constructible_set_%28topology%29 wikipedia> for more details.
--- class (ValidEq (Elem s), Semigroup s) => Constructible s where
 class Semigroup s => Constructible s where
 
     {-# MINIMAL singleton | cons | fromList1 #-}
@@ -1664,13 +1671,13 @@ class Semigroup s => Constructible s where
     cons x xs = singleton x + xs
 
     -- | inserts an element on the right;
-    -- in a non-abelian Unfoldable, this may not insert the element;
+    -- in a non-abelian 'Constructible', this may not insert the element;
     -- this occurs, for example, in the Map type.
     snoc :: s -> Elem s -> s
     snoc xs x = xs + singleton x
 
     -- | Construct the type from a list.
-    -- Since lists may be empty (but not all unfoldables can be empty) we explicitly pass in an Elem s.
+    -- Since lists may be empty (but not all 'Constructible's can be empty) we explicitly pass in an Elem s.
     fromList1 :: Elem s -> [Elem s] -> s
     fromList1 x xs = foldl' snoc (singleton x) xs
 
@@ -1690,17 +1697,30 @@ defn_Constructible_cons s e = cons e s == singleton e + s
 defn_Constructible_snoc :: (Eq_ s, Constructible s) => s -> Elem s -> Logic s
 defn_Constructible_snoc s e = snoc s e == s + singleton e
 
--- | curried version of singleton
-singletonAt :: Unfoldable a => k -> v -> Elem a ~ (k,v) => a
-singletonAt k v = singleton (k,v)
-
--- | Insert an element into the container
-insert :: Unfoldable s => Elem s -> s -> s
+-- | A more suggestive name for inserting an element into a container that does not remember location
+insert :: Constructible s => Elem s -> s -> s
 insert = cons
 
+-- | A slightly more suggestive name for a container's monoid identity
+empty :: (Monoid s, Constructible s) => s
+empty = zero
+
+-- | A slightly more suggestive name for checking if a container is empty
+isEmpty :: (ValidEq s, Monoid s, Constructible s) => s -> Logic s
+isEmpty = isZero
+
 -- | This function needed for the OverloadedStrings language extension
-fromString :: (Unfoldable s, Elem s ~ Char) => String -> s
+fromString :: (Monoid s, Constructible s, Elem s ~ Char) => String -> s
 fromString = fromList
+
+-- | FIXME: if -XOverloadedLists is enabled, this causes an infinite loop for some reason
+fromList :: (Monoid s, Constructible s) => [Elem s] -> s
+fromList [] = zero
+fromList (x:xs) = fromList1 x xs
+
+fromListN :: (Monoid s, Constructible s) => Int -> [Elem s] -> s
+fromListN 0 [] = zero
+fromListN i (x:xs) = fromList1N i x xs
 
 -- | This is a generalization of a "set".
 -- We do not require a container to be a boolean algebra, just a semigroup.
@@ -1719,136 +1739,32 @@ law_Constructible_singleton s e = elem e $ singleton e `asTypeOf` s
 theorem_Constructible_cons :: Container s => s -> Elem s -> Logic s
 theorem_Constructible_cons s e = elem e (cons e s)
 
-
--- | The class of containers that do have an empty value
-class (Constructible s, Monoid s) => Unfoldable s where
-    null :: s -> Logic s
---     null = (==zero)
-
--- | FIXME: if -XOverloadedLists is enabled, this causes an infinite loop for some reason
-fromList :: Unfoldable s => [Elem s] -> s
-fromList [] = zero
-fromList (x:xs) = fromList1 x xs
-
-fromListN :: (Monoid s, Unfoldable s) => Int -> [Elem s] -> s
-fromListN 0 [] = zero
-fromListN i (x:xs) = fromList1N i x xs
-
--- law_Unfoldable_MonoidMinBound :: forall s. (MinBound s, Unfoldable s) => s -> Logic s
--- law_Unfoldable_MonoidMinBound _ = (zero::s)==(minBound::s)
---
--- law_Unfoldable_MonoidNormed :: forall s.
---     (Normed s, Logic s~Bool, Logic (Scalar s)~Bool, Unfoldable s) => s -> Logic s
--- law_Unfoldable_MonoidNormed _ = (size (zero::s) == 0)
-
--- law_Unfoldable_empty :: Unfoldable s => s -> Elem s -> Logic s
--- law_Unfoldable_empty s e = notElem e (empty `asTypeOf` s)
-
--- defn_Unfoldable_null :: (Eq_ s, Heyting (Logic s), Unfoldable s) => s -> Elem s -> Logic s
--- defn_Unfoldable_null s e = null s ==> s==empty
-
--- | a slightly more suggestive name for a container's monoid identity
-empty :: (Monoid s, Unfoldable s) => s
-empty = zero
-
--- type family Index s :: *
--- type family Value s :: *
-
-type ($) a b = a b
-
-type family Fst a where
-    Fst (a,b) = a
-
-type family Snd a where
-    Snd (a,b) = b
-
-type Index s = Fst (Elem s)
-type Value s = Snd (Elem s)
-
-
--- | An indexed container us a container of tuples (a,b).
--- Every value of type a is associated with a value of type b.
-class (Elem s~(Index s, Value s), Unfoldable s) => Indexed s where
-    (!) :: s -> Index s -> Value s
-    (!) s i = case s !! i of
-        Just x -> x
-        Nothing -> error "used (!) on an invalid index"
-
-    (!!) :: s -> Index s -> Maybe (Value s)
-
-    findWithDefault :: Value s -> Index s -> s -> Value s
-    findWithDefault def i s = case s !! i of
-        Nothing -> def
-        Just e -> e
-
-    hasIndex :: Index s -> s -> Bool
-    hasIndex i s = case s !! i of
-        Nothing -> False
-        Just _ -> True
-
-    -- FIXME: everything below should probably find homes in a different class
-
-    indices :: s -> [Index s]
-
-    values :: s -> [Value s]
-
-law_Indexed_cons :: (Indexed s, Eq_ (Value s)) => s -> Elem s -> Logic (Value s)
-law_Indexed_cons s e = cons e s ! fst e == snd e
-
 -- |
 --
--- prop> isOpen empty == True
---
--- prop> isOpen a && isOpen b   ===>   isOpen (a || b)
---
--- prop> isOpen a && isOpen b   ===>   isOpen (a && b)
---
--- prop> closed
---
--- FIXME: how does this relate to smooth functions?
-class (Boolean s, Unfoldable s) => Topology s where
-    isOpen   :: s -> Bool
-    isClosed :: s -> Bool
+-- FIXME:
+-- This is a correct definition of topologies, but is it useful?
+-- How can this relate to continuous functions?
+class (Boolean (Logic s), Boolean s, Container s) => Topology s where
+    open :: s -> Logic s
 
-    isClopen :: s -> Bool
-    isClopen s = isOpen && isClosed $ s
+    closed :: s -> Logic s
+    closed s = open $ not s
 
-    isNeighborhood :: Elem s -> s -> Bool
-
+    clopen :: s -> Logic s
+    clopen = open && closed
 
 -- | Provides inverse operations for "Unfoldable".
---
 class (Constructible s, Monoid s) => Foldable s where
 
     {-# INLINE toList #-}
     toList :: Foldable s => s -> [Elem s]
     toList s = foldr (:) [] s
 
-    -- |
-    --
-    -- > unCons zero == Nothing
-    --
-    -- > unCons (cons x xs) = Just (x, xs)
-    --
-    unCons :: s -> Maybe (Elem s,s)
-    unCons' :: s -> Maybe' (Elem s,s)
+    -- | Remove an element from the left of the container.
+    uncons :: s -> Maybe (Elem s,s)
 
-    -- |
-    --
-    -- > unSnoc zero == Nothing
-    --
-    -- > unSnoc (snoc xs x) = Just (xs, x)
-    --
-    unSnoc :: s -> Maybe (s,Elem s)
-    unSnoc' :: s -> Maybe' (s,Elem s)
-
-    -- |
-    --
-    -- prop> isEmpty x == (abs x == 0)
-    isEmpty :: s -> Bool
-    isEmpty s = case unCons s of
-        Nothing -> True
-        otherwise -> False
+    -- | Remove an element from the right of the container.
+    unsnoc :: s -> Maybe (s,Elem s)
 
     foldMap :: Monoid a => (Elem s -> a) -> s -> a
     foldr   :: (Elem s -> a -> a) -> a -> s -> a
@@ -1889,7 +1805,7 @@ foldtree1 as = case go as of
         go (a1:a2:as) = (a1+a2):go as
 
 {-# INLINE[1] convertUnfoldable #-}
-convertUnfoldable :: (Foldable s, Unfoldable t, Elem s ~ Elem t) => s -> t
+convertUnfoldable :: (Monoid t, Foldable s, Constructible t, Elem s ~ Elem t) => s -> t
 convertUnfoldable = fromList . toList
 
 {-# INLINE reduce #-}
@@ -1973,104 +1889,63 @@ concat = foldl' (+) zero
 
 {-# INLINE headMaybe #-}
 headMaybe :: Foldable s => s -> Maybe (Elem s)
-headMaybe = P.fmap fst . unCons
+headMaybe = P.fmap fst . uncons
 
 {-# INLINE tailMaybe #-}
 tailMaybe :: Foldable s => s -> Maybe s
-tailMaybe = P.fmap snd . unCons
+tailMaybe = P.fmap snd . uncons
 
 {-# INLINE lastMaybe #-}
 lastMaybe :: Foldable s => s -> Maybe (Elem s)
-lastMaybe = P.fmap snd . unSnoc
+lastMaybe = P.fmap snd . unsnoc
 
 {-# INLINE initMaybe #-}
 initMaybe :: Foldable s => s -> Maybe s
-initMaybe = P.fmap fst . unSnoc
+initMaybe = P.fmap fst . unsnoc
 
-{-
--- | A Partitionable container can be split up into an arbitrary number of subcontainers of roughly equal size.
-class (Monoid t, Constructible t) => Partitionable t where
+----------------------------------------
 
-    -- | The Int must be >0
-    partition :: Int -> t -> [t]
+type family Index s
+type family Value s
+type family SetValue s a
+type family SetIndex s a
 
-law_Partitionable_length :: (ClassicalLogic t, Partitionable t) => Int -> t -> Bool
-law_Partitionable_length n t
-    | n > 0 = length (partition n t) <= n
-    | otherwise = True
+class IxConstructible s where
+    singletonAt :: Index s -> Value s -> s
+    insertAt    :: Index s -> Value s -> s -> s
 
-law_Partitionable_monoid :: (ClassicalLogic t, Eq_ t, Partitionable t) => Int -> t -> Bool
-law_Partitionable_monoid n t
-    | n > 0 = sum (partition n t) == t
-    | otherwise = True
+class IxContainer s where
+    lookup :: Index s -> s -> Maybe (Value s)
 
-instance (Boolean (Logic a)) => Partitionable [a] where
-    partition = partition_noncommutative
---     partition n xs = go xs
---         where
---             go [] = []
---             go xs =  a:go b
---                 where
---                     (a,b) = P.splitAt len xs
---
---             size = length xs
---             len = size `div` n
---                 + if size `rem` n == 0 then 0 else 1
+    {-# INLINABLE (!) #-}
+    (!) :: s -> Index s -> Value s
+    (!) s i = case lookup i s of
+        Just x -> x
+        Nothing -> error "used (!) on an invalid index"
 
--- | This is an alternative definition for list partitioning.
--- It should be faster on large lists because it only requires one traversal.
--- But it also breaks parallelism for non-commutative operations.
-partition_noncommutative :: Int -> [a] -> [[a]]
-partition_noncommutative n xs = [map snd $ P.filter (\(i,x)->i `mod` n==j) ixs | j<-[0..n-1]]
-    where
-        ixs = addIndex 0 xs
-        addIndex i [] = []
-        addIndex i (x:xs) = (i,x):(addIndex (i+1) xs)
+    {-# INLINABLE findWithDefault #-}
+    findWithDefault :: Value s -> Index s -> s -> Value s
+    findWithDefault def i s = case s !? i of
+        Nothing -> def
+        Just e -> e
 
+    {-# INLINABLE hasIndex #-}
+    hasIndex :: Index s -> s -> Bool
+    hasIndex i s = case s !? i of
+        Nothing -> False
+        Just _ -> True
 
--- | Parallelizes any batch trainer to run over multiple processors on a single machine.
-{-# INLINE [2] parallelN #-}
-parallelN ::
-    ( Partitionable domain
-    , Monoid range
-    , NFData range
-    ) => Int -- ^ number of parallel threads
-      -> (domain -> range) -- ^ sequential batch trainer
-      -> (domain -> range) -- ^ parallel batch trainer
-parallelN n f = parfoldtree1 . parMap rdeepseq f . partition n
+    -- | FIXME: should the functions below be moved to other classes?
+    indices :: s -> [Index s]
+    values  :: s -> [Value s]
+    imap ::  (Index s -> Value s -> b) -> s -> SetValue s b
 
--- | Like foldtree1, but parallel
-parfoldtree1 :: Monoid a => [a] -> a
-parfoldtree1 as = case go as of
-    []  -> zero
-    [a] -> a
-    as  -> parfoldtree1 as
-    where
-        go []  = []
-        go [a] = [a]
-        go (a1:a2:as) = par a12 $ a12:go as
-            where
-                a12=a1+a2
+-- | An infix operator equivalent to 'lookup'
+{-# INLINABLE (!?) #-}
+(!?) :: IxContainer s => s -> Index s -> Maybe (Value s)
+(!?) s i = lookup i s
 
--- | Parallelizes any monoid homomorphism.
--- The function automatically detects the number of available processors and parallelizes the function accordingly.
--- This requires the use of unsafePerformIO, however, the result is safe.
-{-# INLINE [2] parallel #-}
-parallel ::
-    ( Partitionable domain
-    , Monoid range
-    , NFData range
-    ) => (domain -> range) -- ^ sequential batch trainer
-      -> (domain -> range) -- ^ parallel batch trainer
-parallel = if dopar
-    then parallelN numproc
-    else id
-    where
-        numproc = unsafePerformIO getNumCapabilities
-        dopar = numproc > 1
--}
-
--------------------
+--------------------------------------------------------------------------------
 
 type instance Scalar [a] = Int
 type instance Logic [a] = Logic a
@@ -2107,23 +1982,18 @@ instance ValidEq a => Container [a] where
 
     notElem = not elem
 
-
 instance Constructible [a] where
     singleton a = [a]
     cons x xs = x:xs
     fromList1 x xs = x:xs
     fromList1N _ x xs = x:xs
 
-instance Eq a => Unfoldable [a] where
-    null [] = true
-    null _  = false
-
 instance Foldable [a] where
-    unCons [] = Nothing
-    unCons (x:xs) = Just (x,xs)
+    uncons [] = Nothing
+    uncons (x:xs) = Just (x,xs)
 
-    unSnoc [] = Nothing
-    unSnoc xs = Just (P.init xs,P.last xs)
+    unsnoc [] = Nothing
+    unsnoc xs = Just (P.init xs,P.last xs)
 
     foldMap f s = concat $ map f s
 
@@ -2136,13 +2006,6 @@ instance Foldable [a] where
     foldl' = L.foldl'
     foldl1 = L.foldl1
     foldl1' = L.foldl1'
-
--- type instance Index [a] = Int
-
--- instance Indexed [a] where
---     (!!) [] _ = Nothing
---     (!!) (x:xs) 0 = Just x
---     (!!) (x:xs) i = xs !! (i-1)
 
 ----------------------------------------
 
@@ -2269,11 +2132,9 @@ instance (ClassicalLogic x, Ord_ x) => Ord_ (Labeled' x y) where
 
 -----
 
-instance MetricSpace x => MetricSpace (Labeled' x y) where
+instance Metric x => Metric (Labeled' x y) where
     distance (Labeled' x1 y1) (Labeled' x2 y2) = distance x1 x2
     distanceUB (Labeled' x1 y1) (Labeled' x2 y2) = distanceUB x1 x2
-    isFartherThan (Labeled' x1 y1) (Labeled' x2 y2) = isFartherThan x1 x2
-    isFartherThanWithDistanceCanError (Labeled' x1 y1) (Labeled' x2 y2) = isFartherThanWithDistanceCanError x1 x2
 
 instance Normed x => Normed (Labeled' x y) where
     size (Labeled' x _) = size x

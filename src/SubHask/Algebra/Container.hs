@@ -33,7 +33,7 @@ deriveHierarchy ''Jaccard
     [ ''Ord
     , ''Boolean
     , ''Ring
-    , ''FreeMonoid
+    , ''Foldable
     ]
 
 instance
@@ -42,7 +42,8 @@ instance
     , Normed a
     , Logic (Scalar a) ~ Logic a
     , Boolean (Logic a)
-    ) => MetricSpace (Jaccard a)
+    , HasScalar a
+    ) => Metric (Jaccard a)
         where
     distance (Jaccard xs) (Jaccard ys) = 1 - size (xs && ys) / size (xs || ys)
 
@@ -57,16 +58,16 @@ deriveHierarchy ''Hamming
     [ ''Ord
     , ''Boolean
     , ''Ring
-    , ''FreeMonoid
+    , ''Foldable
     ]
 
 instance
     ( Foldable a
     , Eq (Elem a)
     , Eq a
-    , Ord (Scalar a)
-    , Ring (Scalar a)
-    ) => MetricSpace (Hamming a)
+    , ClassicalLogic (Scalar a)
+    , HasScalar a
+    ) => Metric (Hamming a)
         where
 
     {-# INLINE distance #-}
@@ -81,13 +82,13 @@ instance
                 then 0
                 else 1
 
-    {-# INLINE isFartherThanWithDistanceCanError #-}
-    isFartherThanWithDistanceCanError (Hamming xs) (Hamming ys) dist =
-        {-# SCC isFartherThanWithDistance_Hamming #-}
+    {-# INLINE distanceUB #-}
+    distanceUB (Hamming xs) (Hamming ys) dist =
+        {-# SCC distanceUB_Hamming #-}
         go (toList xs) (toList ys) 0
         where
             go xs ys tot = if tot > dist
-                then errorVal
+                then tot
                 else go_ xs ys tot
                 where
                     go_ (x:xs) (y:ys) i = go xs ys $ i + if x==y
@@ -111,7 +112,7 @@ deriveHierarchy ''Levenshtein
     [ ''Ord
     , ''Boolean
     , ''Ring
-    , ''FreeMonoid
+    , ''Foldable
     ]
 
 instance
@@ -119,10 +120,10 @@ instance
     , Eq (Elem a)
     , Eq a
     , Show a
-    , Ord (Scalar a)
-    , Ring (Scalar a)
+    , HasScalar a
+    , ClassicalLogic (Scalar a)
     , Bounded (Scalar a)
-    ) => MetricSpace (Levenshtein a)
+    ) => Metric (Levenshtein a)
         where
 
     {-# INLINE distance #-}
@@ -171,17 +172,17 @@ newtype Uncompensated s = Uncompensated s
 deriveHierarchy ''Uncompensated
     [ ''Ord
     , ''Boolean
-    , ''InnerProductSpace
+    , ''Hilbert
     , ''Ring
-    , ''Unfoldable
+    , ''Constructible
     ]
 
 instance Foldable s => Foldable (Uncompensated s) where
-    unCons (Uncompensated s) = case unCons s of
+    uncons (Uncompensated s) = case uncons s of
         Nothing -> Nothing
         Just (x,xs) -> Just (x, Uncompensated xs)
 
-    unSnoc (Uncompensated s) = case unSnoc s of
+    unsnoc (Uncompensated s) = case unsnoc s of
         Nothing -> Nothing
         Just (xs,x) -> Just (Uncompensated xs,x)
 
@@ -211,14 +212,13 @@ instance Foldable s => Foldable (Uncompensated s) where
 -- FIXME: there are more container orderings that probably deserve implementation
 newtype Lexical a = Lexical { unLexical :: a }
 
-deriveHierarchy ''Lexical [ ''Eq_, ''Foldable, ''Unfoldable, ''Monoid ]
+deriveHierarchy ''Lexical [ ''Eq_, ''Foldable, ''Constructible, ''Monoid ]
 -- deriveHierarchy ''Lexical [ ''Eq_, ''Monoid ]
 
 instance
     (Logic a~Bool
     , Ord (Elem a)
     , Foldable a
-    , Unfoldable a
     , Eq_ a
     ) => POrd_ (Lexical a)
         where
@@ -235,10 +235,10 @@ instance
             go [] _  = True
             go _  [] = False
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a, Eq_ a) => MinBound_ (Lexical a) where
+instance (Logic a~Bool, Ord (Elem a), Foldable a, Eq_ a) => MinBound_ (Lexical a) where
     minBound = Lexical zero
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a, Eq_ a) => Lattice_ (Lexical a) where
+instance (Logic a~Bool, Ord (Elem a), Foldable a, Eq_ a) => Lattice_ (Lexical a) where
     sup a1 a2 = if a1>a2 then a1 else a2
 
     (Lexical a1)>(Lexical a2) = go (toList a1) (toList a2)
@@ -252,13 +252,13 @@ instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a, Eq_ a) => Lattic
             go [] _  = False
             go _  [] = True
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Unfoldable a, Eq_ a) => Ord_ (Lexical a) where
+instance (Logic a~Bool, Ord (Elem a), Foldable a, Eq_ a) => Ord_ (Lexical a) where
 
 ---------------------------------------
 
 newtype ComponentWise a = ComponentWise { unComponentWise :: a }
 
-deriveHierarchy ''ComponentWise [ ''Eq_, ''Foldable, ''Unfoldable, ''Monoid ]
+deriveHierarchy ''ComponentWise [ ''Eq_, ''Foldable, ''Monoid ]
 -- deriveHierarchy ''ComponentWise [ ''Monoid ]
 
 class (Boolean (Logic a), Logic (Elem a) ~ Logic a) => SimpleContainerLogic a
@@ -267,16 +267,16 @@ instance (Boolean (Logic a), Logic (Elem a) ~ Logic a) => SimpleContainerLogic a
 -- instance (SimpleContainerLogic a, Eq_ (Elem a), Foldable a) => Eq_ (ComponentWise a) where
 --     (ComponentWise a1)==(ComponentWise a2) = toList a1==toList a2
 
-instance (SimpleContainerLogic a, Eq_ a, POrd_ (Elem a), Foldable a, Unfoldable a) => POrd_ (ComponentWise a) where
+instance (SimpleContainerLogic a, Eq_ a, POrd_ (Elem a), Foldable a) => POrd_ (ComponentWise a) where
     inf (ComponentWise a1) (ComponentWise a2) = fromList $ go (toList a1) (toList a2)
         where
             go (x:xs) (y:ys) = inf x y:go xs ys
             go _ _ = []
 
-instance (SimpleContainerLogic a, Eq_ a, POrd_ (Elem a), Foldable a, Unfoldable a) => MinBound_ (ComponentWise a) where
+instance (SimpleContainerLogic a, Eq_ a, POrd_ (Elem a), Foldable a) => MinBound_ (ComponentWise a) where
     minBound = ComponentWise zero
 
-instance (SimpleContainerLogic a, Eq_ a, Lattice_ (Elem a), Foldable a, Unfoldable a) => Lattice_ (ComponentWise a) where
+instance (SimpleContainerLogic a, Eq_ a, Lattice_ (Elem a), Foldable a) => Lattice_ (ComponentWise a) where
     sup (ComponentWise a1) (ComponentWise a2) = fromList $ go (toList a1) (toList a2)
         where
             go (x:xs) (y:ys) = sup x y:go xs ys

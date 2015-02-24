@@ -74,7 +74,7 @@ instance
     , Normed r
     , Ord r
     , IsScalar r
-    ) => MetricSpace (Match v r)
+    ) => Metric (Match v r)
         where
 
     distance (Match v1) (Match v2) = go 0 0 0 0
@@ -151,7 +151,7 @@ instance
     , Normed r
     , Ord r
     , IsScalar r
-    ) => MetricSpace (HistogramIntersection v r)
+    ) => Metric (HistogramIntersection v r)
         where
 
     {-# INLINE distance #-}
@@ -232,7 +232,7 @@ instance
     , IsScalar r
     , r ~ Scalar (v r)
     , Ord (Scalar (v r))
-    ) => MetricSpace (Xi2 v r)
+    ) => Metric (Xi2 v r)
         where
 
     {-# INLINE distance #-}
@@ -315,7 +315,7 @@ instance
     , IsScalar r
     , r ~ Scalar (v r)
     , Ord (Scalar (v r))
-    ) => MetricSpace (JensenShannonDivergence v r)
+    ) => Metric (JensenShannonDivergence v r)
         where
 
     {-# INLINE distance #-}

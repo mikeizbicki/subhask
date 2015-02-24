@@ -97,11 +97,10 @@ instance
     , Normed r
     , Ord r
     , IsScalar r
-    ) => MetricSpace (L1 v r)
+    ) => Metric (L1 v r)
         where
--- instance (VG.Unbox r, RealFrac r,Floating r) => MetricSpace (L1 VG.Vector r) where
+-- instance (VG.Unbox r, RealFrac r,Floating r) => Metric (L1 VG.Vector r) where
     {-# INLINABLE distance #-}
-    {-# INLINABLE isFartherThan #-}
 
     distance !(L1 v1) !(L1 v2) = go 0 (VG.length v1-1)
         where
@@ -109,15 +108,6 @@ instance
             go tot i = go (tot+(abs $ v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)) (i-1)
 --             go tot i = go (tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
 --                               *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)) (i-1)
-
-    isFartherThan !(L1 v1) !(L1 v2) !dist = go 0 (VG.length v1-1)
-        where
-            go tot (-1) = False
-            go tot i = if tot'>dist
-                then True
-                else go tot' (i-1)
-                where
-                    tot' = tot+(abs $ v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
 
 -------------------------------------------------------------------------------
 -- L2
@@ -185,17 +175,14 @@ instance
     , Normed r
     , Ord r
     , IsScalar r
-    ) => MetricSpace (L2 v r)
+    ) => Metric (L2 v r)
         where
 
     {-# INLINE[1] distance #-}
-    distance v1 v2 = distance_l2_hask v1 v2
-
-    {-# INLINE[1] isFartherThanWithDistanceCanError #-}
-    isFartherThanWithDistanceCanError v1 v2 = isFartherThan_l2_hask v1 v2
+    distance = distance_l2_hask
 
     {-# INLINE[1] distanceUB #-}
-    distanceUB (L2 v1) (L2 v2) !dist = {-# SCC l2_distanceUB #-}
+    distanceUB (L2 v1) (L2 v2) !dist = {-# SCC distanceUB_l2_hask #-}
         go 0 0
         where
             dist2=dist*dist
@@ -225,8 +212,15 @@ instance
                     tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
                               *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
 
-{-# INLINE[1] distance_l2_hask #-}
-distance_l2_hask (L2 v1) (L2 v2) = {-# SCC l2_distance_hask #-} sqrt $ go 0 0
+distance_l2_hask ::
+    ( VG.Vector v r
+    , Eq (v r)
+    , Floating r
+    , Normed r
+    , Ord r
+    , IsScalar r
+    ) => L2 v r -> L2 v r -> r
+distance_l2_hask (L2 v1) (L2 v2) = {-# SCC distance_l2_hask #-} sqrt $ go 0 0
     where
         go !tot !i =  if i>VG.length v1-4
             then goEach tot i
@@ -248,39 +242,6 @@ distance_l2_hask (L2 v1) (L2 v2) = {-# SCC l2_distance_hask #-} sqrt $ go 0 0
             where
                 tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
                           *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-
-{-# INLINE[1] isFartherThan_l2_hask #-}
-isFartherThan_l2_hask (L2 v1) (L2 v2) !dist = {-# SCC l2_isFartherThan_hask #-}
-    sqrt $ go 0 0
-    where
-        dist2=dist*dist
-
-        go !tot !i = if i>VG.length v1-4
-            then goEach tot i
-            else if tot'>dist2
-                then errorVal
-                else go tot' (i+4)
-            where
-                tot' = tot
-                    +(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-                    *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-                    +(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
-                    *(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
-                    +(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
-                    *(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
-                    +(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
-                    *(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
-
-        goEach !tot !i = if i>= VG.length v1
-            then tot
-            else if tot'>dist2
-                then errorVal
-                else goEach tot' (i+1)
-            where
-                tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-                          *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
-
-
 --------------------------------------------------------------------------------
 
 -- {-# RULES
@@ -345,23 +306,23 @@ instance Integral IntPtr where
 foreign import ccall unsafe "isFartherThan_l2_m128" isFartherThan_l2_m128_
     :: Ptr Float -> Ptr Float -> Int -> Float -> IO Float
 
-isFartherThan_l2_m128_storable :: L2 Vector Float -> L2 Vector Float -> Float -> Float
-isFartherThan_l2_m128_storable (L2 v1) (L2 v2) dist = unsafeDupablePerformIO $
-    withForeignPtr fp1 $ \p1 ->
-    withForeignPtr fp2 $ \p2 ->
-        isFartherThan_l2_m128_ p1 p2 n1 dist
-    where
-        (fp1,n1) = VS.unsafeToForeignPtr0 v1
-        (fp2,n2) = VS.unsafeToForeignPtr0 v2
-
-isFartherThan_l2_m128_unboxed :: L2 UnboxedVector Float -> L2 UnboxedVector Float -> Float -> Float
-isFartherThan_l2_m128_unboxed (L2 v1) (L2 v2) dist = {-# SCC l2_isFartherThan_m128_unboxed  #-}
-    if n1>=64 && ptrToIntPtr p1 `mod` 16 == 0 && ptrToIntPtr p2 `mod` 16 == 0
-        then unsafeDupablePerformIO $ isFartherThan_l2_m128_ p1 p2 n1 dist
-        else isFartherThan_l2_hask (L2 v1) (L2 v2) dist
-    where
-        (p1,n1) = unsafeUV2Ptr v1
-        (p2,n2) = unsafeUV2Ptr v2
+-- isFartherThan_l2_m128_storable :: L2 Vector Float -> L2 Vector Float -> Float -> Float
+-- isFartherThan_l2_m128_storable (L2 v1) (L2 v2) dist = unsafeDupablePerformIO $
+--     withForeignPtr fp1 $ \p1 ->
+--     withForeignPtr fp2 $ \p2 ->
+--         isFartherThan_l2_m128_ p1 p2 n1 dist
+--     where
+--         (fp1,n1) = VS.unsafeToForeignPtr0 v1
+--         (fp2,n2) = VS.unsafeToForeignPtr0 v2
+--
+-- isFartherThan_l2_m128_unboxed :: L2 UnboxedVector Float -> L2 UnboxedVector Float -> Float -> Float
+-- isFartherThan_l2_m128_unboxed (L2 v1) (L2 v2) dist = {-# SCC l2_isFartherThan_m128_unboxed  #-}
+--     if n1>=64 && ptrToIntPtr p1 `mod` 16 == 0 && ptrToIntPtr p2 `mod` 16 == 0
+--         then unsafeDupablePerformIO $ isFartherThan_l2_m128_ p1 p2 n1 dist
+--         else isFartherThan (L2 v1) (L2 v2) dist
+--     where
+--         (p1,n1) = unsafeUV2Ptr v1
+--         (p2,n2) = unsafeUV2Ptr v2
 
 foreign import ccall unsafe "distance_l2_float" distance_l2_float_
     :: Ptr Float -> Ptr Float -> Int -> IO Float
@@ -488,10 +449,10 @@ instance
     , Normed r
     , Ord r
     , IsScalar r
-    ) => MetricSpace (Linf v r)
+    ) => Metric (Linf v r)
         where
 
--- instance (VG.Unbox r, RealFrac r,Floating r) => MetricSpace (Linf VG.Vector r) where
+-- instance (VG.Unbox r, RealFrac r,Floating r) => Metric (Linf VG.Vector r) where
     {-# INLINABLE distance #-}
     {-# INLINABLE isFartherThan #-}
 

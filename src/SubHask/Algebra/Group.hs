@@ -20,7 +20,7 @@ import SubHask.TemplateHaskell.Deriving
 
 newtype NonNegative t = NonNegative { unNonNegative :: t }
 
-deriveHierarchy ''NonNegative [ ''Enum, ''Boolean, ''Rig, ''MetricSpace ]
+deriveHierarchy ''NonNegative [ ''Enum, ''Boolean, ''Rig, ''Metric ]
 
 -- instance (Ord t, Group t) => Cancellative (NonNegative t) where
 --     (NonNegative t1)-(NonNegative t2) = if diff>zero

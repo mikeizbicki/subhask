@@ -61,13 +61,11 @@ instance Constructible (ByteString Lazy Char) where
     fromList1 x xs = BSLC $ BS.pack (x:xs)
     singleton = BSLC . BS.singleton
 
-instance Unfoldable (ByteString Lazy Char)
-
 instance Normed (ByteString Lazy Char) where
     size (BSLC xs) = fromIntegral $ P.toInteger $ BS.length xs
 
 instance Foldable (ByteString Lazy Char) where
-    unCons (BSLC xs) = case BS.uncons xs of
+    uncons (BSLC xs) = case BS.uncons xs of
         Nothing -> Nothing
         Just (x,xs) -> Just (x,BSLC xs)
 
@@ -113,7 +111,7 @@ readFileByteString = fmap BSLC . BS.readFile
 -- Then move this into Algebra.Containers
 newtype PartitionOnNewline a = PartitionOnNewline a
 
-deriveHierarchy ''PartitionOnNewline [''Monoid,''Boolean,''FreeMonoid]
+deriveHierarchy ''PartitionOnNewline [''Monoid,''Boolean,''Foldable]
 
 instance (a~ByteString Lazy Char, Partitionable a) => Partitionable (PartitionOnNewline a) where
     partition n (PartitionOnNewline xs) = map PartitionOnNewline $ go $ partition n xs

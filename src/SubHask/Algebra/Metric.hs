@@ -15,7 +15,7 @@ import System.IO
 -- |
 --
 -- Useful for identifying tree metrics.
-printTriDistances :: (Show (Scalar m), MetricSpace m) => m -> m -> m -> IO ()
+printTriDistances :: (Show (Scalar m), Metric m) => m -> m -> m -> IO ()
 printTriDistances m1 m2 m3 = do
     putStrLn $ show (distance m1 m2) ++ " <= " + show (distance m2 m3 + distance m1 m3)
     putStrLn $ show (distance m1 m3) ++ " <= " + show (distance m2 m3 + distance m1 m2)
@@ -24,7 +24,7 @@ printTriDistances m1 m2 m3 = do
 -- | There are three distinct perfect matchings in every complete 4 node graph.
 -- A metric is a tree metric iff two of these perfect matchings have the same weight.
 -- This is called the 4 points condition.
--- printQuadDistances :: (Ord (Scalar m), Show (Scalar m), MetricSpace m) => m -> m -> m -> m -> IO ()
+-- printQuadDistances :: (Ord (Scalar m), Show (Scalar m), Metric m) => m -> m -> m -> m -> IO ()
 printQuadDistances m1 m2 m3 m4 = do
     forM_ xs $ \(match,dist) -> do
         putStrLn $ match ++ " = " ++ show dist
@@ -69,24 +69,24 @@ type instance Elem (Box v) = v
 instance (Eq v, Eq (Scalar v)) => Eq_ (Box v) where
     b1==b2 = smallest b1 == smallest b2 && largest b1 == largest b2
 
-instance (Lattice v, MetricSpace v) => POrd_ (Box v) where
+instance (Lattice v, Metric v) => POrd_ (Box v) where
     inf b1 b2 = Box
         { smallest = sup (smallest b1) (smallest b2)
         , largest = inf (largest b1) (largest b2)
         }
 
-instance (Lattice v, MetricSpace v) => Lattice_ (Box v) where
+instance (Lattice v, Metric v) => Lattice_ (Box v) where
     sup b1 b2 = Box
         { smallest = inf (smallest b1) (smallest b2)
         , largest = sup (largest b1) (largest b2)
         }
 
-instance (Lattice v, MetricSpace v) => Semigroup (Box v) where
+instance (Lattice v, Metric v) => Semigroup (Box v) where
     (+) = inf
 
 -- FIXME: This can't be a PreContainer because of the Normed requirement
 --
--- instance (Lattice v, MetricSpace v) => PreContainer (Box v) where
+-- instance (Lattice v, Metric v) => PreContainer (Box v) where
 --     elem e b = e >= smallest b && e <= largest b
 --     notElem = not elem
 
@@ -106,7 +106,7 @@ type instance Logic (OpenBall v) = Logic v
 instance (Eq v, Eq (Scalar v)) => Eq_ (OpenBall v) where
     b1 == b2 = radius b1 == radius b2 && center b1 == center b2
 
-instance (Logic v~Bool, MetricSpace v) => Semigroup (OpenBall v) where
+instance (Logic v~Bool, Metric v) => Semigroup (OpenBall v) where
     b1+b2 = b1' { radius = distance (center b1') (center b2') + radius b2' }
         where
             (b1',b2') = if radius b1 > radius b2

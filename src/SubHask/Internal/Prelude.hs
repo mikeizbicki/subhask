@@ -12,6 +12,10 @@ module SubHask.Internal.Prelude
     , FilePath
     , Char
     , Int
+    , Int8
+    , Int16
+    , Int32
+    , Int64
     , Integer
     , Float
     , Double
@@ -60,6 +64,7 @@ import Data.Proxy
 import Data.Traversable
 import GHC.TypeLits
 import GHC.Exts
+import GHC.Int
 import Prelude
 import Test.QuickCheck.Arbitrary
 import Foreign.Storable

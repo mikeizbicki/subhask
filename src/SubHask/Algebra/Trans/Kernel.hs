@@ -27,7 +27,7 @@ instance
     , Floating (Scalar v)
     , VectorSpace v
     , Eq v
-    ) => MetricSpace (WithKernel k v)
+    ) => Metric (WithKernel k v)
         where
     distance (WithKernel k v1) (WithKernel _ v2) = kernel2distance k v1 v2
 
@@ -45,7 +45,7 @@ deriveHierarchy ''Polynomial
     , ''VectorSpace
     ]
 
-instance (KnownNat n, InnerProductSpace v) => MetricSpace (Polynomial n v) where
+instance (KnownNat n, Hilbert v) => Metric (Polynomial n v) where
     distance = kernel2distance polykernel
         where
             polykernel (Polynomial v1) (Polynomial v2) = (1+v1<>v2)**n
@@ -62,7 +62,7 @@ deriveHierarchy ''ExponentialKernel
     , ''VectorSpace
     ]
 
-instance (KnownNat n, InnerProductSpace v) => MetricSpace (ExponentialKernel n v) where
+instance (KnownNat n, Hilbert v) => Metric (ExponentialKernel n v) where
     distance = kernel2distance rbf
         where
             rbf (ExponentialKernel v1) (ExponentialKernel v2) = exp $ -(size $ v1 - v2) / sigma2
@@ -79,7 +79,7 @@ deriveHierarchy ''RBF
     , ''VectorSpace
     ]
 
-instance (KnownNat n, InnerProductSpace v) => MetricSpace (RBF n v) where
+instance (KnownNat n, Hilbert v) => Metric (RBF n v) where
     distance = kernel2distance rbf
         where
             rbf (RBF v1) (RBF v2) = exp $ -(size $ v1 - v2)**2 / sigma2
@@ -96,7 +96,7 @@ deriveHierarchy ''Sigmoid
     , ''VectorSpace
     ]
 
-instance (InnerProductSpace v) => MetricSpace (Sigmoid n v) where
+instance (Hilbert v) => Metric (Sigmoid n v) where
     distance = kernel2distance sigmoid
         where
             sigmoid (Sigmoid v1) (Sigmoid v2) = tanh $ alpha * v1<>v2 + beta

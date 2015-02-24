@@ -141,10 +141,22 @@ instance
     , HM.Numeric r
     , P.Eq r
     , IsScalar r
+    , Field r
+    , Floating r
+    , Normed r
+    , ClassicalLogic r
+    ) => Banach (Matrix r)
+
+instance
+    ( HM.Container HM.Matrix r
+    , HM.Product r
+    , HM.Numeric r
+    , P.Eq r
+    , IsScalar r
     , Floating r
     , Normed r
     , Logic r~Bool
-    ) => InnerProductSpace (Matrix r)
+    ) => Hilbert (Matrix r)
         where
     Zero <> _ = 0
     _ <> Zero = 0
@@ -162,7 +174,7 @@ instance
     , Floating r
     , Normed r
     , Logic r~Bool
-    ) => MetricSpace (Matrix r)
+    ) => Metric (Matrix r)
         where
     distance m1 m2 = innerProductDistance m2 m2
 

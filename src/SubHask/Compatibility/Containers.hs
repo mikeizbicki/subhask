@@ -64,19 +64,17 @@ instance Constructible (Seq a) where
 
     fromList1 x xs = Seq $ Seq.fromList (x:xs)
 
-instance Unfoldable (Seq a)
-
 instance ValidEq a => Foldable (Seq a) where
 
     toList (Seq a) = F.toList a
 
-    {-# INLINE unCons #-}
-    unCons (Seq a) = if Seq.null a
+    {-# INLINE uncons #-}
+    uncons (Seq a) = if Seq.null a
         then Nothing
         else Just (Seq.index a 0, Seq $ Seq.drop 1 a)
 
-    {-# INLINE unSnoc #-}
-    unSnoc (Seq v) = if Seq.null v
+    {-# INLINE unsnoc #-}
+    unsnoc (Seq v) = if Seq.null v
         then Nothing
         else Just (Seq $ Seq.take (Seq.length v-1) v, Seq.index v 0)
 
@@ -128,6 +126,8 @@ newtype Map k v = Map (M.Map (WithPreludeOrd k) (WithPreludeOrd v))
 
 type instance Scalar (Map k v) = Int
 type instance Logic (Map k v) = Bool
+type instance Value (Map k v) = v
+type instance Index (Map k v) = k
 type instance Elem (Map k v) = (k,v)
 
 instance (Eq v, Ord k, Semigroup v, Arbitrary k, Arbitrary v) => Arbitrary (Map k v) where
@@ -162,16 +162,20 @@ instance (Ord k, Eq v) => Container (Map k v) where
 instance (Ord k, Eq v) => Constructible (Map k v) where
     singleton (k,v) = Map $ M.singleton (WithPreludeOrd k) (WithPreludeOrd v)
 
-instance (Ord k, Eq v) => Unfoldable (Map k v)
-
 instance (Ord k, POrd v) => MinBound_ (Map k v) where
     minBound = zero
 
--- instance (Ord k, Eq v) => Indexed (Map k v) where
---     (Map m) !! k = P.fmap unWithPreludeOrd $ M.lookup (WithPreludeOrd k) m
---     hasIndex k (Map m) = M.member (WithPreludeOrd k) m
---     indices (Map m) = map unWithPreludeOrd $ M.keys m
---     values (Map m) = map unWithPreludeOrd $ M.elems m
+----------
+
+instance (Ord k, Eq v) => IxConstructible (Map k v) where
+   singletonAt k v = Map $ M.singleton (WithPreludeOrd k) (WithPreludeOrd v)
+   insertAt k v (Map m) = Map $ M.insert (WithPreludeOrd k) (WithPreludeOrd v) m
+
+instance (Ord k, Eq v) => IxContainer (Map k v) where
+    lookup k (Map m) = P.fmap unWithPreludeOrd $ M.lookup (WithPreludeOrd k) m
+    hasIndex k (Map m) = M.member (WithPreludeOrd k) m
+    indices (Map m) = map unWithPreludeOrd $ M.keys m
+    values (Map m) = map unWithPreludeOrd $ M.elems m
 
 ----------------------------------------
 -- | This is a thin wrapper around Data.Map.Strict
@@ -182,6 +186,10 @@ newtype Map' k v = Map' (MS.Map (WithPreludeOrd k) (WithPreludeOrd v))
 type instance Scalar (Map' k v) = Int
 type instance Logic (Map' k v) = Bool
 type instance Elem (Map' k v) = (k,v)
+
+type instance Index (Map' k v) = k
+type instance Value (Map' k v) = v
+type instance SetValue (Map' k v) v' = Map' k v'
 
 instance (Eq v, Ord k, Semigroup v, Arbitrary k, Arbitrary v) => Arbitrary (Map' k v) where
     arbitrary = P.fmap fromList arbitrary
@@ -216,16 +224,20 @@ instance (Ord k, Eq v) => Constructible (Map' k v) where
     singleton (k,v) = Map' $ MS.singleton (WithPreludeOrd k) (WithPreludeOrd v)
     fromList1 x xs = Map' $ MS.fromList $ map (\(k,v) -> (WithPreludeOrd k,WithPreludeOrd v)) $ P.reverse (x:xs)
 
-instance (Ord k, Eq v) => Unfoldable (Map' k v)
-
 instance (Ord k, POrd v) => MinBound_ (Map' k v) where
     minBound = zero
 
-type instance Index (Map' k v) = k
-type instance Value (Map' k v) = v
-type instance SetValue (Map' k v) v' = Map' k v'
+instance (Ord k, Eq v) => Foldable (Map' k v) where
+    toList (Map' m) = map (\(WithPreludeOrd k,WithPreludeOrd v) -> (k,v))
+                    $ MS.toList m
 
-instance (Ord k, Eq v) => Indexed (Map' k v) where
+----------
+
+instance (Ord k, Eq v) => IxConstructible (Map' k v) where
+   singletonAt k v = Map' $ MS.singleton (WithPreludeOrd k) (WithPreludeOrd v)
+   insertAt k v (Map' m) = Map' $ MS.insert (WithPreludeOrd k) (WithPreludeOrd v) m
+
+instance (Ord k, Eq v) => IxContainer (Map' k v) where
     lookup k (Map' m) = P.fmap unWithPreludeOrd $ MS.lookup (WithPreludeOrd k) m
     hasIndex k (Map' m) = MS.member (WithPreludeOrd k) m
 
@@ -234,21 +246,6 @@ instance (Ord k, Eq v) => Indexed (Map' k v) where
     imap f (Map' m) = Map' $ MS.mapWithKey go m
         where
             go (WithPreludeOrd k) (WithPreludeOrd v) = WithPreludeOrd $ f k v
-
-mapLookup :: Ord k => k -> Map' k v -> Maybe v
-mapLookup k (Map' m) = case MS.lookup (WithPreludeOrd k) m of
-    Nothing -> Nothing
-    Just (WithPreludeOrd v) -> Just v
-
-mapIndices :: (Ord k1, Ord k2) => (k1 -> k2) -> Map' k1 v -> Map' k2 v
-mapIndices f (Map' m) = Map' $ MS.mapKeys (\(WithPreludeOrd k) -> WithPreludeOrd $ f k) m
-
-mapValues :: (Ord k, Eq v1, Eq v2) => (v1 -> v2) -> Map' k v1 -> Map' k v2
-mapValues f (Map' m) = Map' $ MS.map (\(WithPreludeOrd v) -> WithPreludeOrd $ f v) m
-
-instance (Ord k, Eq v) => Foldable (Map' k v) where
-    toList (Map' m) = map (\(WithPreludeOrd k,WithPreludeOrd v) -> (k,v))
-                    $ MS.toList m
 
 -------------------------------------------------------------------------------
 -- | This is a thin wrapper around the container's set type
@@ -300,8 +297,6 @@ instance Ord a => Constructible (Set a) where
 
     fromList1 a as = Set $ Set.fromList $ map WithPreludeOrd (a:as)
 
-instance Ord a => Unfoldable (Set a)
-
 instance Ord a => Foldable (Set a) where
     foldl   f a (Set s) = Set.foldl   (\a (WithPreludeOrd e) -> f a e) a s
     foldl'  f a (Set s) = Set.foldl'  (\a (WithPreludeOrd e) -> f a e) a s
@@ -351,8 +346,6 @@ instance (Ord a ) => Container (LexSet a) where
 
 instance (Ord a ) => Constructible (LexSet a) where
     fromList1 a as = LexSet $ fromList1 a as
-
-instance (Ord a ) => Unfoldable (LexSet a)
 
 instance (Ord a ) => Normed (LexSet a) where
     size (LexSet s) = size s

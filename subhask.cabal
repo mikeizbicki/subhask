@@ -42,10 +42,12 @@ library
         SubHask.Category.Trans.Monotonic
 
         SubHask.Compatibility.Base
+        SubHask.Compatibility.BloomFilter
         SubHask.Compatibility.ByteString
         SubHask.Compatibility.Cassava
         SubHask.Compatibility.Containers
         SubHask.Compatibility.HMatrix
+        SubHask.Compatibility.HyperLogLog
         SubHask.Compatibility.Vector
         SubHask.Compatibility.Vector.HistogramMetrics
         SubHask.Compatibility.Vector.Lebesgue
@@ -114,12 +116,20 @@ library
         deepseq         >= 1.3,
         primitive       >= 0.5.3,
 
-        -- compatibility layes
+        -- compatibility layers
         bytestring      >= 0.10.4,
         cassava         >= 0.4.1,
         containers      >= 0.5,
         vector          >= 0.10.0,
-        hmatrix         >= 0.16.0.5,
+        hmatrix         == 0.16.0.5,
+        bloomfilter     == 2.0.0.0,
+        hyperloglog     == 0.3,
+
+        -- required for hyperloglog compatibility
+        semigroups      == 0.15.2,
+        bytes           == 0.14.1.3,
+        approximate     == 0.2.1.1,
+        lens            == 4.4.0.2,
 
         -- testing
         QuickCheck      >= 2.7,

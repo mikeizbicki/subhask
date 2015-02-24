@@ -25,7 +25,7 @@ import Debug.Trace
 -- instance Show a => Show (With a)
 -- instance Read a => Read (With a)
 -- instance NFData a => NFData (With a)
--- deriveHierarchy ''With [ ''Enum, ''Boolean, ''Ring, ''MetricSpace ]
+-- deriveHierarchy ''With [ ''Enum, ''Boolean, ''Ring, ''Metric ]
 
 -- instance Eq a => P.Eq (With a) where
 --     (==) = undefined
@@ -51,7 +51,7 @@ instance Show a => Show (WithPreludeOrd a) where
 
 -- | FIXME: for some reason, our deriving mechanism doesn't work on Show here;
 -- It causes's Set's show to enter an infinite loop
-deriveHierarchyFiltered ''WithPreludeOrd [ ''Eq_, ''Enum, ''Boolean, ''Ring, ''MetricSpace ] [ ''Show ]
+deriveHierarchyFiltered ''WithPreludeOrd [ ''Eq_, ''Enum, ''Boolean, ''Ring, ''Metric ] [ ''Show ]
 
 instance Eq a => P.Eq (WithPreludeOrd a) where
     a==b = a==b
