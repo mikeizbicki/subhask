@@ -203,8 +203,8 @@ newtype ArrayT v r = ArrayT { unArrayT :: v r }
 
 type instance Scalar (ArrayT v r) = Int
 type instance Logic (ArrayT v r) = Logic r
--- type instance Logic (ArrayT v r) = Logic (v r)
 type instance Elem (ArrayT v r) = r
+type instance SetElem (ArrayT v r) r' = ArrayT v r'
 
 instance ValidVector v r => Eq_ (ArrayT v r) where
     (ArrayT v1)==(ArrayT v2) = v1==v2
@@ -343,11 +343,9 @@ instance (Eq (v r), POrd r, ValidVector v r) => POrd_ (ArrayT v r) where
 instance (Eq (v r), POrd r, ValidVector v r) => MinBound_ (ArrayT v r) where
     minBound = zero
 
-type instance SetValue (ArrayT v s) s' = ArrayT v s'
-type instance Value (ArrayT v s) = s
 type instance Index (ArrayT v s) = Int
 
-instance IxContainer (Array s) where
+instance (Eq_ s, Complemented (Logic s)) => IxContainer (Array s) where
     lookup i s = s VG.!? i
     indices s = [0..VG.length s-1]
     values = VG.toList

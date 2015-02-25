@@ -67,8 +67,10 @@ main = defaultMain
         , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Set           Char |] [ ''Foldable,''MinBound ] )
         , $( mkSpecializedClassTests [t| Seq           Char |] [ ''Foldable,''MinBound,''Partitionable ] )
-        , $( mkSpecializedClassTests [t| Map  Char Int |] [ ''POrd, ''IxContainer ] )
-        , $( mkSpecializedClassTests [t| Map' Char Int |] [ ''POrd, ''IxContainer ] )
+        , $( mkSpecializedClassTests [t| Map  Int Int |] [ ''MinBound, ''IxConstructible ] )
+        , $( mkSpecializedClassTests [t| Map' Int Int |] [ ''MinBound, ''IxContainer ] )
+        , $( mkSpecializedClassTests [t| IntMap  Int |] [ ''MinBound, ''IxContainer ] )
+        , $( mkSpecializedClassTests [t| IntMap' Int |] [ ''MinBound, ''IxContainer ] )
         , $( mkSpecializedClassTests [t| ByteString Lazy Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , testGroup "transformers"
             [ $( mkSpecializedClassTests [t| Lexical        [Char] |] [''Ord,''MinBound] )

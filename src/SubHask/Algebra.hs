@@ -92,27 +92,23 @@ module SubHask.Algebra
 
     -- * Set-like
     , Elem
+    , SetElem
     , Container (..)
     , law_Container_preservation
---     , law_Unfoldable_empty
---     , defn_Container_sizeDisjoint
 
     , Constructible (..)
+    , law_Constructible_singleton
+    , defn_Constructible_cons
+    , defn_Constructible_snoc
+    , defn_Constructible_fromList
+    , defn_Constructible_fromListN
+    , theorem_Constructible_cons
     , fromString
     , fromList
     , fromListN
     , insert
     , empty
     , isEmpty
-    , defn_Constructible_cons
-    , defn_Constructible_snoc
-    , defn_Constructible_fromList
-    , defn_Constructible_fromListN
---     , law_Constructible_MonoidMinBound
---     , law_Constructible_MonoidNormed
---     , defn_Constructible_infDisjoint
-    , law_Constructible_singleton
-    , theorem_Constructible_cons
 
     , Foldable (..)
     , foldtree1
@@ -128,13 +124,18 @@ module SubHask.Algebra
     , Index
     , SetIndex
 
-    , Value
-    , SetValue
-
-    , IxConstructible (..)
     , IxContainer (..)
+    , law_IxContainer_preservation
+    , defn_IxContainer_bang
+    , defn_IxContainer_findWithDefault
+    , defn_IxContainer_hasIndex
     , (!?)
 
+    , IxConstructible (..)
+    , law_IxConstructible_lookup
+    , defn_IxConstructible_consAt
+    , defn_IxConstructible_snocAt
+    , defn_IxConstructible_fromIxList
 
     -- * Maybe
     , CanError (..)
@@ -155,10 +156,9 @@ module SubHask.Algebra
     , Abelian (..)
     , law_Abelian_commutative
     , Group (..)
-    , defn_Group_negateminus
     , law_Group_leftinverse
     , law_Group_rightinverse
---     , AbelianGroup
+    , defn_Group_negateminus
 
     -- ** Classes with two operators
     , Rg(..)
@@ -1739,20 +1739,6 @@ law_Constructible_singleton s e = elem e $ singleton e `asTypeOf` s
 theorem_Constructible_cons :: Container s => s -> Elem s -> Logic s
 theorem_Constructible_cons s e = elem e (cons e s)
 
--- |
---
--- FIXME:
--- This is a correct definition of topologies, but is it useful?
--- How can this relate to continuous functions?
-class (Boolean (Logic s), Boolean s, Container s) => Topology s where
-    open :: s -> Logic s
-
-    closed :: s -> Logic s
-    closed s = open $ not s
-
-    clopen :: s -> Logic s
-    clopen = open && closed
-
 -- | Provides inverse operations for "Unfoldable".
 class (Constructible s, Monoid s) => Foldable s where
 
@@ -1903,46 +1889,155 @@ lastMaybe = P.fmap snd . unsnoc
 initMaybe :: Foldable s => s -> Maybe s
 initMaybe = P.fmap fst . unsnoc
 
+-- |
+--
+-- FIXME:
+-- This is a correct definition of topologies, but is it useful?
+-- How can this relate to continuous functions?
+class (Boolean (Logic s), Boolean s, Container s) => Topology s where
+    open :: s -> Logic s
+
+    closed :: s -> Logic s
+    closed s = open $ not s
+
+    clopen :: s -> Logic s
+    clopen = open && closed
+
 ----------------------------------------
 
 type family Index s
-type family Value s
-type family SetValue s a
 type family SetIndex s a
 
-class IxConstructible s where
-    singletonAt :: Index s -> Value s -> s
-    insertAt    :: Index s -> Value s -> s -> s
-
-class IxContainer s where
-    lookup :: Index s -> s -> Maybe (Value s)
+-- | An indexed constructible container associates an 'Index' with each 'Elem'.
+-- This class generalizes the map abstract data type.
+--
+-- There are two differences in the indexed hierarchy of containers from the standard hierarchy.
+--   1. 'IxConstructible' requires a 'Monoid' constraint whereas 'Constructible' requires a 'Semigroup' constraint because there are no valid 'IxConstructible's (that I know of at least) that are not also 'Monoid's.
+--   2. Many regular containers are indexed containers, but not the other way around.
+--      So the class hierarchy is in a different order.
+--
+class (ValidLogic s, Monoid s) => IxContainer s where
+    lookup :: Index s -> s -> Maybe (Elem s)
 
     {-# INLINABLE (!) #-}
-    (!) :: s -> Index s -> Value s
+    (!) :: s -> Index s -> Elem s
     (!) s i = case lookup i s of
         Just x -> x
         Nothing -> error "used (!) on an invalid index"
 
     {-# INLINABLE findWithDefault #-}
-    findWithDefault :: Value s -> Index s -> s -> Value s
+    findWithDefault :: Elem s -> Index s -> s -> Elem s
     findWithDefault def i s = case s !? i of
         Nothing -> def
         Just e -> e
 
     {-# INLINABLE hasIndex #-}
-    hasIndex :: Index s -> s -> Bool
-    hasIndex i s = case s !? i of
-        Nothing -> False
-        Just _ -> True
+    hasIndex :: s -> Index s -> Logic s
+    hasIndex s i = case s !? i of
+        Nothing -> false
+        Just _ -> true
 
     -- | FIXME: should the functions below be moved to other classes?
+    imap :: (Index s -> Elem s -> b) -> s -> SetElem s b
+
+    toIxList :: s -> [(Index s, Elem s)]
+
     indices :: s -> [Index s]
-    values  :: s -> [Value s]
-    imap ::  (Index s -> Value s -> b) -> s -> SetValue s b
+    indices = map fst . toIxList
+
+    values :: s -> [Elem s]
+    values = map snd . toIxList
+
+law_IxContainer_preservation ::
+    ( Logic (Elem s)~Logic s
+    , ValidLogic s
+    , Eq_ (Elem s)
+    , IxContainer s
+    ) => s -> s -> Index s -> Logic s
+law_IxContainer_preservation s1 s2 i = case s1 !? i of
+    Nothing -> case s2 !? i of
+        Nothing -> true
+        Just e  -> (s1+s2) !? i == Just e
+    Just e -> (s1+s2) !? i == Just e
+
+defn_IxContainer_bang ::
+    ( Eq_ (Elem s)
+    , ValidLogic (Elem s)
+    , IxContainer s
+    ) => s -> Index s -> Logic (Elem s)
+defn_IxContainer_bang s i = case s !? i of
+    Nothing -> true
+    Just e -> s!i == e
+
+defn_IxContainer_findWithDefault ::
+    ( Eq_ (Elem s)
+    , IxContainer s
+    ) => s -> Index s -> Elem s -> Logic (Elem s)
+defn_IxContainer_findWithDefault s i e = case s !? i of
+    Nothing -> findWithDefault e i s == e
+    Just e' -> findWithDefault e i s == e'
+
+defn_IxContainer_hasIndex ::
+    ( Eq_ (Elem s)
+    , IxContainer s
+    ) => s -> Index s -> Logic s
+defn_IxContainer_hasIndex s i = case s !? i of
+    Nothing -> not $ hasIndex s i
+    Just _  -> hasIndex s i
+
+-- | Some containers that use indices are not typically constructed with those indices (e.g. Arrays).
+class IxContainer s => IxConstructible s where
+    {-# MINIMAL singletonAt | consAt #-}
+
+    -- | Construct a container with only the single (index,element) pair.
+    -- This function is equivalent to 'singleton' in the 'Constructible' class.
+    singletonAt :: Index s -> Elem s -> s
+    singletonAt i e = consAt i e zero
+
+    -- | Insert an element, overwriting the previous value if the index already exists.
+    -- This function is equivalent to 'cons' in the 'Constructible' class.
+    {-# INLINABLE consAt #-}
+    consAt :: Index s -> Elem s -> s -> s
+    consAt i e s = singletonAt i e + s
+
+    -- | Insert an element only if the index does not already exist.
+    -- If the index already exists, the container is unmodified.
+    -- This function is equivalent to 'snoc' in the 'Constructible' class.
+    {-# INLINABLE snocAt #-}
+    snocAt :: s -> Index s -> Elem s -> s
+    snocAt s i e = s + singletonAt i e
+
+    -- | This function is the equivalent of 'fromList' in the 'Constructible' class.
+    -- We do not require all the variants of 'fromList' because of our 'Monoid' constraint.
+    {-# INLINABLE fromIxList #-}
+    fromIxList :: [(Index s, Elem s)] -> s
+    fromIxList xs = foldl' (\s (i,e) -> snocAt s i e) zero xs
+
+law_IxConstructible_lookup ::
+    ( ValidLogic (Elem s)
+    , Eq_ (Elem s)
+    , IxConstructible s
+    ) => s -> Index s -> Elem s -> Logic (Elem s)
+law_IxConstructible_lookup s i e = case lookup i (consAt i e s) of
+    Just e' -> e'==e
+    Nothing -> false
+
+defn_IxConstructible_consAt :: (Eq_ s, IxConstructible s) => s -> Index s -> Elem s -> Logic s
+defn_IxConstructible_consAt s i e = consAt i e s == singletonAt i e + s
+
+defn_IxConstructible_snocAt :: (Eq_ s, IxConstructible s) => s -> Index s -> Elem s -> Logic s
+defn_IxConstructible_snocAt s i e = snocAt s i e == s + singletonAt i e
+
+defn_IxConstructible_fromIxList :: (Eq_ s, IxConstructible s) => s -> [(Index s, Elem s)] -> Logic s
+defn_IxConstructible_fromIxList t es
+    = fromIxList es `asTypeOf` t == foldl' (\s (i,e) -> snocAt s i e) zero es
+
+insertAt :: IxConstructible s => Index s -> Elem s -> s -> s
+insertAt = consAt
 
 -- | An infix operator equivalent to 'lookup'
 {-# INLINABLE (!?) #-}
-(!?) :: IxContainer s => s -> Index s -> Maybe (Value s)
+(!?) :: IxContainer s => s -> Index s -> Maybe (Elem s)
 (!?) s i = lookup i s
 
 --------------------------------------------------------------------------------

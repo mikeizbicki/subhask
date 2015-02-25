@@ -76,9 +76,9 @@ instance ValidEq a => Foldable (Seq a) where
         else Just (Seq.index a 0, Seq $ Seq.drop 1 a)
 
     {-# INLINE unsnoc #-}
-    unsnoc (Seq v) = if Seq.null v
+    unsnoc (Seq e) = if Seq.null e
         then Nothing
-        else Just (Seq $ Seq.take (Seq.length v-1) v, Seq.index v 0)
+        else Just (Seq $ Seq.take (Seq.length e-1) e, Seq.index e 0)
 
 --     foldMap f   (Seq a) = F.foldMap f   a
 
@@ -121,133 +121,230 @@ instance (ValidEq a) => Partitionable (Seq a) where
 -------------------------------------------------------------------------------
 -- | This is a thin wrapper around Data.Map
 
-newtype Map k v = Map (M.Map (WithPreludeOrd k) (WithPreludeOrd v))
+newtype Map i e = Map (M.Map (WithPreludeOrd i) (WithPreludeOrd e))
     deriving (Read,Show,NFData)
 
--- deriveHierarchy ''Map []
+type instance Scalar (Map i e) = Int
+type instance Logic (Map i e) = Bool
+type instance Index (Map i e) = i
+type instance SetIndex (Map i e) i' = Map i' e
+type instance Elem (Map i e) = e
+type instance SetElem (Map i e) e' = Map i e'
 
-type instance Scalar (Map k v) = Int
-type instance Logic (Map k v) = Bool
-type instance Value (Map k v) = v
-type instance Index (Map k v) = k
-type instance Elem (Map k v) = (k,v)
+-- misc classes
 
-instance (Eq v, Ord k, Semigroup v, Arbitrary k, Arbitrary v) => Arbitrary (Map k v) where
-    arbitrary = P.fmap fromList arbitrary
+instance (Eq e, Ord i, Semigroup e, Arbitrary i, Arbitrary e) => Arbitrary (Map i e) where
+    arbitrary = P.fmap fromIxList arbitrary
 
-instance Normed (Map k v) where
-    size (Map m) = M.size m
+-- comparisons
 
-instance (Eq k, Eq v) => Eq_ (Map k v) where
+instance (Eq i, Eq e) => Eq_ (Map i e) where
     (Map m1)==(Map m2) = m1 P.== m2
 
-instance (Ord k, Eq v) => POrd_ (Map k v) where
+instance (Ord i, Eq e) => POrd_ (Map i e) where
     inf (Map m1) (Map m2) = Map $ M.differenceWith go (M.intersection m1 m2) m2
         where
             go v1 v2 = if v1==v2 then Just v1 else Nothing
 
-instance Ord k => Semigroup (Map k v) where
-    (Map m1)+(Map m2) = Map $ M.union m1 m2
-
-instance Ord k => Monoid (Map k v) where
-    zero = Map $ M.empty
-
-instance (Ord k, Eq v) => Container (Map k v) where
-    elem (k,v) (Map m) = case M.lookup (WithPreludeOrd k) m of
-        Nothing -> False
-        Just (WithPreludeOrd v') -> v==v'
-
-    notElem (k,v) (Map m) = case M.lookup (WithPreludeOrd k) m of
-        Nothing -> True
-        Just (WithPreludeOrd v') -> v/=v'
-
-instance (Ord k, Eq v) => Constructible (Map k v) where
-    singleton (k,v) = Map $ M.singleton (WithPreludeOrd k) (WithPreludeOrd v)
-
-instance (Ord k, POrd v) => MinBound_ (Map k v) where
+instance (Ord i, POrd e) => MinBound_ (Map i e) where
     minBound = zero
 
-----------
+-- algebra
 
-instance (Ord k, Eq v) => IxConstructible (Map k v) where
-   singletonAt k v = Map $ M.singleton (WithPreludeOrd k) (WithPreludeOrd v)
-   insertAt k v (Map m) = Map $ M.insert (WithPreludeOrd k) (WithPreludeOrd v) m
+instance Ord i => Semigroup (Map i e) where
+    (Map m1)+(Map m2) = Map $ M.union m1 m2
 
-instance (Ord k, Eq v) => IxContainer (Map k v) where
-    lookup k (Map m) = P.fmap unWithPreludeOrd $ M.lookup (WithPreludeOrd k) m
-    hasIndex k (Map m) = M.member (WithPreludeOrd k) m
+instance Ord i => Monoid (Map i e) where
+    zero = Map $ M.empty
+
+instance Normed (Map i e) where
+    size (Map m) = M.size m
+
+-- indexed containers
+
+instance (Ord i, Eq e) => IxContainer (Map i e) where
+    lookup i (Map m) = P.fmap unWithPreludeOrd $ M.lookup (WithPreludeOrd i) m
+    hasIndex (Map m) i = M.member (WithPreludeOrd i) m
+
+    toIxList (Map m) = map (\(WithPreludeOrd i,WithPreludeOrd e)->(i,e)) $ M.assocs m
     indices (Map m) = map unWithPreludeOrd $ M.keys m
     values (Map m) = map unWithPreludeOrd $ M.elems m
+    imap f (Map m) = Map $ M.mapWithKey (\(WithPreludeOrd i) (WithPreludeOrd e) -> WithPreludeOrd $ f i e) m
+
+instance (Ord i, Eq e) => IxConstructible (Map i e) where
+   singletonAt i e = Map $ M.singleton (WithPreludeOrd i) (WithPreludeOrd e)
+   consAt i e (Map m) = Map $ M.insert (WithPreludeOrd i) (WithPreludeOrd e) m
 
 ----------------------------------------
 -- | This is a thin wrapper around Data.Map.Strict
 
-newtype Map' k v = Map' (MS.Map (WithPreludeOrd k) (WithPreludeOrd v))
+newtype Map' i e = Map' (MS.Map (WithPreludeOrd i) (WithPreludeOrd e))
     deriving (Read,Show,NFData)
 
-type instance Scalar (Map' k v) = Int
-type instance Logic (Map' k v) = Bool
-type instance Elem (Map' k v) = (k,v)
+type instance Scalar (Map' i e) = Int
+type instance Logic (Map' i e) = Bool
+type instance Index (Map' i e) = i
+type instance SetIndex (Map' i e) i' = Map' i' e
+type instance Elem (Map' i e) = e
+type instance SetElem (Map' i e) e' = Map' i e'
 
-type instance Index (Map' k v) = k
-type instance Value (Map' k v) = v
-type instance SetValue (Map' k v) v' = Map' k v'
+-- misc classes
 
-instance (Eq v, Ord k, Semigroup v, Arbitrary k, Arbitrary v) => Arbitrary (Map' k v) where
-    arbitrary = P.fmap fromList arbitrary
+instance (Eq e, Ord i, Semigroup e, Arbitrary i, Arbitrary e) => Arbitrary (Map' i e) where
+    arbitrary = P.fmap fromIxList arbitrary
 
-instance Normed (Map' k v) where
-    size (Map' m) = MS.size m
+-- comparisons
 
-instance (Eq k, Eq v) => Eq_ (Map' k v) where
+instance (Eq i, Eq e) => Eq_ (Map' i e) where
     (Map' m1)==(Map' m2) = m1 P.== m2
 
-instance (Ord k, Eq v) => POrd_ (Map' k v) where
+instance (Ord i, Eq e) => POrd_ (Map' i e) where
     inf (Map' m1) (Map' m2) = Map' $ MS.differenceWith go (MS.intersection m1 m2) m2
         where
             go v1 v2 = if v1==v2 then Just v1 else Nothing
 
-instance Ord k => Semigroup (Map' k v) where
-    (Map' m1)+(Map' m2) = Map' $ MS.union m1 m2
-
-instance Ord k => Monoid (Map' k v) where
-    zero = Map' $ MS.empty
-
-instance (Ord k, Eq v) => Container (Map' k v) where
-    elem (k,v) (Map' m) = case MS.lookup (WithPreludeOrd k) m of
-        Nothing -> False
-        Just (WithPreludeOrd v') -> v==v'
-
-    notElem (k,v) (Map' m) = case MS.lookup (WithPreludeOrd k) m of
-        Nothing -> True
-        Just (WithPreludeOrd v') -> v/=v'
-
-instance (Ord k, Eq v) => Constructible (Map' k v) where
-    singleton (k,v) = Map' $ MS.singleton (WithPreludeOrd k) (WithPreludeOrd v)
-    fromList1 x xs = Map' $ MS.fromList $ map (\(k,v) -> (WithPreludeOrd k,WithPreludeOrd v)) $ P.reverse (x:xs)
-
-instance (Ord k, POrd v) => MinBound_ (Map' k v) where
+instance (Ord i, Eq e) => MinBound_ (Map' i e) where
     minBound = zero
 
-instance (Ord k, Eq v) => Foldable (Map' k v) where
-    toList (Map' m) = map (\(WithPreludeOrd k,WithPreludeOrd v) -> (k,v))
-                    $ MS.toList m
+-- algebra
 
-----------
+instance Ord i => Semigroup (Map' i e) where
+    (Map' m1)+(Map' m2) = Map' $ MS.union m1 m2
 
-instance (Ord k, Eq v) => IxConstructible (Map' k v) where
-   singletonAt k v = Map' $ MS.singleton (WithPreludeOrd k) (WithPreludeOrd v)
-   insertAt k v (Map' m) = Map' $ MS.insert (WithPreludeOrd k) (WithPreludeOrd v) m
+instance Ord i => Monoid (Map' i e) where
+    zero = Map' $ MS.empty
 
-instance (Ord k, Eq v) => IxContainer (Map' k v) where
-    lookup k (Map' m) = P.fmap unWithPreludeOrd $ MS.lookup (WithPreludeOrd k) m
-    hasIndex k (Map' m) = MS.member (WithPreludeOrd k) m
+instance Normed (Map' i e) where
+    size (Map' m) = MS.size m
 
+-- indexed container
+
+instance (Ord i, Eq e) => IxContainer (Map' i e) where
+    lookup i (Map' m) = P.fmap unWithPreludeOrd $ MS.lookup (WithPreludeOrd i) m
+    hasIndex (Map' m) i = MS.member (WithPreludeOrd i) m
+
+    toIxList (Map' m) = map (\(WithPreludeOrd i,WithPreludeOrd e)->(i,e)) $ MS.assocs m
     indices (Map' m) = map unWithPreludeOrd $ MS.keys m
     values (Map' m) = map unWithPreludeOrd $ MS.elems m
     imap f (Map' m) = Map' $ MS.mapWithKey go m
         where
-            go (WithPreludeOrd k) (WithPreludeOrd v) = WithPreludeOrd $ f k v
+            go (WithPreludeOrd i) (WithPreludeOrd e) = WithPreludeOrd $ f i e
+
+instance (Ord i, Eq e) => IxConstructible (Map' i e) where
+   singletonAt i e = Map' $ MS.singleton (WithPreludeOrd i) (WithPreludeOrd e)
+   consAt i e (Map' m) = Map' $ MS.insert (WithPreludeOrd i) (WithPreludeOrd e) m
+
+-------------------------------------------------------------------------------
+-- | This is a thin wrapper around Data.IntMap
+
+newtype IntMap e = IntMap (IM.IntMap (WithPreludeOrd e))
+    deriving (Read,Show,NFData)
+
+type instance Scalar (IntMap e) = Int
+type instance Logic (IntMap e) = Bool
+type instance Index (IntMap e) = IM.Key
+type instance Elem (IntMap e) = e
+type instance SetElem (IntMap e) e' = IntMap e'
+
+-- misc classes
+
+instance (Eq e, Semigroup e, Arbitrary e) => Arbitrary (IntMap e) where
+    arbitrary = P.fmap fromIxList arbitrary
+
+-- comparisons
+
+instance (Eq e) => Eq_ (IntMap e) where
+    (IntMap m1)==(IntMap m2) = m1 P.== m2
+
+instance (Eq e) => POrd_ (IntMap e) where
+    inf (IntMap m1) (IntMap m2) = IntMap $ IM.differenceWith go (IM.intersection m1 m2) m2
+        where
+            go v1 v2 = if v1==v2 then Just v1 else Nothing
+
+instance (POrd e) => MinBound_ (IntMap e) where
+    minBound = zero
+
+-- algebra
+
+instance Semigroup (IntMap e) where
+    (IntMap m1)+(IntMap m2) = IntMap $ IM.union m1 m2
+
+instance Monoid (IntMap e) where
+    zero = IntMap $ IM.empty
+
+instance Normed (IntMap e) where
+    size (IntMap m) = IM.size m
+
+-- indexed container
+
+instance (Eq e) => IxConstructible (IntMap e) where
+   singletonAt i e = IntMap $ IM.singleton i (WithPreludeOrd e)
+   consAt i e (IntMap m) = IntMap $ IM.insert i (WithPreludeOrd e) m
+
+instance (Eq e) => IxContainer (IntMap e) where
+    lookup i (IntMap m) = P.fmap unWithPreludeOrd $ IM.lookup i m
+    hasIndex (IntMap m) i = IM.member i m
+
+    toIxList (IntMap m) = map (\(i,WithPreludeOrd e)->(i,e)) $ IM.assocs m
+    indices (IntMap m) = IM.keys m
+    values (IntMap m) = map unWithPreludeOrd $ IM.elems m
+    imap f (IntMap m) = IntMap $ IM.mapWithKey (\i (WithPreludeOrd e) -> WithPreludeOrd $ f i e) m
+
+----------------------------------------
+-- | This is a thin wrapper around Data.IntMap.Strict
+
+newtype IntMap' e = IntMap' (IMS.IntMap (WithPreludeOrd e))
+    deriving (Read,Show,NFData)
+
+type instance Scalar (IntMap' e) = Int
+type instance Logic (IntMap' e) = Bool
+type instance Index (IntMap' e) = IMS.Key
+type instance Elem (IntMap' e) = e
+type instance SetElem (IntMap' e) e' = IntMap' e'
+
+-- misc classes
+
+instance (Eq e, Semigroup e, Arbitrary e) => Arbitrary (IntMap' e) where
+    arbitrary = P.fmap fromIxList arbitrary
+
+-- comparisons
+
+instance (Eq e) => Eq_ (IntMap' e) where
+    (IntMap' m1)==(IntMap' m2) = m1 P.== m2
+
+instance (Eq e) => POrd_ (IntMap' e) where
+    inf (IntMap' m1) (IntMap' m2) = IntMap' $ IMS.differenceWith go (IMS.intersection m1 m2) m2
+        where
+            go v1 v2 = if v1==v2 then Just v1 else Nothing
+
+instance (POrd e) => MinBound_ (IntMap' e) where
+    minBound = zero
+
+-- algebra
+
+instance Semigroup (IntMap' e) where
+    (IntMap' m1)+(IntMap' m2) = IntMap' $ IMS.union m1 m2
+
+instance Monoid (IntMap' e) where
+    zero = IntMap' $ IMS.empty
+
+instance Normed (IntMap' e) where
+    size (IntMap' m) = IMS.size m
+
+-- container
+
+instance (Eq e) => IxConstructible (IntMap' e) where
+   singletonAt i e = IntMap' $ IMS.singleton i (WithPreludeOrd e)
+   consAt i e (IntMap' m) = IntMap' $ IMS.insert i (WithPreludeOrd e) m
+
+instance (Eq e) => IxContainer (IntMap' e) where
+    lookup i (IntMap' m) = P.fmap unWithPreludeOrd $ IMS.lookup i m
+    hasIndex (IntMap' m) i = IMS.member i m
+
+    toIxList (IntMap' m) = map (\(i,WithPreludeOrd e)->(i,e)) $ IMS.assocs m
+    indices (IntMap' m) = IMS.keys m
+    values (IntMap' m) = map unWithPreludeOrd $ IMS.elems m
+    imap f (IntMap' m) = IntMap' $ IMS.mapWithKey (\i (WithPreludeOrd e) -> WithPreludeOrd $ f i e) m
 
 -------------------------------------------------------------------------------
 -- | This is a thin wrapper around the container's set type
@@ -414,124 +511,4 @@ pp = do
     a <- [1,2]
     b <- [10,11]
     return (a,b)
-
--------------------------------------------------------------------------------
--- | This is a thin wrapper around Data.IntMap
-
-newtype IntMap v = IntMap (IM.IntMap (WithPreludeOrd v))
-    deriving (Read,Show,NFData)
-
--- deriveHierarchy ''Map []
-
-type instance Scalar (IntMap v) = Int
-type instance Logic (IntMap v) = Bool
-type instance Elem (IntMap v) = (IM.Key,v)
-
-instance (Eq v, Semigroup v, Arbitrary v) => Arbitrary (IntMap v) where
-    arbitrary = P.fmap fromList arbitrary
-
-instance Normed (IntMap v) where
-    size (IntMap m) = IM.size m
-
-instance (Eq v) => Eq_ (IntMap v) where
-    (IntMap m1)==(IntMap m2) = m1 P.== m2
-
-instance (Eq v) => POrd_ (IntMap v) where
-    inf (IntMap m1) (IntMap m2) = IntMap $ IM.differenceWith go (IM.intersection m1 m2) m2
-        where
-            go v1 v2 = if v1==v2 then Just v1 else Nothing
-
-instance Semigroup (IntMap v) where
-    (IntMap m1)+(IntMap m2) = IntMap $ IM.union m1 m2
-
-instance Monoid (IntMap v) where
-    zero = IntMap $ IM.empty
-
-instance (Eq v) => Container (IntMap v) where
-    elem (k,v) (IntMap m) = case IM.lookup k m of
-        Nothing -> False
-        Just (WithPreludeOrd v') -> v==v'
-
-    notElem (k,v) (IntMap m) = case IM.lookup k m of
-        Nothing -> True
-        Just (WithPreludeOrd v') -> v/=v'
-
-instance (Eq v) => Constructible (IntMap v) where
-    singleton (k,v) = IntMap $ IM.singleton k (WithPreludeOrd v)
-
-instance (Eq v) => Unfoldable (IntMap v)
-
-instance (POrd v) => MinBound_ (IntMap v) where
-    minBound = zero
-
-instance (Eq v) => Indexed (IntMap v) where
-    (IntMap m) !! k = P.fmap unWithPreludeOrd $ IM.lookup k m
-    hasIndex k (IntMap m) = IM.member k m
-    indices (IntMap m) = IM.keys m
-    values (IntMap m) = map unWithPreludeOrd $ IM.elems m
-
-----------------------------------------
--- | This is a thin wrapper around Data.IntMap.Strict
-
-newtype IntMap' v = IntMap' (IMS.IntMap (WithPreludeOrd v))
-    deriving (Read,Show,NFData)
-
-type instance Scalar (IntMap' v) = Int
-type instance Logic (IntMap' v) = Bool
-type instance Elem (IntMap' v) = (IMS.Key,v)
-
-instance (Eq v, Semigroup v, Arbitrary v) => Arbitrary (IntMap' v) where
-    arbitrary = P.fmap fromList arbitrary
-
-instance Normed (IntMap' v) where
-    size (IntMap' m) = IMS.size m
-
-instance (Eq v) => Eq_ (IntMap' v) where
-    (IntMap' m1)==(IntMap' m2) = m1 P.== m2
-
-instance (Eq v) => POrd_ (IntMap' v) where
-    inf (IntMap' m1) (IntMap' m2) = IntMap' $ IMS.differenceWith go (IMS.intersection m1 m2) m2
-        where
-            go v1 v2 = if v1==v2 then Just v1 else Nothing
-
-instance Semigroup (IntMap' v) where
-    (IntMap' m1)+(IntMap' m2) = IntMap' $ IMS.union m1 m2
-
-instance Monoid (IntMap' v) where
-    zero = IntMap' $ IMS.empty
-
-instance (Eq v) => Container (IntMap' v) where
-    elem (k,v) (IntMap' m) = case IMS.lookup k m of
-        Nothing -> False
-        Just (WithPreludeOrd v') -> v==v'
-
-    notElem (k,v) (IntMap' m) = case IMS.lookup k m of
-        Nothing -> True
-        Just (WithPreludeOrd v') -> v/=v'
-
-instance (Eq v) => Constructible (IntMap' v) where
-    singleton (k,v) = IntMap' $ IMS.singleton k (WithPreludeOrd v)
-    fromList1 x xs = IntMap' $ IMS.fromList $ map (\(k,v) -> (k,WithPreludeOrd v)) $ P.reverse (x:xs)
-
-instance (Eq v) => Unfoldable (IntMap' v)
-
-instance (POrd v) => MinBound_ (IntMap' v) where
-    minBound = zero
-
-instance (Eq v) => Indexed (IntMap' v) where
-    (IntMap' m) !! k = P.fmap unWithPreludeOrd $ IMS.lookup k m
-    hasIndex k (IntMap' m) = IMS.member k m
-
-    indices (IntMap' m) = IMS.keys m
-    values (IntMap' m) = map unWithPreludeOrd $ IMS.elems m
-
-mapIndices' :: (IMS.Key -> IMS.Key) -> IntMap' v -> IntMap' v
-mapIndices' f (IntMap' m) = IntMap' $ IMS.mapKeys f m
-
-mapValues' :: (Eq v1, Eq v2) => (v1 -> v2) -> IntMap' v1 -> IntMap' v2
-mapValues' f (IntMap' m) = IntMap' $ IMS.map (\(WithPreludeOrd v) -> WithPreludeOrd $ f v) m
-
-instance (Eq v) => Foldable (IntMap' v) where
-    toList (IntMap' m) = map (\(k,WithPreludeOrd v) -> (k,v))
-                    $ IMS.toList m
 
