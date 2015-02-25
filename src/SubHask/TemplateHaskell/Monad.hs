@@ -109,9 +109,11 @@ mkPreludeMonad cxt t = validType t $ M.return
                     (AppT (ConT t) _) -> t
                     (ConT t) -> t
                     ListT -> mkName "[]"
+                    (AppT (AppT (ConT t) _) _) -> t
                     t -> error ("pop="++show t)
 
                 badmonad =
                     [ "Text.ParserCombinators.ReadP.P"
                     , "Control.Monad.ST.Lazy.Imp.ST"
+                    , "Control.Monad.Trans.Error.ErrorT"
                     ]
