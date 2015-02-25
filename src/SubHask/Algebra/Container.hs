@@ -22,6 +22,69 @@ import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
+--------------------------------------------------------------------------------
+-- | A 'Box' is a generalization of an interval from the real numbers into an arbitrary lattice.
+-- Boxes are closed in the sense that the end points of the boxes are also contained within the box.
+--
+-- See <http://en.wikipedia.org/wiki/Partially_ordered_set#Interval wikipedia> for more details.
+data Box v = Box
+    { smallest :: !v
+    , largest :: !v
+    }
+    deriving (Read,Show)
+
+invar_Box_ordered :: (Lattice v, HasScalar v) => Box v -> Logic v
+invar_Box_ordered b = largest b >= smallest b
+
+type instance Scalar (Box v) = Scalar v
+type instance Logic (Box v) = Logic v
+type instance Elem (Box v) = v
+type instance SetElem (Box v) v' = Box v'
+
+-- misc classes
+
+instance (Lattice v, Arbitrary v) => Arbitrary (Box v) where
+    arbitrary = do
+        v1 <- arbitrary
+        v2 <- arbitrary
+        return $ Box (inf v1 v2) (sup v1 v2)
+
+-- comparison
+
+instance (Eq v, HasScalar v) => Eq_ (Box v) where
+    b1==b2 = smallest b1 == smallest b2
+          && largest  b1 == largest  b2
+
+-- FIXME:
+-- the following instances are "almost" valid
+-- POrd_, however, can't be correct without adding an empty element to the Box
+-- should we do this?  Would it hurt efficiency?
+--
+-- instance (Lattice v, HasScalar v) => POrd_ (Box v) where
+--     inf b1 b2 = Box
+--         { smallest = sup (smallest b1) (smallest b2)
+--         , largest = inf (largest b1) (largest b2)
+--         }
+--
+-- instance (Lattice v, HasScalar v) => Lattice_ (Box v) where
+--     sup = (+)
+
+-- algebra
+
+instance (Lattice v, HasScalar v) => Semigroup (Box v) where
+    b1+b2 = Box
+        { smallest = inf (smallest b1) (smallest b2)
+        , largest  = sup (largest b1)  (largest b2)
+        }
+
+-- container
+
+instance (Lattice v, HasScalar v) => Constructible (Box v) where
+    singleton v = Box v v
+
+instance (Lattice v, HasScalar v) => Container (Box v) where
+    elem a (Box lo hi) = a >= lo && a <= hi
+
 -------------------------------------------------------------------------------
 
 -- | The Jaccard distance.

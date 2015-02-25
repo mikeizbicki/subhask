@@ -78,10 +78,9 @@ main = defaultMain
             , $( mkSpecializedClassTests [t| Hamming        [Char] |] [''Metric] )
             , $( mkSpecializedClassTests [t| Levenshtein    [Char] |] [''Metric] )
             ]
-            -- FIXME: loops on Eq tests for some reason
---         , testGroup "metric"
---             [ $( mkSpecializedClassTests [t| Box Int              |] [''Lattice] )
---             , $( mkSpecializedClassTests [t| Box (Hamming [Char]) |] [''Lattice,''Container] )
---             ]
+        , testGroup "metric"
+            [ $( mkSpecializedClassTests [t| Box Int                    |] [''Eq,''Container] )
+            , $( mkSpecializedClassTests [t| Box (ComponentWise [Char]) |] [''Eq,''Container] )
+            ]
         ]
     ]
