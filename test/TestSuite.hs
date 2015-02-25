@@ -40,9 +40,9 @@ main = defaultMain
             , $( mkSpecializedClassTests [t| Goedel    |] [''Heyting] )
             , $( mkSpecializedClassTests [t| H3        |] [''Heyting] )
             , $( mkSpecializedClassTests [t| K3        |] [''Bounded] )
---             , testGroup "transformers"
---                 [ $( mkSpecializedClassTests [t| Boolean2Ring Bool   |] [''Ring] )
---                 ]
+            , testGroup "transformers"
+                [ $( mkSpecializedClassTests [t| Boolean2Ring Bool   |] [''Ring] )
+                ]
             ]
         ]
         -- FIXME: vector Arbitrary broken due to different sizes
