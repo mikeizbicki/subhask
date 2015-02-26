@@ -12,9 +12,10 @@ import Control.Monad
 
 import Data.List (nubBy,permutations,sort)
 import System.IO
--- |
---
--- Useful for identifying tree metrics.
+
+--------------------------------------------------------------------------------
+
+-- | Useful for identifying tree metrics.
 printTriDistances :: (Show (Scalar m), Metric m) => m -> m -> m -> IO ()
 printTriDistances m1 m2 m3 = do
     putStrLn $ show (distance m1 m2) ++ " <= " + show (distance m2 m3 + distance m1 m3)
@@ -43,34 +44,70 @@ printQuadDistances m1 m2 m3 m4 = do
             , distance n1 n2 + distance n3 n4
             )
 
--------------------
+--------------------------------------------------------------------------------
 
--- | The open ball of a metric space assuming no special structure
+-- | The closed balls in metric space.
+-- Note that since we are not assuming any special structure, addition is rather inefficient.
 --
--- FIXME: not implemented
-data OpenBall v = OpenBall
+-- FIXME:
+-- There are several valid ways to perform the addition; which should we use?
+-- We could add Lattice instances in a similar way as we could with Box if we added an empty element; should we do this?
+
+data Ball v = Ball
     { radius :: !(Scalar v)
     , center :: !v
     }
 
-type instance Scalar (OpenBall v) = Scalar v
-type instance Logic (OpenBall v) = Logic v
+invar_Ball_radius :: (HasScalar v) => Ball v -> Logic (Scalar v)
+invar_Ball_radius b = radius b >= 0
 
-instance (Eq v, Eq (Scalar v)) => Eq_ (OpenBall v) where
-    b1 == b2 = radius b1 == radius b2 && center b1 == center b2
+type instance Scalar (Ball v) = Scalar v
+type instance Logic (Ball v) = Logic v
+type instance Elem (Ball v) = v
+type instance SetElem (Ball v) v' = Ball v'
 
-instance (Logic v~Bool, Metric v) => Semigroup (OpenBall v) where
-    b1+b2 = b1' { radius = distance (center b1') (center b2') + radius b2' }
-        where
-            (b1',b2') = if radius b1 > radius b2
-                then (b1,b2)
-                else (b2,b1)
+-- misc classes
 
--------------------
+deriving instance (Read v, Read (Scalar v)) => Read (Ball v)
+deriving instance (Show v, Show (Scalar v)) => Show (Ball v)
 
--- | The open ball of a metric space made more efficient relying on extra structure
---
--- FIXME: not implemented
-newtype VectorBall v = VectorBall (OpenBall v)
+instance (Arbitrary v, Arbitrary (Scalar v), HasScalar v) => Arbitrary (Ball v) where
+    arbitrary = do
+        r <- arbitrary
+        c <- arbitrary
+        return $ Ball (abs r) c
 
-type instance Scalar (VectorBall v) = Scalar v
+instance (NFData v, NFData (Scalar v)) => NFData (Ball v) where
+    rnf b = deepseq (center b)
+          $ rnf (radius b)
+
+-- comparison
+
+instance (Eq v, HasScalar v) => Eq_ (Ball v) where
+    b1 == b2 = radius b1 == radius b2
+            && center b1 == center b2
+
+-- algebra
+
+instance (Metric v, HasScalar v, ClassicalLogic v) => Semigroup (Ball v) where
+    b1+b2 = b1 { radius = radius b2 + radius b1 + distance (center b1) (center b2) }
+--     b1+b2 = b1 { radius = radius b2 + max (radius b1) (distance (center b1) (center b2)) }
+
+--     b1+b2 = b1' { radius = max (radius b1') (radius b2' + distance (center b1') (center b2')) }
+--         where
+--             (b1',b2') = if radius b1 > radius b2
+--                 then (b1,b2)
+--                 else (b2,b1)
+
+-- container
+
+instance (Metric v, HasScalar v, ClassicalLogic v) => Constructible (Ball v) where
+    singleton v = Ball 0 v
+
+instance (Metric v, HasScalar v, ClassicalLogic v) => Container (Ball v) where
+    elem v b = not $ isFartherThan v (center b) (radius b)
+
+--------------------------------------------------------------------------------
+
+-- | FIXME: In a Banach space we can make Ball addition more efficient by moving the center to an optimal location.
+newtype BanachBall v = BanachBall (Ball v)

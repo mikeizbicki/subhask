@@ -1330,8 +1330,8 @@ instance Floating Double where
 type family Scalar m
 
 -- FIXME: made into classes due to TH limitations
-class (Ring r, Ord_ r, Scalar r~r, Normed r) => IsScalar r
-instance (Ring r, Ord_ r, Scalar r~r, Normed r) => IsScalar r
+class (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r) => IsScalar r
+instance (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r) => IsScalar r
 
 -- FIXME: made into classes due to TH limitations
 class (IsScalar (Scalar a)) => HasScalar a
@@ -1361,7 +1361,7 @@ class
     ) => Normed g where
     size :: g -> Scalar g
 
-abs :: (Ring g, Normed g) => g -> Scalar g
+abs :: IsScalar g => g -> g
 abs = size
 
 instance Normed Int       where size = P.abs

@@ -79,8 +79,10 @@ main = defaultMain
             , $( mkSpecializedClassTests [t| Levenshtein    [Char] |] [''Metric] )
             ]
         , testGroup "metric"
-            [ $( mkSpecializedClassTests [t| Box Int                    |] [''Eq,''Container] )
-            , $( mkSpecializedClassTests [t| Box (ComponentWise [Char]) |] [''Eq,''Container] )
+--             [ $( mkSpecializedClassTests [t| Ball Int                    |] [''Eq,''Container] )
+--             , $( mkSpecializedClassTests [t| Ball (Hamming [Char])       |] [''Eq,''Container] )
+            [ $( mkSpecializedClassTests [t| Box Int                     |] [''Eq,''Container] )
+            , $( mkSpecializedClassTests [t| Box (ComponentWise [Char])  |] [''Eq,''Container] )
             ]
         ]
     ]
