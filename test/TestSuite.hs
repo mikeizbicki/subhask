@@ -86,3 +86,9 @@ main = defaultMain
             ]
         ]
     ]
+
+--------------------------------------------------------------------------------
+-- orphan instances needed for compilation
+
+instance (Show a, Show b) => Show (a -> b) where
+    show _ = "function"

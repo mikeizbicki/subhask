@@ -30,6 +30,7 @@ module SubHask.Category
     -- * Hask
     , Hask
     , ($)
+    , ($!)
     , embedHask
     , embedHask2
     , withCategory
@@ -184,6 +185,11 @@ type Concrete cat = cat <: (->)
 infixr 0 $
 ($) :: Concrete subcat => subcat a b -> a -> b
 ($) = embedType2
+
+-- | A strict version of '$'
+infixr 0 $!
+($!) :: Concrete subcat => subcat a b -> a -> b
+f $! x  = let !vx = x in f $ vx
 
 -- | Embeds a unary function into 'Hask'
 embedHask :: Concrete subcat => subcat a b -> a -> b

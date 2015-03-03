@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP,MagicHash,UnboxedTuples #-}
-{-# LANGUAGE IncoherentInstances #-}
+-- {-# LANGUAGE IncoherentInstances #-}
 
 -- | This module defines the algebraic type-classes used in subhask.
 -- The class hierarchies are significantly more general than those in the standard Prelude.
@@ -111,6 +111,17 @@ module SubHask.Algebra
     , isEmpty
 
     , Foldable (..)
+    , law_Foldable_sum
+    , theorem_Foldable_tofrom
+    , defn_Foldable_foldr
+    , defn_Foldable_foldr'
+    , defn_Foldable_foldl
+    , defn_Foldable_foldl'
+    , defn_Foldable_foldr1
+    , defn_Foldable_foldr1'
+    , defn_Foldable_foldl1
+    , defn_Foldable_foldl1'
+
     , foldtree1
     , length
     , reduce
@@ -876,20 +887,6 @@ instance Monoid Integer   where zero = 0
 instance Monoid Float     where zero = 0
 instance Monoid Double    where zero = 0
 instance Monoid Rational  where zero = 0
-
-type instance Logic (Maybe a) = Logic a
-
-instance ValidEq a => Eq_ (Maybe a) where
-    Nothing   == Nothing   = true
-    Nothing   == _         = false
-    _         == Nothing   = false
-    (Just a1) == (Just a2) = a1==a2
-
-instance Semigroup a => Monoid (Maybe a) where
-    zero = Nothing
-
-instance Semigroup a => Monoid (Maybe' a) where
-    zero = Nothing'
 
 instance Monoid () where
     zero = ()
@@ -1739,38 +1736,56 @@ law_Constructible_singleton s e = elem e $ singleton e `asTypeOf` s
 theorem_Constructible_cons :: Container s => s -> Elem s -> Logic s
 theorem_Constructible_cons s e = elem e (cons e s)
 
--- | Provides inverse operations for "Unfoldable".
-class (Constructible s, Monoid s) => Foldable s where
 
-    {-# INLINE toList #-}
+-- | The dual of a monoid, obtained by swapping the arguments of 'mappend'.
+newtype DualSG a = DualSG { getDualSG :: a }
+        deriving (Read,Show)
+
+instance Semigroup a => Semigroup (DualSG a) where
+    (DualSG x)+(DualSG y) = DualSG (x+y)
+
+instance Monoid a => Monoid (DualSG a) where
+    zero = DualSG zero
+
+-- | The monoid of endomorphisms under composition.
+newtype Endo a = Endo { appEndo :: a -> a }
+
+instance Semigroup (Endo a) where
+    (Endo f)+(Endo g) = Endo (f.g)
+
+instance Monoid (Endo a) where
+    zero = Endo id
+
+-- | Provides inverse operations for "Constructible".
+--
+-- FIXME:
+-- should this class be broken up into smaller pieces?
+class (Constructible s, Monoid s, Normed s) => Foldable s where
+
+    {-# MINIMAL foldMap | foldr #-}
+
+    -- | Convert the container into a list.
     toList :: Foldable s => s -> [Elem s]
     toList s = foldr (:) [] s
 
     -- | Remove an element from the left of the container.
     uncons :: s -> Maybe (Elem s,s)
+    uncons s = case toList s of
+        []     -> Nothing
+        (x:xs) -> Just (x,fromList xs)
 
     -- | Remove an element from the right of the container.
     unsnoc :: s -> Maybe (s,Elem s)
+    unsnoc s = case unsnoc (toList s) of
+        Nothing -> Nothing
+        Just (xs,x) -> Just (fromList xs,x)
 
-    foldMap :: Monoid a => (Elem s -> a) -> s -> a
-    foldr   :: (Elem s -> a -> a) -> a -> s -> a
-    foldr'  :: (Elem s -> a -> a) -> a -> s -> a
-    foldl   :: (a -> Elem s -> a) -> a -> s -> a
-    foldl'  :: (a -> Elem s -> a) -> a -> s -> a
-
-    foldr1  :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
-    foldr1  f s = foldr1  f (toList s)
-    foldr1' :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
-    foldr1' f s = foldr1' f (toList s)
-    foldl1  :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
-    foldl1  f s = foldl1  f (toList s)
-    foldl1' :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
-    foldl1' f s = foldl1' f (toList s)
-
-    -- | the default summation uses kahan summation
+    -- | Add all the elements of the container together.
+    {-# INLINABLE sum #-}
     sum :: Monoid (Elem s) => s -> Elem s
     sum xs = foldl' (+) zero $ toList xs
 
+    -- | the default summation uses kahan summation
 --     sum :: (Abelian (Elem s), Group (Elem s)) => s -> Elem s
 --     sum = snd . foldl' go (zero,zero)
 --         where
@@ -1778,6 +1793,132 @@ class (Constructible s, Monoid s) => Foldable s where
 --                 where
 --                     y = i-c
 --                     t' = t+y
+
+    -- the definitions below are copied from Data.Foldable
+
+    foldMap :: Monoid a => (Elem s -> a) -> s -> a
+    foldMap f = foldr ((+) . f) zero
+
+    foldr :: (Elem s -> a -> a) -> a -> s -> a
+    foldr f z t = appEndo (foldMap (Endo . f) t) z
+
+    foldr' :: (Elem s -> a -> a) -> a -> s -> a
+    foldr' f z0 xs = foldl f' id xs z0
+        where f' k x z = k $! f x z
+
+    foldl   :: (a -> Elem s -> a) -> a -> s -> a
+    foldl f z t = appEndo (getDualSG (foldMap (DualSG . Endo . flip f) t)) z
+
+    foldl'  :: (a -> Elem s -> a) -> a -> s -> a
+    foldl' f z0 xs = foldr f' id xs z0
+         where f' x k z = k $! f z x
+
+    -- the following definitions are simpler (IMO) than those in Data.Foldable
+
+    foldr1  :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
+    foldr1  f s = foldr1  f (toList s)
+
+    foldr1' :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
+    foldr1' f s = foldr1' f (toList s)
+
+    foldl1  :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
+    foldl1  f s = foldl1  f (toList s)
+
+    foldl1' :: (Elem s -> Elem s -> Elem s) -> s -> Elem s
+    foldl1' f s = foldl1' f (toList s)
+
+defn_Foldable_foldr ::
+    ( Eq_ a
+    , a~Elem s
+    , Logic a ~ Logic (Elem s)
+    , Logic (Scalar s) ~ Logic (Elem s)
+    , Boolean (Logic (Elem s))
+    , Foldable s
+    ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
+defn_Foldable_foldr f a s = foldr f a s == foldr f a (toList s)
+
+defn_Foldable_foldr' ::
+    ( Eq_ a
+    , a~Elem s
+    , Logic a ~ Logic (Elem s)
+    , Logic (Scalar s) ~ Logic (Elem s)
+    , Boolean (Logic (Elem s))
+    , Foldable s
+    ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
+defn_Foldable_foldr' f a s = foldr' f a s == foldr' f a (toList s)
+
+defn_Foldable_foldl ::
+    ( Eq_ a
+    , a~Elem s
+    , Logic a ~ Logic (Elem s)
+    , Logic (Scalar s) ~ Logic (Elem s)
+    , Boolean (Logic (Elem s))
+    , Foldable s
+    ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
+defn_Foldable_foldl f a s = foldl f a s == foldl f a (toList s)
+
+defn_Foldable_foldl' ::
+    ( Eq_ a
+    , a~Elem s
+    , Logic a ~ Logic (Elem s)
+    , Logic (Scalar s) ~ Logic (Elem s)
+    , Boolean (Logic (Elem s))
+    , Foldable s
+    ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
+defn_Foldable_foldl' f a s = foldl' f a s == foldl' f a (toList s)
+
+defn_Foldable_foldr1 ::
+    ( Eq_ (Elem s)
+    , Logic (Scalar s) ~ Logic (Elem s)
+    , Boolean (Logic (Elem s))
+    , Foldable s
+    ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
+defn_Foldable_foldr1 f s = (length s > 0) ==> (foldr1 f s == foldr1 f (toList s))
+
+defn_Foldable_foldr1' ::
+    ( Eq_ (Elem s)
+    , Logic (Scalar s) ~ Logic (Elem s)
+    , Boolean (Logic (Elem s))
+    , Foldable s
+    ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
+defn_Foldable_foldr1' f s = (length s > 0) ==> (foldr1' f s == foldr1' f (toList s))
+
+defn_Foldable_foldl1 ::
+    ( Eq_ (Elem s)
+    , Logic (Scalar s) ~ Logic (Elem s)
+    , Boolean (Logic (Elem s))
+    , Foldable s
+    ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
+defn_Foldable_foldl1 f s = (length s > 0) ==> (foldl1 f s == foldl1 f (toList s))
+
+defn_Foldable_foldl1' ::
+    ( Eq_ (Elem s)
+    , Logic (Scalar s) ~ Logic (Elem s)
+    , Boolean (Logic (Elem s))
+    , Foldable s
+    ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
+defn_Foldable_foldl1' f s = (length s > 0) ==> (foldl1' f s == foldl1' f (toList s))
+
+-- |
+--
+-- Note:
+-- The inverse \"theorem\" of @(toList . fromList) xs == xs@ is actually not true.
+-- See the "Set" type for a counter example.
+theorem_Foldable_tofrom :: (Eq_ s, Foldable s) => s -> Logic s
+theorem_Foldable_tofrom s = fromList (toList s) == s
+
+-- |
+-- FIXME:
+-- This law can't be automatically included in the current test system because it breaks parametricity by requiring @Monoid (Elem s)@
+law_Foldable_sum ::
+    ( Logic (Scalar s)~Logic s
+    , Logic (Elem s)~Logic s
+    , Heyting (Logic s)
+    , Monoid (Elem s)
+    , Eq_ (Elem s)
+    , Foldable s
+    ) => s -> s -> Logic s
+law_Foldable_sum s1 s2 = sizeDisjoint s1 s2 ==> (sum (s1+s2) == sum s1 + sum s2)
 
 -- | This fold is not in any of the standard libraries.
 foldtree1 :: Monoid a => [a] -> a
@@ -2084,6 +2225,8 @@ instance Constructible [a] where
     fromList1N _ x xs = x:xs
 
 instance Foldable [a] where
+    toList = id
+
     uncons [] = Nothing
     uncons (x:xs) = Just (x,xs)
 
@@ -2104,17 +2247,28 @@ instance Foldable [a] where
 
 ----------------------------------------
 
+type instance Scalar (Maybe a) = Scalar a
+type instance Logic (Maybe a) = Logic a
+
+instance ValidEq a => Eq_ (Maybe a) where
+    Nothing   == Nothing   = true
+    Nothing   == _         = false
+    _         == Nothing   = false
+    (Just a1) == (Just a2) = a1==a2
+
 instance Semigroup a => Semigroup (Maybe a) where
     (Just a1) + (Just a2) = Just $ a1+a2
     Nothing   + a2        = a2
     a1        + Nothing   = a1
 
+instance Semigroup a => Monoid (Maybe a) where
+    zero = Nothing
+
 ----------
 
-data Maybe' a
-    = Nothing'
-    | Just' !a
+data Maybe' a = Nothing' | Just' !a
 
+type instance Scalar (Maybe' a) = Scalar a
 type instance Logic (Maybe' a) = Logic a
 
 instance NFData a => NFData (Maybe' a) where
@@ -2130,6 +2284,9 @@ instance Semigroup a => Semigroup (Maybe' a) where
     (Just' a1) + (Just' a2) = Just' $ a1+a2
     Nothing'   + a2         = a2
     a1         + Nothing'   = a1
+
+instance Semigroup a => Monoid (Maybe' a) where
+    zero = Nothing'
 
 ----------------------------------------
 

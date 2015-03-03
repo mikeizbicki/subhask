@@ -146,7 +146,16 @@ testMap = Map.fromList
         , "theorem_Constructible_cons"
         ] )
     , ( "Foldable",
-        [
+--         [ "law_Foldable_sum"
+        [ "theorem_Foldable_tofrom"
+        , "defn_Foldable_foldr"
+        , "defn_Foldable_foldr'"
+        , "defn_Foldable_foldl"
+        , "defn_Foldable_foldl'"
+        , "defn_Foldable_foldr1"
+        , "defn_Foldable_foldr1'"
+        , "defn_Foldable_foldl1"
+        , "defn_Foldable_foldl1'"
         ] )
     , ( "Partitionable",
         [ "law_Partitionable_length"
