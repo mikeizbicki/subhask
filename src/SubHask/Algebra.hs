@@ -157,6 +157,10 @@ module SubHask.Algebra
     -- ** Classes with one operator
     , Semigroup (..)
     , law_Semigroup_associativity
+    , Actor
+    , Action (..)
+    , law_Action_compatibility
+    , (.+)
     , Cancellative (..)
     , law_Cancellative_rightminus1
     , law_Cancellative_rightminus2
@@ -795,55 +799,11 @@ class Semigroup g where
     infixl 6 +
     (+) :: g -> g -> g
 
-    sgErrorBound :: HasScalar g => g -> Scalar g
-    sgErrorBound = 0
-
--- law_Semigroup_associativity ::
---     ( HasScalar g
---     , Semigroup g
---     , Metric g
---     ) => g -> g -> g -> Bool
--- law_Semigroup_associativity g1 g2 g3 = associator g1 g2 g3 <= sgErrorBound g1
-
 associator :: (Semigroup g, Metric g) => g -> g -> g -> Scalar g
 associator g1 g2 g3 = distance ((g1+g2)+g3) (g1+(g2+g3))
 
--- normedAssociator g1 g2 g3
---     = abs $ 1 - (toRational_ $ size ((g1+g2)+g3))
---               / (toRational_ $ size (g1+(g2+g3)))
-
-toRational_ :: (a <: Rational) => a -> Rational
-toRational_ = embedType
-
 law_Semigroup_associativity :: (Eq g, Semigroup g ) => g -> g -> g -> Logic g
 law_Semigroup_associativity g1 g2 g3 = g1 + (g2 + g3) == (g1 + g2) + g3
-
--- theorem_Semigroup_associativity ::
---     ( Ring (Scalar g)
---     , Eq (Scalar g)
---     , Eq g
---     , Semigroup g
---     ) => g -> g -> g -> Bool
--- theorem_Semigroup_associativity g1 g2 g3 = if associativeEpsilon g1==0
---     then g1 + (g2 + g3) == (g1 + g2) + g3
---     else True
---
--- law_Semigroup_epsilonAssociativity ::
---     ( Semigroup g
---     , Normed g
---     , Field (Scalar g)
---     ) => g -> g -> g -> Bool
--- law_Semigroup_epsilonAssociativity g1 g2 g3
---     = relativeSemigroupError g1 g2 g3 < associativeEpsilon g1
-
-relativeSemigroupError ::
-    ( Semigroup g
-    , Normed g
-    , Field (Scalar g)
-    ) => g -> g -> g -> Scalar g
-relativeSemigroupError g1 g2 g3
-    = size (   g1 + ( g2    + g3 ) )
-    / size ( ( g1 +   g2  ) + g3   )
 
 -- | A generalization of 'Data.List.cycle' to an arbitrary 'Semigroup'.
 -- May fail to terminate for some values in some semigroups.
@@ -863,10 +823,55 @@ instance Semigroup   b => Semigroup   (a -> b) where f+g = \a -> f a + g a
 
 ---------------------------------------
 
+-- | This type class is only used by the "Action" class.
+-- It represents the semigroup that acts on our type.
+type family Actor s
+
+-- | Semigroup actions let us apply a semigroup to a set.
+-- The theory of Modules is essentially the theory of Ring actions.
+-- (See <http://mathoverflow.net/questions/100565/why-are-ring-actions-much-harder-to-find-than-group-actions mathoverflow.)
+-- That is why the two classes use similar notation.
+--
+-- See <https://en.wikipedia.org/wiki/Semigroup_action wikipedia> for more detail.
+--
+-- FIXME: These types could probably use a more expressive name.
+--
+-- FIXME: We would like every Semigroup to act on itself, but this results in a class cycle.
+class Semigroup (Actor s) => Action s where
+    infixr 6 +.
+    (+.) :: Actor s -> s -> s
+
+law_Action_compatibility :: (Eq_ s, Action s) => Actor s -> Actor s -> s -> Logic s
+law_Action_compatibility a1 a2 s = (a1+a2) +. s == a1 +. a2 +. s
+
+-- | > s .+ a = a +. s
+infixl 6 .+
+(.+) :: Action s => s -> Actor s -> s
+s .+ a = a +. s
+
+type instance Actor Int      = Int
+type instance Actor Integer  = Integer
+type instance Actor Float    = Float
+type instance Actor Double   = Double
+type instance Actor Rational = Rational
+type instance Actor ()       = ()
+type instance Actor (a->b)   = a->Actor b
+
+instance Action Int      where (+.) = (+)
+instance Action Integer  where (+.) = (+)
+instance Action Float    where (+.) = (+)
+instance Action Double   where (+.) = (+)
+instance Action Rational where (+.) = (+)
+instance Action ()       where (+.) = (+)
+
+instance Action b => Action (a->b) where f+.g = \x -> f x+.g x
+
+---------------------------------------
+
 class Semigroup g => Monoid g where
     zero :: g
 
--- | FIXME: this should be in the Monoid class
+-- | FIXME: this should be in the Monoid class, but putting it there requires a lot of changes to Eq
 isZero :: (Monoid g, ValidEq g) => g -> Logic g
 isZero = (==zero)
 
@@ -2358,6 +2363,7 @@ instance (Arbitrary x, Arbitrary y) => Arbitrary (Labeled' x y) where
         return $ Labeled' x y
 
 type instance Scalar (Labeled' x y) = Scalar x
+type instance Actor (Labeled' x y) = x
 type instance Logic (Labeled' x y) = Logic x
 type instance Elem (Labeled' x y) = Elem x
 
@@ -2381,6 +2387,11 @@ instance (ClassicalLogic x, Ord_ x) => Lattice_ (Labeled' x y) where
     (Labeled' x1 _)>=(Labeled' x2 _) = x1>=x2
 
 instance (ClassicalLogic x, Ord_ x) => Ord_ (Labeled' x y) where
+
+-----
+
+instance Semigroup x => Action (Labeled' x y) where
+    x' +. (Labeled' x y) = Labeled' (x'+x) y
 
 -----
 

@@ -81,6 +81,9 @@ testMap = Map.fromList
     , ( "Semigroup" ,
         [ "law_Semigroup_associativity"
         ] )
+    , ( "Action" ,
+        [ "law_Action_compatibility"
+        ] )
     , ( "Cancellative",
         [ "law_Cancellative_rightminus1"
         , "law_Cancellative_rightminus2"

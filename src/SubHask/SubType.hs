@@ -5,6 +5,8 @@ module SubHask.SubType
     ( (<:) (..)
     , Sup
 
+--     , toRational
+
     -- **
     , Embed (..)
     , embedType
@@ -31,6 +33,12 @@ import SubHask.Internal.Prelude
 import Prelude (($),id,Eq (..))
 
 import Debug.Trace
+
+-------------------------------------------------------------------------------
+-- common helper functions
+
+toRational :: (a <: Rational) => a -> Rational
+toRational = embedType
 
 -------------------------------------------------------------------------------
 

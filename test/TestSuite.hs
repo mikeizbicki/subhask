@@ -60,6 +60,9 @@ main = defaultMain
 --             , $( mkSpecializedClassTests [t| JensenShannonDivergence Vector Double  |] [''Metric] )
 --             ]
 --         ]
+    , testGroup "objects"
+        [ $( mkSpecializedClassTests [t| Labeled' Int Int |] [ ''Action,''Ord,''Metric ] )
+        ]
     , testGroup "containers"
         [ $( mkSpecializedClassTests [t| []            Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Array         Char |] [ ''Foldable,''MinBound,''Partitionable ] )
