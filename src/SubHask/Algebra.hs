@@ -157,13 +157,16 @@ module SubHask.Algebra
     -- ** Classes with one operator
     , Semigroup (..)
     , law_Semigroup_associativity
+    , defn_Semigroup_plusequal
     , Actor
     , Action (..)
     , law_Action_compatibility
-    , (.+)
+    , defn_Action_dotplusequal
+    , (+.)
     , Cancellative (..)
     , law_Cancellative_rightminus1
     , law_Cancellative_rightminus2
+    , defn_Cancellative_plusequal
     , Monoid (..)
     , law_Monoid_leftid
     , law_Monoid_rightid
@@ -182,6 +185,7 @@ module SubHask.Algebra
     , law_Rg_annihilation
     , law_Rg_distributivityLeft
     , theorem_Rg_distributivityRight
+    , defn_Rg_timesequal
     , Rig(..)
     , law_Rig_multiplicativeId
     , Rng
@@ -220,7 +224,7 @@ module SubHask.Algebra
     , HasScalar
     , Cone (..)
     , Module (..)
-    , (.*)
+    , (*.)
     , VectorSpace (..)
     , Banach (..)
     , Hilbert (..)
@@ -228,6 +232,9 @@ module SubHask.Algebra
     , innerProductNorm
     , OuterProductSpace (..)
 
+    -- * Helper functions
+    , simpleMutableDefn
+    , module SubHask.Mutable
     )
     where
 
@@ -251,7 +258,26 @@ import GHC.Magic
 
 import SubHask.Internal.Prelude
 import SubHask.Category
+import SubHask.Mutable
 import SubHask.SubType
+
+
+-------------------------------------------------------------------------------
+-- Helper functions
+
+-- | Creates a quickcheck property for a simple mutable operator defined using "immutable2mutable"
+simpleMutableDefn :: Eq_ a
+    => (Mutable (ST s) a -> b -> ST s ()) -- ^ mutable function
+    -> (a -> b -> a)              -- ^ create a mutable function using "immutable2mutable"
+    -> (a -> b -> Logic a)        -- ^ the output property
+simpleMutableDefn mf f a b = unsafeRunMutableProperty $ do
+    ma1 <- thaw a
+    ma2 <- thaw a
+    mf ma1 b
+    immutable2mutable f ma2 b
+    a1 <- freeze ma1
+    a2 <- freeze ma2
+    return $ a1==a2
 
 -------------------------------------------------------------------------------
 -- relational classes
@@ -799,11 +825,21 @@ class Semigroup g where
     infixl 6 +
     (+) :: g -> g -> g
 
-associator :: (Semigroup g, Metric g) => g -> g -> g -> Scalar g
-associator g1 g2 g3 = distance ((g1+g2)+g3) (g1+(g2+g3))
+    infixr 5 +=
+    (+=) :: PrimMonad m => Mutable m g -> g -> m ()
+    (+=) = immutable2mutable (+)
 
 law_Semigroup_associativity :: (Eq g, Semigroup g ) => g -> g -> g -> Logic g
 law_Semigroup_associativity g1 g2 g3 = g1 + (g2 + g3) == (g1 + g2) + g3
+
+defn_Semigroup_plusequal :: (Eq_ g, Semigroup g) => g -> g -> Logic g
+defn_Semigroup_plusequal = simpleMutableDefn (+=) (+)
+
+-- | Measures the degree to which a Semigroup obeys the associative law.
+--
+-- FIXME: Less-than-perfect associativity should be formalized in the class laws somehow.
+associator :: (Semigroup g, Metric g) => g -> g -> g -> Scalar g
+associator g1 g2 g3 = distance ((g1+g2)+g3) (g1+(g2+g3))
 
 -- | A generalization of 'Data.List.cycle' to an arbitrary 'Semigroup'.
 -- May fail to terminate for some values in some semigroups.
@@ -838,16 +874,23 @@ type family Actor s
 --
 -- FIXME: We would like every Semigroup to act on itself, but this results in a class cycle.
 class Semigroup (Actor s) => Action s where
-    infixr 6 +.
-    (+.) :: Actor s -> s -> s
+    infixl 6 .+
+    (.+) :: s -> Actor s -> s
+
+    infixr 5 .+=
+    (.+=) :: PrimMonad m => Mutable m s -> Actor s -> m ()
+    (.+=) = immutable2mutable (.+)
 
 law_Action_compatibility :: (Eq_ s, Action s) => Actor s -> Actor s -> s -> Logic s
 law_Action_compatibility a1 a2 s = (a1+a2) +. s == a1 +. a2 +. s
 
+defn_Action_dotplusequal :: (Eq_ s, Action s, Logic (Actor s)~Logic s) => s -> Actor s -> Logic s
+defn_Action_dotplusequal = simpleMutableDefn (.+=) (.+)
+
 -- | > s .+ a = a +. s
-infixl 6 .+
-(.+) :: Action s => s -> Actor s -> s
-s .+ a = a +. s
+infixr 6 +.
+(+.) :: Action s => Actor s -> s -> s
+a +. s = s .+ a
 
 type instance Actor Int      = Int
 type instance Actor Integer  = Integer
@@ -857,14 +900,14 @@ type instance Actor Rational = Rational
 type instance Actor ()       = ()
 type instance Actor (a->b)   = a->Actor b
 
-instance Action Int      where (+.) = (+)
-instance Action Integer  where (+.) = (+)
-instance Action Float    where (+.) = (+)
-instance Action Double   where (+.) = (+)
-instance Action Rational where (+.) = (+)
-instance Action ()       where (+.) = (+)
+instance Action Int      where (.+) = (+)
+instance Action Integer  where (.+) = (+)
+instance Action Float    where (.+) = (+)
+instance Action Double   where (.+) = (+)
+instance Action Rational where (.+) = (+)
+instance Action ()       where (.+) = (+)
 
-instance Action b => Action (a->b) where f+.g = \x -> f x+.g x
+instance Action b => Action (a->b) where f.+g = \x -> f x.+g x
 
 ---------------------------------------
 
@@ -923,11 +966,19 @@ class Semigroup g => Cancellative g where
     infixl 6 -
     (-) :: g -> g -> g
 
+    infixr 5 -=
+    (-=) :: PrimMonad m => Mutable m g -> g -> m ()
+    (-=) = immutable2mutable (-)
+
+
 law_Cancellative_rightminus1 :: (Eq g, Cancellative g) => g -> g -> Bool
 law_Cancellative_rightminus1 g1 g2 = (g1 + g2) - g2 == g1
 
 law_Cancellative_rightminus2 :: (Eq g, Cancellative g) => g -> g -> Bool
 law_Cancellative_rightminus2 g1 g2 = g1 + (g2 - g2) == g1
+
+defn_Cancellative_plusequal :: (Eq_ g, Cancellative g) => g -> g -> Logic g
+defn_Cancellative_plusequal = simpleMutableDefn (-=) (-)
 
 instance Cancellative Int        where (-) = (P.-)
 instance Cancellative Integer    where (-) = (P.-)
@@ -940,14 +991,6 @@ instance Cancellative () where
 
 instance Cancellative b => Cancellative (a -> b) where
     f-g = \a -> f a - g a
-
--- | The GrothendieckGroup is a general way to construct groups from cancellative semigroups.
---
--- FIXME: How should this be related to the Ratio type?
---
--- See <http://en.wikipedia.org/wiki/Grothendieck_group wikipedia> for more details.
-data GrothendieckGroup g where
-    GrotheindieckGroup :: Cancellative g => g -> GrothendieckGroup g
 
 ---------------------------------------
 
@@ -1009,6 +1052,10 @@ class (Abelian r, Monoid r) => Rg r where
     infixl 7 *
     (*) :: r -> r -> r
 
+    infixr 5 *=
+    (*=) :: PrimMonad m => Mutable m r -> r -> m ()
+    (*=) = immutable2mutable (*)
+
 law_Rg_multiplicativeAssociativity :: (Eq r, Rg r) => r -> r -> r -> Bool
 law_Rg_multiplicativeAssociativity r1 r2 r3 = (r1 * r2) * r3 == r1 * (r2 * r3)
 
@@ -1023,6 +1070,9 @@ law_Rg_distributivityLeft r1 r2 r3 = r1*(r2+r3) == r1*r2+r1*r3
 
 theorem_Rg_distributivityRight :: (Eq r, Rg r) => r -> r -> r -> Bool
 theorem_Rg_distributivityRight r1 r2 r3 = (r2+r3)*r1 == r2*r1+r3*r1
+
+defn_Rg_timesequal :: (Eq_ g, Rg g) => g -> g -> Logic g
+defn_Rg_timesequal = simpleMutableDefn (*=) (*)
 
 instance Rg Int         where (*) = (P.*)
 instance Rg Integer     where (*) = (P.*)
@@ -1190,6 +1240,10 @@ class Ring r => Field r where
     infixl 7 /
     (/) :: r -> r -> r
     n/d = n * reciprocal d
+
+--     infixr 5 /=
+--     (/=) :: PrimMonad m => Mutable m g -> g -> m ()
+--     (/=) = immutable2mutable (/)
 
     {-# INLINE fromRational #-}
     fromRational :: Rational -> r
@@ -1399,26 +1453,34 @@ class (Cancellative m, HasScalar m, Rig (Scalar m)) => Cone m where
 
 ---------------------------------------
 
-class (Abelian m, Group m, HasScalar m) => Module m where
-    infixl 7 *.
-    (*.) :: Scalar m -> m -> m
+class (Abelian v, Group v, HasScalar v) => Module v where
+    infixl 7 .*
+    (.*) :: v -> Scalar v -> v
 
     infixl 7 .*.
-    (.*.) :: m -> m -> m
+    (.*.) :: v -> v -> v
 
-{-# INLINE (.*) #-}
-infixl 7 .*
-(.*) :: Module m => m -> Scalar m -> m
-m .* r  = r *. m
+    infixr 5 .*=
+    (.*=) :: PrimMonad m => Mutable m v -> Scalar v -> m ()
+    (.*=) = immutable2mutable (.*)
 
-instance Module Int       where (*.) = (*); (.*.) = (*)
-instance Module Integer   where (*.) = (*); (.*.) = (*)
-instance Module Float     where (*.) = (*); (.*.) = (*)
-instance Module Double    where (*.) = (*); (.*.) = (*)
-instance Module Rational  where (*.) = (*); (.*.) = (*)
+    infixr 5 .*.=
+    (.*.=) :: PrimMonad m => Mutable m v -> v -> m ()
+    (.*.=) = immutable2mutable (.*.)
 
-instance Module      b => Module      (a -> b) where
-    b  *. f = \a -> b    *. f a
+{-# INLINE (*.) #-}
+infixl 7 *.
+(*.) :: Module v => Scalar v -> v -> v
+r *. v  = v .* r
+
+instance Module Int       where (.*) = (*); (.*.) = (*)
+instance Module Integer   where (.*) = (*); (.*.) = (*)
+instance Module Float     where (.*) = (*); (.*.) = (*)
+instance Module Double    where (.*) = (*); (.*.) = (*)
+instance Module Rational  where (.*) = (*); (.*.) = (*)
+
+instance Module b => Module (a -> b) where
+    f .*  b = \a -> f a .*  b
     g .*. f = \a -> g a .*. f a
 
 ---------------------------------------
@@ -2333,11 +2395,11 @@ instance (Logic a~Logic b, Abelian a, Abelian b) => Abelian (a,b)
 instance (Logic a~Logic b, Abelian a, Abelian b, Abelian c) => Abelian (a,b,c)
 
 instance (Logic a~Logic b, Module a, Module b, Scalar a ~ Scalar b) => Module (a,b) where
-    r *. (a,b) = (r*.a, r*.b)
+    (a,b) .* r = (r*.a, r*.b)
     (a1,b1).*.(a2,b2) = (a1.*.a2,b1.*.b2)
 
 instance (Logic a~Logic b, Module a, Module b, Module c, Scalar a ~ Scalar b, Scalar c~Scalar b) => Module (a,b,c) where
-    r *. (a,b,c) = (r*.a, r*.b,r*.c)
+    (a,b,c) .* r = (r*.a, r*.b,r*.c)
     (a1,b1,c1).*.(a2,b2,c2) = (a1.*.a2,b1.*.b2,c1.*.c2)
 
 instance (Logic a~Logic b, VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => VectorSpace (a,b) where
@@ -2391,7 +2453,7 @@ instance (ClassicalLogic x, Ord_ x) => Ord_ (Labeled' x y) where
 -----
 
 instance Semigroup x => Action (Labeled' x y) where
-    x' +. (Labeled' x y) = Labeled' (x'+x) y
+    (Labeled' x y) .+ x' = Labeled' (x'+x) y
 
 -----
 

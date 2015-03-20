@@ -119,9 +119,9 @@ instance
     , Ring r
     ) => Module (Matrix r)
         where
-    r *. (Matrix m) = Matrix $ HM.scale r m
-    r *. (One r2) = One $ r*r2
-    r *. Zero = Zero
+    (Matrix m) .* r = Matrix $ HM.scale r m
+    (One r2)   .* r = One $ r*r2
+    Zero       .* r = Zero
 
     (Matrix m1) .*. (Matrix m2) = Matrix $ HM.mul m1 m2
 

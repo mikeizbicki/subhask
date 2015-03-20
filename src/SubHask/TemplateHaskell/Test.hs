@@ -80,13 +80,16 @@ testMap = Map.fromList
 
     , ( "Semigroup" ,
         [ "law_Semigroup_associativity"
+        , "defn_Semigroup_plusequal"
         ] )
     , ( "Action" ,
         [ "law_Action_compatibility"
+        , "defn_Action_dotplusequal"
         ] )
     , ( "Cancellative",
         [ "law_Cancellative_rightminus1"
         , "law_Cancellative_rightminus2"
+        , "defn_Cancellative_plusequal"
         ])
     , ( "Monoid",
         [ "law_Monoid_leftid"
@@ -108,6 +111,7 @@ testMap = Map.fromList
         , "law_Rg_annihilation"
         , "law_Rg_distributivityLeft"
         , "theorem_Rg_distributivityRight"
+        , "defn_Rg_timesequal"
         ])
     , ("Rig",
         [ "law_Rig_multiplicativeId"

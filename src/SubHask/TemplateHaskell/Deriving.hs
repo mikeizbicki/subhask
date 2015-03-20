@@ -10,6 +10,7 @@ module SubHask.TemplateHaskell.Deriving
     , deriveHierarchyFiltered
     , deriveSingleInstance
     , deriveTypefamilies
+    , deriveMutable
     , listSuperClasses
 
     -- ** compatibility functions
@@ -83,6 +84,34 @@ deriveTypefamilies familynameL typename = do
             [ apply2varlist (ConT typename) tyvarbndr ]
             ( AppT (ConT familyname) tyvar )
 
+-- | creates newtype instances for the Mutable data family of the form:
+--
+-- > newtype instance Mutable m (NonNegative t) = Mutable_NonNegative (Mutable m t)
+--
+deriveMutable :: Name -> Q [Dec]
+deriveMutable typename = do
+    typeinfo <- reify typename
+    (conname,typekind,typeapp) <- case typeinfo of
+        TyConI (NewtypeD [] _ typekind (NormalC conname [(  _,typeapp)]) _) -> return (conname,typekind,typeapp)
+        TyConI (NewtypeD [] _ typekind (RecC    conname [(_,_,typeapp)]) _) -> return (conname,typekind,typeapp)
+        _ -> error $ "\nderiveSingleInstance; typeinfo="++show typeinfo
+
+    nameexists <- lookupValueName ("Mutable_"++nameBase conname)
+    return $ case nameexists of
+        Just x -> []
+        Nothing ->
+            [ NewtypeInstD
+                [ ]
+                ( mkName $ "Mutable" )
+                [ VarT (mkName "m"), apply2varlist (ConT typename) typekind ]
+                ( NormalC
+                    ( mkName $ "Mutable_"++nameBase conname )
+                    [( NotStrict
+                     , AppT (AppT (ConT $ mkName "Mutable") (VarT $ mkName "m")) typeapp
+                     )]
+                )
+                [ ]
+            ]
 
 -- | This is the main TH function to call when deriving classes for a newtype.
 -- You only need to list the final classes in the hierarchy that are supposed to be derived.
@@ -95,7 +124,8 @@ deriveHierarchyFiltered :: Name -> [Name] -> [Name] -> Q [Dec]
 deriveHierarchyFiltered typename classnameL filterL = do
     classL <- liftM concat $ mapM listSuperClasses $ mkName "BasicType":classnameL
     instanceL <- mapM (deriveSingleInstance typename) $ filter (\x -> not (elem x filterL)) $ nub classL
-    return $ concat instanceL
+    mutableL <- deriveMutable typename
+    return $ mutableL ++ concat instanceL
 
 -- | Given a single newtype and single class, constructs newtype instances
 deriveSingleInstance :: Name -> Name -> Q [Dec]
@@ -111,6 +141,7 @@ deriveSingleInstance typename classname = do
         , mkName "Elem"
 --         , mkName "Index"
         , mkName "Logic"
+        , mkName "Actor"
         ] typename
 
     classinfo <- reify classname
@@ -191,7 +222,6 @@ substituteVarE varname vartype = go
 returnType2newtypeApplicator :: Name -> Name -> Type -> Exp -> Q Exp
 returnType2newtypeApplicator conname varname t exp = do
     ret <- go t
---     trace ("\nt="++show t++"\nret="++show ret) $
     return $ AppE ret exp
 
     where
@@ -227,7 +257,10 @@ returnType2newtypeApplicator conname varname t exp = do
                     ]
                 )
 
-        go xxx = error $ "returnType2newtypeApplicator: xxx="++show xxx
+        -- FIXME: this is a particularly fragile deriving clause only designed for the mutable operators
+        go (AppT (VarT m) (TupleT 0)) = id
+
+        go xxx = error $ "returnType2newtypeApplicator:\n xxx="++show xxx++"\n t="++show t++"\n exp="++show exp
 
 isNewtypeInstance :: Name -> Name -> Q Bool
 isNewtypeInstance typename classname = do
@@ -253,6 +286,9 @@ typeL2patL conname varname xs = map go $ zip (map (\a -> mkName [a]) ['a'..]) xs
     where
         go (newvar,VarT v) = if v==varname
             then ConP conname [VarP newvar]
+            else VarP newvar
+        go (newvar,AppT (AppT (ConT c) _) v) = if nameBase c=="Mutable"
+            then ConP (mkName $ "Mutable_"++nameBase conname) [VarP newvar]
             else VarP newvar
         go (newvar,AppT (ConT _) (VarT v)) = VarP newvar
         go (newvar,AppT ListT (VarT v)) = VarP newvar

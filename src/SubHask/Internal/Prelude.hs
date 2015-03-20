@@ -23,6 +23,7 @@ module SubHask.Internal.Prelude
     , Bool (..)
 
     , IO
+    , ST
     , Maybe (..)
     , Either (..)
 
@@ -56,6 +57,7 @@ module SubHask.Internal.Prelude
     where
 
 import Control.DeepSeq
+import Control.Monad.ST
 import Data.Foldable
 import Data.List (foldl, foldl', foldr, foldl1, foldl1', foldr1, map, (++), intersectBy, unionBy )
 import Data.Maybe

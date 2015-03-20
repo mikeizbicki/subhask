@@ -11,6 +11,7 @@ import qualified Prelude as P
 
 import SubHask.Algebra
 import SubHask.Category
+import SubHask.Mutable
 import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
@@ -22,12 +23,12 @@ newtype NonNegative t = NonNegative { unNonNegative :: t }
 
 deriveHierarchy ''NonNegative [ ''Enum, ''Boolean, ''Rig, ''Metric ]
 
--- instance (Ord t, Group t) => Cancellative (NonNegative t) where
---     (NonNegative t1)-(NonNegative t2) = if diff>zero
---         then NonNegative diff
---         else NonNegative zero
---         where
---             diff=t1-t2
+instance (Ord t, Group t) => Cancellative (NonNegative t) where
+    (NonNegative t1)-(NonNegative t2) = if diff>zero
+        then NonNegative diff
+        else NonNegative zero
+        where
+            diff=t1-t2
 
 -------------------
 
@@ -95,6 +96,8 @@ class Quotient a (b::k) where
 -- | The type of equivalence classes created by a mod b.
 newtype (/) (a :: *) (b :: k) = Mod a
 
+newtype instance Mutable m (a/b) = Mutable_Mod (Mutable m a)
+
 instance (Quotient a b, Arbitrary a) => Arbitrary (a/b) where
     arbitrary = liftM mkQuotient arbitrary
 
@@ -124,8 +127,8 @@ instance (Ring a, Quotient a b) => Ring (a/b) where
     fromInteger i = mkQuotient $ fromInteger i
 
 instance (Module a, Quotient a b) => Module (a/b) where
-    x        *. (Mod a) = mkQuotient $ x  *. a
-    (Mod b) .*. (Mod a) = mkQuotient $ b .*. a
+    (Mod a) .*  r       = mkQuotient $ a .*  r
+    (Mod a) .*. (Mod b) = mkQuotient $ a .*. b
 
 -- | The type of integers modulo n
 type Z (n::Nat) = Integer/n
@@ -163,21 +166,10 @@ extendedEuclid a b = go zero one one zero b a
 -- See <http://en.wikipedia.org/wiki/Finite_field_arithmetic>.
 newtype Galois (p::Nat) (k::Nat) = Galois (Z (p^k))
 
-deriveHierarchy ''Galois [''Eq_]
-
-deriving instance KnownNat (p^k) => Semigroup (Galois p k)
-deriving instance KnownNat (p^k) => Monoid (Galois p k)
-deriving instance KnownNat (p^k) => Abelian (Galois p k)
-deriving instance KnownNat (p^k) => Cancellative (Galois p k)
-deriving instance KnownNat (p^k) => Group (Galois p k)
-deriving instance KnownNat (p^k) => Rg (Galois p k)
-deriving instance KnownNat (p^k) => Rig (Galois p k)
-deriving instance KnownNat (p^k) => Ring (Galois p k)
-
-type instance Scalar (Galois p k) = Scalar (Z (p^k))
+deriveHierarchy ''Galois [''Eq_,''Ring]
 
 instance KnownNat (p^k) => Module  (Galois p k) where
-    i   *. z  = Galois (Mod i) * z
+    z  .*   i = Galois (Mod i) * z
     z1 .*. z2 = z1 * z2
 
 instance (Prime p, KnownNat (p^k)) => Field (Galois p k) where
@@ -215,6 +207,15 @@ instance Prime 23
 --
 -- instance KnownNat n => Group (Sym n) where
 --     negate (Sym s) = Sym $ inverse s
+
+-------------------------------------------------------------------------------
+-- | The GrothendieckGroup is a general way to construct groups from cancellative semigroups.
+--
+-- FIXME: How should this be related to the Ratio type?
+--
+-- See <http://en.wikipedia.org/wiki/Grothendieck_group wikipedia> for more details.
+data GrothendieckGroup g where
+    GrotheindieckGroup :: Cancellative g => g -> GrothendieckGroup g
 
 -------------------------------------------------------------------------------
 -- the vedic square

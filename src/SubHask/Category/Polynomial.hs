@@ -62,7 +62,7 @@ instance Ring r => Rig (Polynomial r r) where
     one = Polynomial [one]
 
 instance (IsScalar r, Ring r) => Module (Polynomial r r) where
-    r *. (Polynomial xs) = Polynomial $ P.map (*r) xs
+    (Polynomial xs) .*  r               = Polynomial $ P.map (*r) xs
     (Polynomial xs) .*. (Polynomial ys) = Polynomial $ zipWith (*) xs ys
 
 sumList [] ys = ys

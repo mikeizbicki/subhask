@@ -113,77 +113,6 @@ eqUnboxedVectorDouble = (P.==)
 eqUnboxedVectorInt :: VU.Vector Int -> VU.Vector Int -> Bool
 eqUnboxedVectorInt = (P.==)
 
---------------------------------------------------------------------------------
--- Mutability
-
-{-
-type family MutableVersion a :: * -> *
-type family ImmutableVersion (a :: * -> *) :: *
-
-class Mutable a ma | a -> ma, ma -> a where
-    freeze :: PrimMonad m => ma (PrimState m) -> m a
-    thaw :: PrimMonad m => a -> m (ma (PrimState m))
-
-    unsafeFreeze :: PrimMonad m => ma (PrimState m) -> m a
-    unsafeFreeze = freeze
-
-    unsafeThaw :: PrimMonad m => a -> m (ma (PrimState m))
-    unsafeThaw = thaw
-
-
-class
-    ( Semigroup g
-    , Mutable g mg
-    ) => SemigroupM g mg
-        where
-
-    infixl 6 +=
-    (+=) :: PrimMonad m
-            => mg (PrimState m)
-            -> mg (PrimState m)
-            -> m (mg (PrimState m))
-
--- defn_SemigroupM :: forall g mg.
---     ( Eq g
---     , SemigroupM g mg
---     , Mutable g mg
---     ) => g -> g -> Bool
--- defn_SemigroupM g1 g2 = g1+g2 == res
---     where
---         res = runST ( do
---             g1thaw <- thaw g1
---             g2thaw <- thaw g2
---             g1thaw += g2thaw
---             unsafeFreeze g1thaw
---             )
-
-newtype MBoxedVector a s = MBoxedVector (V.MVector s a)
-
-instance Mutable (V.Vector a) (MBoxedVector a) where
-    unsafeThaw v = liftM MBoxedVector $ VG.unsafeThaw v
-    unsafeFreeze (MBoxedVector mv) = VG.unsafeFreeze mv
-
-    thaw v = liftM MBoxedVector $ VG.thaw v
-    freeze (MBoxedVector mv) = VG.freeze mv
-
-instance Semigroup g => SemigroupM (BoxedVector g) (MBoxedVector g) where
-    (+=) (MBoxedVector mv1) (MBoxedVector mv2)
-        | VGM.length mv1 == 0 = return $ MBoxedVector mv2
-        | VGM.length mv2 == 0 = return $ MBoxedVector mv1
-        | VGM.length mv2 /= VGM.length mv2 = error "BoxedVector.SemigroupM: vectors have unequal length"
-        | otherwise = do
-            go 0
-            return (MBoxedVector mv1)
-        where
-            go i = if i == VGM.length mv1
-                then return ()
-                else do
-                    g1 <- VGM.unsafeRead mv1 i
-                    g2 <- VGM.unsafeRead mv2 i
-                    VGM.unsafeWrite mv1 i (g1 + g2)
-                    go (i+1)
--}
-
 class (ValidEq (v r), ValidEq r, VG.Vector v r, Logic (v r)~Logic r) => ValidVector v r
 instance (ValidEq (v r), ValidEq r, VG.Vector v r, Logic (v r)~Logic r) => ValidVector v r
 
@@ -412,8 +341,8 @@ instance (VU.Unbox r,  Group r) => Group (VU.Vector r) where
     negate v = VG.map negate v
 
 instance (VU.Unbox r,  Module r, IsScalar (Scalar r)) => Module (VU.Vector r) where
-    {-# INLINE (*.) #-}
-    r *. v = VG.map (r*.) v
+    {-# INLINE (.*) #-}
+    v .* r = VG.map (r*.) v
 
     {-# INLINE (.*.) #-}
     u .*. v = if VG.length u == VG.length v
@@ -569,8 +498,8 @@ instance ( Group r) => Group (V.Vector r) where
     negate v = VG.map negate v
 
 instance ( Module r, IsScalar (Scalar r)) => Module (V.Vector r) where
-    {-# INLINE (*.) #-}
-    r *. v = VG.map (r*.) v
+    {-# INLINE (.*) #-}
+    v .* r = VG.map (r*.) v
 
     {-# INLINE (.*.) #-}
     u .*. v = if VG.length u == VG.length v
@@ -679,8 +608,8 @@ instance (Storable r, Group r) => Group (VS.Vector r) where
     negate v = VG.map negate v
 
 instance (Storable r, Module r, IsScalar (Scalar r)) => Module (VS.Vector r) where
-    {-# INLINE (*.) #-}
-    r *. v = VG.map (r*.) v
+    {-# INLINE (.*) #-}
+    v .* r = VG.map (r*.) v
 
     {-# INLINE (.*.) #-}
     u .*. v = if VG.length u == VG.length v
