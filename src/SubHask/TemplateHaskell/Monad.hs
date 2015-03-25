@@ -27,6 +27,9 @@ import Debug.Trace
 type instance Logic Dec = Bool
 instance Eq_ Dec where (==) = (P.==)
 
+type instance Logic Type = Bool
+instance Eq_ Type where (==) = (P.==)
+
 --------------------------------------------------------------------------------
 -- derive monad instances
 
@@ -39,9 +42,27 @@ deriveAllInScope preludename f = do
             where
                 go (InstanceD ctx (AppT _ t) _) = f ctx t
 
+-- | This is an internal helper function.
+-- It prevents us from defining two instances for the same class/type pair.
+runIfNotInstance :: Name -> Type -> Q [Dec] -> Q [Dec]
+runIfNotInstance n t q = trace ("not instance: "++show n++" / "++show t) $ do
+    inst <- alreadyInstance n t
+    if inst
+        then M.return []
+        else  q
+    where
+        alreadyInstance :: Name -> Type -> Q Bool
+        alreadyInstance n t = do
+            info <- reify n
+            M.return $ case info of
+                ClassI _ xs -> or $ map ((t==).rmInstanceD) xs
+
+        rmInstanceD (InstanceD _ (AppT _ t) _) = t
+
+
 -- | Create a "Functor" instance from a "Prelude.Functor" instance.
 mkPreludeFunctor :: Cxt -> Type -> Q [Dec]
-mkPreludeFunctor ctx t = M.return
+mkPreludeFunctor ctx t = runIfNotInstance ''Functor t $ M.return
     [ InstanceD
         ctx
         ( AppT
@@ -57,7 +78,7 @@ mkPreludeFunctor ctx t = M.return
 
 -- | Create an "Applicative" instance from a "Prelude.Applicative" instance.
 mkPreludeApplicative :: Cxt -> Type -> Q [Dec]
-mkPreludeApplicative cxt t = M.return
+mkPreludeApplicative cxt t =  runIfNotInstance ''Applicative t $ M.return
     [ InstanceD
         cxt
         ( AppT
@@ -74,35 +95,38 @@ mkPreludeApplicative cxt t = M.return
 
 -- | Create a "Monad" instance from a "Prelude.Monad" instance.
 mkPreludeMonad :: Cxt -> Type -> Q [Dec]
-mkPreludeMonad cxt t = validType t $ M.return
-    [ InstanceD
-        cxt
-        ( AppT
-            ( ConT $ mkName "Then" )
-            t
-        )
-        [ FunD ( mkName ">>" ) [ Clause [] (NormalB $ VarE $ mkName ">>") [] ]
-        ]
-    , InstanceD
-        cxt
-        ( AppT
+mkPreludeMonad cxt t = {-runIfNotInstance ''Monad t $-} if cannotDeriveMonad t
+    then M.return []
+    else M.return
+        [ InstanceD
+            cxt
             ( AppT
-                ( ConT $ mkName "Monad" )
-                ( ConT $ mkName "Hask" )
+                ( ConT $ mkName "Then" )
+                t
             )
-            t
-        )
-        [ FunD ( mkName "return_" ) [ Clause [] (NormalB $ VarE $ mkName "M.return") [] ]
-        , FunD ( mkName "join"    ) [ Clause [] (NormalB $ VarE $ mkName "M.join"  ) [] ]
-        , FunD ( mkName ">>="     ) [ Clause [] (NormalB $ VarE $ mkName "M.>>="   ) [] ]
-        , FunD ( mkName ">=>"     ) [ Clause [] (NormalB $ VarE $ mkName "M.>=>"   ) [] ]
-        , FunD ( mkName "=<<"     ) [ Clause [] (NormalB $ VarE $ mkName "M.=<<"   ) [] ]
-        , FunD ( mkName "<=<"     ) [ Clause [] (NormalB $ VarE $ mkName "M.<=<"   ) [] ]
+            [ FunD ( mkName ">>" ) [ Clause [] (NormalB $ VarE $ mkName "M.>>") [] ]
+            ]
+        , InstanceD
+            cxt
+            ( AppT
+                ( AppT
+                    ( ConT $ mkName "Monad" )
+                    ( ConT $ mkName "Hask" )
+                )
+                t
+            )
+            [ FunD ( mkName "return_" ) [ Clause [] (NormalB $ VarE $ mkName "M.return") [] ]
+            , FunD ( mkName "join"    ) [ Clause [] (NormalB $ VarE $ mkName "M.join"  ) [] ]
+            , FunD ( mkName ">>="     ) [ Clause [] (NormalB $ VarE $ mkName "M.>>="   ) [] ]
+            , FunD ( mkName ">=>"     ) [ Clause [] (NormalB $ VarE $ mkName "M.>=>"   ) [] ]
+            , FunD ( mkName "=<<"     ) [ Clause [] (NormalB $ VarE $ mkName "M.=<<"   ) [] ]
+            , FunD ( mkName "<=<"     ) [ Clause [] (NormalB $ VarE $ mkName "M.<=<"   ) [] ]
+            ]
         ]
-    ]
     where
-        -- | we can't derive monads for certain Prelude Monads that don't have functor instances
-        validType t xs = if elem (show t') badmonad then M.return [] else xs
+        -- | This helper function "filters out" monads for which we can't automatically derive an implementation.
+        -- This failure can be due to missing Functor instances or weird type errors.
+        cannotDeriveMonad t = elem (show t') badmonad
             where
                 t' :: Name
                 t' = case t of
@@ -114,6 +138,5 @@ mkPreludeMonad cxt t = validType t $ M.return
 
                 badmonad =
                     [ "Text.ParserCombinators.ReadP.P"
-                    , "Control.Monad.ST.Lazy.Imp.ST"
-                    , "Control.Monad.Trans.Error.ErrorT"
+                    , "Data.Proxy.Proxy"
                     ]

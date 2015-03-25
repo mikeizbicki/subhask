@@ -12,6 +12,7 @@ import Language.Haskell.TH
 import Control.Arrow
 import Control.Monad.ST
 import GHC.Conc.Sync
+import GHC.GHCi
 import Text.ParserCombinators.ReadP
 import Text.ParserCombinators.ReadPrec
 
@@ -26,8 +27,10 @@ import SubHask.TemplateHaskell.Deriving
 --------------------------------------------------------------------------------
 -- monad instances
 
+instance Functor Hask NoIO where fmap = M.liftM -- required for GHCI
+
 deriveAllInScope ''P.Functor        mkPreludeFunctor
--- deriveAllInScope ''A.Applicative    mkPreludeApplicative
+deriveAllInScope ''A.Applicative    mkPreludeApplicative
 deriveAllInScope ''M.Monad          mkPreludeMonad
 
 --------------------------------------------------------------------------------
