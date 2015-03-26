@@ -17,7 +17,7 @@ module SubHask.TemplateHaskell.Base
     where
 
 import qualified Prelude as P
-import qualified Control.Exception as Exc
+import qualified Control.Applicative as A
 import qualified Control.Monad as M
 import Language.Haskell.TH
 import System.IO
@@ -51,7 +51,7 @@ deriveAll :: Q [Dec]
 deriveAll = M.liftM concat $ M.mapM go
     [ (''P.Eq, mkPreludeEq)
     , (''P.Functor, mkPreludeFunctor)
-    , (''P.Applicative,mkPreludeApplicative)
+    , (''A.Applicative,mkPreludeApplicative)
     , (''P.Monad,mkPreludeMonad)
     ]
     where

@@ -147,6 +147,7 @@ module SubHask.Algebra
     , defn_IxConstructible_consAt
     , defn_IxConstructible_snocAt
     , defn_IxConstructible_fromIxList
+    , insertAt
 
     -- * Maybe
     , CanError (..)
