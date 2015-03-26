@@ -1,5 +1,8 @@
 {-# LANGUAGE NoRebindableSyntax #-}
 
+-- | This file contains a LOT of instance declarations for making Base code compatible with SubHask type classes.
+-- There's very little code in here though.
+-- Most instances are generated using the functions in "SubHask.TemplateHaskell.Base".
 module SubHask.Compatibility.Base
     where
 
@@ -20,22 +23,28 @@ import SubHask.Algebra
 import SubHask.Category
 import SubHask.Monad
 import SubHask.Internal.Prelude
-import SubHask.TemplateHaskell.Monad
+import SubHask.TemplateHaskell.Base
 import SubHask.TemplateHaskell.Deriving
 
 
 --------------------------------------------------------------------------------
--- monad instances
+-- automatic instances
 
-instance Functor Hask NoIO where fmap = M.liftM -- required for GHCI
+instance Functor Hask NoIO where fmap = M.liftM -- required for GHCI Monad instance
 
-deriveAllInScope ''P.Functor        mkPreludeFunctor
-deriveAllInScope ''A.Applicative    mkPreludeApplicative
-deriveAllInScope ''M.Monad          mkPreludeMonad
+-- deriveAll
+
+-- forAllInScope ''P.Eq             mkPreludeEq
+forAllInScope ''P.Functor        mkPreludeFunctor
+-- forAllInScope ''A.Applicative    mkPreludeApplicative
+forAllInScope ''M.Monad          mkPreludeMonad
 
 --------------------------------------------------------------------------------
 
-fromPreludeEq [t|TypeRep|]
+type instance Logic TypeRep = Bool
+
+instance Eq_ TypeRep where
+    (==) = (P.==)
 
 instance POrd_ TypeRep where
     inf x y = case P.compare x y of
@@ -49,13 +58,6 @@ instance Ord_ TypeRep where compare = P.compare
 
 ---------
 
-type instance Logic (Either a b) = Logic b
-
-instance (Logic a~Logic b, ValidEq a, ValidEq b) => Eq_ (Either a b) where
-    (Left a1) ==(Left  a2) = a1==a2
-    (Right b1)==(Right b2) = b1==b2
-    _         == _         = false
-
 instance (Semigroup b) => Semigroup (Either a b) where
     (Left a) + _ = Left a
     _ + (Left a) = Left a
@@ -63,6 +65,8 @@ instance (Semigroup b) => Semigroup (Either a b) where
 
 instance (Monoid b) => Monoid (Either a b) where
     zero = Right zero
+
+---------
 
 instance P.Monad Maybe' where
     return = Just'
