@@ -16,9 +16,9 @@
 module SubHask.TemplateHaskell.Base
     where
 
-import qualified Prelude as P
-import qualified Control.Applicative as A
-import qualified Control.Monad as M
+import qualified Prelude             as Base
+import qualified Control.Applicative as Base
+import qualified Control.Monad       as Base
 import Language.Haskell.TH
 import System.IO
 
@@ -33,13 +33,13 @@ import Debug.Trace
 -- We need these instances to get anything done
 
 type instance Logic Name = Bool
-instance Eq_ Name where (==) = (P.==)
+instance Eq_ Name where (==) = (Base.==)
 
 type instance Logic Dec = Bool
-instance Eq_ Dec where (==) = (P.==)
+instance Eq_ Dec where (==) = (Base.==)
 
 type instance Logic Type = Bool
-instance Eq_ Type where (==) = (P.==)
+instance Eq_ Type where (==) = (Base.==)
 
 --------------------------------------------------------------------------------
 -- generic helper functions
@@ -48,23 +48,23 @@ instance Eq_ Type where (==) = (P.==)
 -- This is the only function you should need to use.
 -- The other functions are exported only for debugging purposes if this function should fail.
 deriveAll :: Q [Dec]
-deriveAll = M.liftM concat $ M.mapM go
-    [ (''P.Eq, mkPreludeEq)
-    , (''P.Functor, mkPreludeFunctor)
-    , (''A.Applicative,mkPreludeApplicative)
-    , (''P.Monad,mkPreludeMonad)
+deriveAll = Base.liftM concat $ Base.mapM go
+    [ (''Base.Eq, mkPreludeEq)
+    , (''Base.Functor, mkPreludeFunctor)
+    , (''Base.Applicative,mkPreludeApplicative)
+    , (''Base.Monad,mkPreludeMonad)
     ]
     where
         go (n,f) = forAllInScope n f
 
 -- | Constructs an instance using the given function for everything in scope.
-forAllInScope :: Name -> (Cxt -> Type -> Q [Dec]) -> Q [Dec]
+forAllInScope :: Name -> (Cxt -> Q Type -> Q [Dec]) -> Q [Dec]
 forAllInScope preludename f = do
     info <- reify preludename
     case info of
-        ClassI _ xs -> M.liftM concat $ M.sequence $ map go xs
+        ClassI _ xs -> Base.liftM concat $ Base.sequence $ map go xs
             where
-                go (InstanceD ctx (AppT _ t) _) = f ctx t
+                go (InstanceD ctx (AppT _ t) _) = f ctx (Base.return t)
 
 -- | This is an internal helper function.
 -- It prevents us from defining two instances for the same class/type pair.
@@ -72,13 +72,13 @@ runIfNotInstance :: Name -> Type -> Q [Dec] -> Q [Dec]
 runIfNotInstance n t q = do
     inst <- alreadyInstance n t
     if inst
-        then M.return []
-        else {-trace ("deriving instance: "++show n++" / "++show t) $-} q
+        then trace ("skipping instance: "++show n++" / "++show t) $ Base.return []
+        else trace ("deriving instance: "++show n++" / "++show t) $ q
     where
         alreadyInstance :: Name -> Type -> Q Bool
         alreadyInstance n t = do
             info <- reify n
-            M.return $ case info of
+            Base.return $ case info of
                 ClassI _ xs -> or $ map (genericTypeEq t.rmInstanceD) xs
 
         -- FIXME:
@@ -100,88 +100,102 @@ runIfNotInstance n t q = do
 -- comparison hierarchy
 
 -- | Create an "Eq" instance from a "Prelude.Eq" instance.
-mkPreludeEq :: Cxt -> Type -> Q [Dec]
-mkPreludeEq ctx t = runIfNotInstance ''Eq_ t $ M.return
-    [ TySynInstD
-        ( mkName "Logic" )
-        ( TySynEqn
-            [ t ]
-            ( ConT $ mkName "Bool" )
-        )
-    , InstanceD
-        ctx
-        ( AppT ( ConT $ mkName "Eq_" ) t )
-        [ FunD ( mkName "==" ) [ Clause [] (NormalB $ VarE $ mkName "P.==") [] ]
+mkPreludeEq :: Cxt -> Q Type -> Q [Dec]
+mkPreludeEq ctx qt = do
+    t <- qt
+    runIfNotInstance ''Eq_ t $ Base.return
+        [ TySynInstD
+            ( mkName "Logic" )
+            ( TySynEqn
+                [ t ]
+                ( ConT $ mkName "Bool" )
+            )
+        , InstanceD
+            ctx
+            ( AppT ( ConT $ mkName "Eq_" ) t )
+            [ FunD ( mkName "==" ) [ Clause [] (NormalB $ VarE $ mkName "Base.==") [] ]
+            ]
         ]
-    ]
 
 --------------------------------------------------------------------------------
 -- monad hierarchy
 
 
 -- | Create a "Functor" instance from a "Prelude.Functor" instance.
-mkPreludeFunctor :: Cxt -> Type -> Q [Dec]
-mkPreludeFunctor ctx t = runIfNotInstance ''Functor t $ M.return
-    [ InstanceD
-        ctx
-        ( AppT
-            ( AppT
-                ( ConT $ mkName "Functor" )
-                ( ConT $ mkName "Hask" )
-            )
-            t
-        )
-        [ FunD ( mkName "fmap" ) [ Clause [] (NormalB $ VarE $ mkName "M.fmap") [] ]
-        ]
-    ]
-
--- | Create an "Applicative" instance from a "Prelude.Applicative" instance.
-mkPreludeApplicative :: Cxt -> Type -> Q [Dec]
-mkPreludeApplicative cxt t =  runIfNotInstance ''Applicative t $ M.return
-    [ InstanceD
-        cxt
-        ( AppT
-            ( AppT
-                ( ConT $ mkName "Applicative" )
-                ( ConT $ mkName "Hask" )
-            )
-            t
-        )
-        [ FunD ( mkName "pure" ) [ Clause [] (NormalB $ VarE $ mkName "A.pure") [] ]
-        , FunD ( mkName "<*>" ) [ Clause [] (NormalB $ VarE $ mkName "A.<*>") [] ]
-        ]
-    ]
-
--- | Create a "Monad" instance from a "Prelude.Monad" instance.
-mkPreludeMonad :: Cxt -> Type -> Q [Dec]
-mkPreludeMonad cxt t = {-runIfNotInstance ''Monad t $-} if cannotDeriveMonad t
-    then M.return []
-    else M.return
+mkPreludeFunctor :: Cxt -> Q Type -> Q [Dec]
+mkPreludeFunctor ctx qt = do
+    t <- qt
+    runIfNotInstance ''Functor t $ Base.return
         [ InstanceD
-            cxt
-            ( AppT
-                ( ConT $ mkName "Then" )
-                t
-            )
-            [ FunD ( mkName ">>" ) [ Clause [] (NormalB $ VarE $ mkName "M.>>") [] ]
-            ]
-        , InstanceD
-            cxt
+            ctx
             ( AppT
                 ( AppT
-                    ( ConT $ mkName "Monad" )
+                    ( ConT $ mkName "Functor" )
                     ( ConT $ mkName "Hask" )
                 )
                 t
             )
-            [ FunD ( mkName "return_" ) [ Clause [] (NormalB $ VarE $ mkName "M.return") [] ]
-            , FunD ( mkName "join"    ) [ Clause [] (NormalB $ VarE $ mkName "M.join"  ) [] ]
-            , FunD ( mkName ">>="     ) [ Clause [] (NormalB $ VarE $ mkName "M.>>="   ) [] ]
-            , FunD ( mkName ">=>"     ) [ Clause [] (NormalB $ VarE $ mkName "M.>=>"   ) [] ]
-            , FunD ( mkName "=<<"     ) [ Clause [] (NormalB $ VarE $ mkName "M.=<<"   ) [] ]
-            , FunD ( mkName "<=<"     ) [ Clause [] (NormalB $ VarE $ mkName "M.<=<"   ) [] ]
+            [ FunD ( mkName "fmap" ) [ Clause [] (NormalB $ VarE $ mkName "Base.fmap") [] ]
             ]
         ]
+
+-- | Create an "Applicative" instance from a "Prelude.Applicative" instance.
+mkPreludeApplicative :: Cxt -> Q Type -> Q [Dec]
+mkPreludeApplicative cxt qt = do
+    t <- qt
+    runIfNotInstance ''Applicative t $ Base.return
+        [ InstanceD
+            cxt
+            ( AppT
+                ( AppT
+                    ( ConT $ mkName "Applicative" )
+                    ( ConT $ mkName "Hask" )
+                )
+                t
+            )
+            [ FunD ( mkName "pure" ) [ Clause [] (NormalB $ VarE $ mkName "Base.pure") [] ]
+            , FunD ( mkName "<*>" ) [ Clause [] (NormalB $ VarE $ mkName "Base.<*>") [] ]
+            ]
+        ]
+
+-- | Create a "Monad" instance from a "Prelude.Monad" instance.
+--
+-- FIXME:
+-- Monad transformers still require their parameter monad to be an instance of "Prelude.Monad".
+mkPreludeMonad :: Cxt -> Q Type -> Q [Dec]
+mkPreludeMonad cxt qt = do
+    t <- qt
+    -- can't call
+    -- > runIfNotInstance ''Monad t $
+    -- due to lack of TH support for type families
+    trace ("deriving instance: Monad / "++show t) $ if cannotDeriveMonad t
+        then Base.return []
+        else Base.return
+            [ InstanceD
+                cxt
+                ( AppT
+                    ( ConT $ mkName "Then" )
+                    t
+                )
+                [ FunD ( mkName ">>" ) [ Clause [] (NormalB $ VarE $ mkName "Base.>>") [] ]
+                ]
+            , InstanceD
+                ( ClassP ''Functor [ ConT ''Hask , t ] : cxt )
+                ( AppT
+                    ( AppT
+                        ( ConT $ mkName "Monad" )
+                        ( ConT $ mkName "Hask" )
+                    )
+                    t
+                )
+                [ FunD ( mkName "return_" ) [ Clause [] (NormalB $ VarE $ mkName "Base.return") [] ]
+                , FunD ( mkName "join"    ) [ Clause [] (NormalB $ VarE $ mkName "Base.join"  ) [] ]
+                , FunD ( mkName ">>="     ) [ Clause [] (NormalB $ VarE $ mkName "Base.>>="   ) [] ]
+                , FunD ( mkName ">=>"     ) [ Clause [] (NormalB $ VarE $ mkName "Base.>=>"   ) [] ]
+                , FunD ( mkName "=<<"     ) [ Clause [] (NormalB $ VarE $ mkName "Base.=<<"   ) [] ]
+                , FunD ( mkName "<=<"     ) [ Clause [] (NormalB $ VarE $ mkName "Base.<=<"   ) [] ]
+                ]
+            ]
     where
         -- | This helper function "filters out" monads for which we can't automatically derive an implementation.
         -- This failure can be due to missing Functor instances or weird type errors.
@@ -189,14 +203,18 @@ mkPreludeMonad cxt t = {-runIfNotInstance ''Monad t $-} if cannotDeriveMonad t
             where
                 t' :: Name
                 t' = case t of
-                    (AppT (ConT t) _) -> t
                     (ConT t) -> t
                     ListT -> mkName "[]"
+                    (AppT (ConT t) _) -> t
                     (AppT (AppT (ConT t) _) _) -> t
-                    t -> error ("pop="++show t)
+                    (AppT (AppT (AppT (ConT t) _) _) _) -> t
+                    (AppT (AppT (AppT (AppT (ConT t) _) _) _) _) -> t
+                    (AppT (AppT (AppT (AppT (AppT (ConT t) _) _) _) _) _) -> t
+                    (AppT (AppT (AppT (AppT (AppT (AppT (ConT t) _) _) _) _) _) _) -> t
+                    t -> error ("cannotDeriveMonad error="++show t)
 
                 badmonad =
-                    [ "Text.ParserCombinators.ReadP.P"
+                    [ "Text.ParserCombinators.ReadBase.P"
                     , "Control.Monad.ST.Lazy.Imp.ST"
                     , "Data.Proxy.Proxy"
                     ]

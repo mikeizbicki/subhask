@@ -2414,7 +2414,7 @@ instance (Logic a~Logic b, VectorSpace a,VectorSpace b, VectorSpace c, Scalar a 
 --------------------------------------------------------------------------------
 
 data Labeled' x y = Labeled' { xLabeled' :: !x, yLabeled' :: !y }
-    deriving (Read,Show)
+    deriving (Read,Show,Typeable)
 
 instance (NFData x, NFData y) => NFData (Labeled' x y) where
     rnf (Labeled' x y) = deepseq x $ rnf y
