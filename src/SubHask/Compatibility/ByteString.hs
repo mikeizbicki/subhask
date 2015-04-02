@@ -2,14 +2,11 @@ module SubHask.Compatibility.ByteString
     where
 
 import SubHask
--- import SubHask.Compatibility.Base
--- import SubHask.Monad
 import SubHask.Algebra.Parallel
 import SubHask.TemplateHaskell.Deriving
 
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Prelude as P
-import Control.Monad
 
 --------------------------------------------------------------------------------
 

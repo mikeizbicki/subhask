@@ -15,6 +15,7 @@ import Language.Haskell.TH
 
 import Control.Arrow
 import Control.Monad.Identity (Identity(..))
+import Control.Monad.Reader (Reader,ReaderT)
 import Control.Monad.State.Strict (State,StateT)
 import Control.Monad.Trans
 import Control.Monad.ST (ST)
@@ -24,7 +25,6 @@ import Text.ParserCombinators.ReadP
 import Text.ParserCombinators.ReadPrec
 
 import Control.Monad.Random
-import Pipes
 
 import SubHask.Algebra
 import SubHask.Category
@@ -44,7 +44,7 @@ instance Functor Hask NoIO where fmap = Base.liftM
 -- pretty sure this is a GHC bug
 dummy1 = undefined :: Identity a
 dummy2 = undefined :: StateT s m a
-dummy3 = undefined :: Pipes.Proxy a b c d e f
+dummy3 = undefined :: ReaderT s m a
 
 --------------------------------------------------------------------------------
 -- derive instances

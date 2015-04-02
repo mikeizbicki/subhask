@@ -198,6 +198,7 @@ module SubHask.Algebra
     , law_Integral_toFromInverse
     , fromIntegral
     , Field(..)
+    , OrdField(..)
     , RationalField(..)
     , convertRationalField
     , toFloat
@@ -1259,7 +1260,43 @@ instance Field b => Field (a -> b) where reciprocal f = reciprocal . f
 
 ----------------------------------------
 
+-- | Ordered fields are generalizations of the rational numbers that maintain most of the nice properties.
+-- In particular, all finite fields and the complex numbers are NOT ordered fields.
+--
+-- See <http://en.wikipedia.org/wiki/Ordered_field wikipedia> for more details.
+class (Field r, Ord r, Normed r, IsScalar r) => OrdField r
+
+instance OrdField Float
+instance OrdField Double
+instance OrdField Rational
+
+---------------------------------------
+
+-- | The prototypical example of a bounded field is the extended real numbers.
+-- Other examples are the extended hyperreal numbers and the extended rationals.
+-- Each of these fields has been extensively studied, but I don't know of any studies of this particular abstraction of these fields.
+--
+-- See <https://en.wikipedia.org/wiki/Extended_real_number_line wikipedia> for more details.
+class (OrdField r, Bounded r) => BoundedField r where
+    nan :: r
+    nan = 0/0
+
+    isNaN :: r -> Bool
+
+infinity :: BoundedField r => r
+infinity = maxBound
+
+negInfinity :: BoundedField r => r
+negInfinity = minBound
+
+instance BoundedField Float  where isNaN = P.isNaN
+instance BoundedField Double where isNaN = P.isNaN
+
+----------------------------------------
+
 -- | A Rational field is a field with only a single dimension.
+--
+-- FIXME: this isn't part of standard math; why is it here?
 class Field r => RationalField r where
     toRational :: r -> Rational
 
@@ -1279,28 +1316,6 @@ toFloat = convertRationalField
 
 toDouble :: RationalField a => a -> Double
 toDouble = convertRationalField
-
----------------------------------------
-
--- | The prototypical example of a bounded field is the extended real numbers.
--- Other examples are the extended hyperreal numbers and the extended rationals.
--- Each of these fields has been extensively studied, but I don't know of any studies of this particular abstraction of these fields.
---
--- See <https://en.wikipedia.org/wiki/Extended_real_number_line wikipedia> for more details.
-class (Field r, Bounded r) => BoundedField r where
-    nan :: r
-    nan = 0/0
-
-    isNaN :: r -> Bool
-
-infinity :: BoundedField r => r
-infinity = maxBound
-
-negInfinity :: BoundedField r => r
-negInfinity = minBound
-
-instance BoundedField Float  where isNaN = P.isNaN
-instance BoundedField Double where isNaN = P.isNaN
 
 ---------------------------------------
 
