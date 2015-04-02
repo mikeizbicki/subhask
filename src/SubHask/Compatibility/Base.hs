@@ -56,6 +56,26 @@ forAllInScope ''Base.Monad          mkPreludeMonad
 
 --------------------------------------------------------------------------------
 
+-- FIXME:
+-- Similar instances are not valid for all monads.
+-- For example, [] instance for Semigroup would be incompatible with the below definitions.
+-- These instances are useful enough, however, that maybe we should have a template haskell generating function.
+-- Possibly also a new type class that is a proof of compatibility.
+
+instance Semigroup a => Semigroup (IO a) where
+    (+) = liftM2 (+)
+
+instance Cancellative a => Cancellative (IO a) where
+    (-) = liftM2 (-)
+
+instance Monoid a => Monoid (IO a) where
+    zero = return zero
+
+instance Group a => Group (IO a) where
+    negate = fmap negate
+
+--------------------------------------------------------------------------------
+
 type instance Logic TypeRep = Bool
 
 instance Eq_ TypeRep where
