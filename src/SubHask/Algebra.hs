@@ -2382,47 +2382,47 @@ instance (ValidEq a, ValidEq b, Logic a ~ Logic b) => Eq_ (a,b) where
 instance (ValidEq a, ValidEq b, ValidEq c, Logic a ~ Logic b, Logic b~Logic c) => Eq_ (a,b,c) where
     (a1,b1,c1)==(a2,b2,c2) = a1==a2 && b1==b2 && c1==c2
 
-instance (Logic a~Logic b, Semigroup a, Semigroup b) => Semigroup (a,b) where
+instance (Semigroup a, Semigroup b) => Semigroup (a,b) where
     (a1,b1)+(a2,b2) = (a1+a2,b1+b2)
 
-instance (Logic a~Logic b, Semigroup a, Semigroup b, Semigroup c) => Semigroup (a,b,c) where
+instance (Semigroup a, Semigroup b, Semigroup c) => Semigroup (a,b,c) where
     (a1,b1,c1)+(a2,b2,c2) = (a1+a2,b1+b2,c1+c2)
 
-instance (Logic a~Logic b, Monoid a, Monoid b) => Monoid (a,b) where
+instance (Monoid a, Monoid b) => Monoid (a,b) where
     zero = (zero,zero)
 
-instance (Logic a~Logic b, Monoid a, Monoid b, Monoid c) => Monoid (a,b,c) where
+instance (Monoid a, Monoid b, Monoid c) => Monoid (a,b,c) where
     zero = (zero,zero,zero)
 
-instance (Logic a~Logic b, Cancellative a, Cancellative b) => Cancellative (a,b) where
+instance (Cancellative a, Cancellative b) => Cancellative (a,b) where
     (a1,b1)-(a2,b2) = (a1-a2,b1-b2)
 
-instance (Logic a~Logic b, Cancellative a, Cancellative b, Cancellative c) => Cancellative (a,b,c) where
+instance (Cancellative a, Cancellative b, Cancellative c) => Cancellative (a,b,c) where
     (a1,b1,c1)-(a2,b2,c2) = (a1-a2,b1-b2,c1-c2)
 
-instance (Logic a~Logic b, Group a, Group b) => Group (a,b) where
+instance (Group a, Group b) => Group (a,b) where
     negate (a,b) = (negate a,negate b)
 
-instance (Logic a~Logic b, Group a, Group b, Group c) => Group (a,b,c) where
+instance (Group a, Group b, Group c) => Group (a,b,c) where
     negate (a,b,c) = (negate a,negate b,negate c)
 
-instance (Logic a~Logic b, Abelian a, Abelian b) => Abelian (a,b)
+instance (Abelian a, Abelian b) => Abelian (a,b)
 
-instance (Logic a~Logic b, Abelian a, Abelian b, Abelian c) => Abelian (a,b,c)
+instance (Abelian a, Abelian b, Abelian c) => Abelian (a,b,c)
 
-instance (Logic a~Logic b, Module a, Module b, Scalar a ~ Scalar b) => Module (a,b) where
+instance (Module a, Module b, Scalar a ~ Scalar b) => Module (a,b) where
     (a,b) .* r = (r*.a, r*.b)
     (a1,b1).*.(a2,b2) = (a1.*.a2,b1.*.b2)
 
-instance (Logic a~Logic b, Module a, Module b, Module c, Scalar a ~ Scalar b, Scalar c~Scalar b) => Module (a,b,c) where
+instance (Module a, Module b, Module c, Scalar a ~ Scalar b, Scalar c~Scalar b) => Module (a,b,c) where
     (a,b,c) .* r = (r*.a, r*.b,r*.c)
     (a1,b1,c1).*.(a2,b2,c2) = (a1.*.a2,b1.*.b2,c1.*.c2)
 
-instance (Logic a~Logic b, VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => VectorSpace (a,b) where
+instance (VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => VectorSpace (a,b) where
     (a,b) ./ r = (a./r,b./r)
     (a1,b1)./.(a2,b2) = (a1./.a2,b1./.b2)
 
-instance (Logic a~Logic b, VectorSpace a,VectorSpace b, VectorSpace c, Scalar a ~ Scalar b, Scalar c~Scalar b) => VectorSpace (a,b,c) where
+instance (VectorSpace a,VectorSpace b, VectorSpace c, Scalar a ~ Scalar b, Scalar c~Scalar b) => VectorSpace (a,b,c) where
     (a,b,c) ./ r = (a./r,b./r,c./r)
     (a1,b1,c1)./.(a2,b2,c2) = (a1./.a2,b1./.b2,c1./.c2)
 
