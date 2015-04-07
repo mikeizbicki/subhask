@@ -1226,6 +1226,18 @@ instance Integral Integer where
     quotRem = P.quotRem
     toInteger = P.toInteger
 
+instance Integral b => Integral (a -> b) where
+    quot f1 f2 = \a -> quot (f1 a) (f2 a)
+    rem f1 f2 = \a -> rem (f1 a) (f2 a)
+    quotRem f1 f2 = (quot f1 f2, rem f1 f2)
+
+    div f1 f2 = \a -> div (f1 a) (f2 a)
+    mod f1 f2 = \a -> mod (f1 a) (f2 a)
+    divMod f1 f2 = (div f1 f2, mod f1 f2)
+
+    -- FIXME
+    toInteger = error "toInteger shouldn't be in the integral class b/c of bad function instance"
+
 ---------------------------------------
 
 -- | Fields are Rings with a multiplicative inverse.
@@ -1366,6 +1378,13 @@ instance QuotientField Integer Integer where
     ceiling = id
     floor = id
     (^^) = (P.^)
+
+instance QuotientField b1 b2 => QuotientField (a -> b1) (a -> b2) where
+    truncate f = \a -> truncate $ f a
+    round f = \a -> round $ f a
+    ceiling f = \a -> ceiling $ f a
+    floor f = \a -> floor $ f a
+    (^^) f1 f2 = \a -> (^^) (f1 a) (f2 a)
 
 ---------------------------------------
 
