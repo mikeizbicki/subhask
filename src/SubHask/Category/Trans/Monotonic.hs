@@ -17,6 +17,72 @@ import SubHask.Category.Trans.Constrained
 
 -------------------------------------------------------------------------------
 
+data family ProofOf (c::k) a
+
+-------------------
+
+-- newtype IncreasingT (cat :: * -> * -> *) a b = IncreasingT (cat a b)
+data IncreasingT cat (a :: *) (b :: *) where
+    IncreasingT :: (Ord_ a, Ord_ b) => cat a b -> IncreasingT cat a b
+
+instance Category cat => Category (IncreasingT cat) where
+    type ValidCategory (IncreasingT cat) a = (ValidCategory cat a, Ord_ a)
+    id = IncreasingT id
+    (IncreasingT f).(IncreasingT g) = IncreasingT $ f.g
+
+instance Sup a b c => Sup (IncreasingT a) b c
+instance Sup b a c => Sup a (IncreasingT b) c
+instance (subcat <: cat) => IncreasingT subcat <: cat where
+    embedType_ = Embed2 (\ (IncreasingT f) -> embedType2 f)
+
+-------------------
+
+instance Semigroup (cat a b) => Semigroup (IncreasingT cat a b) where
+    (IncreasingT f)+(IncreasingT g) = IncreasingT $ f+g
+
+instance (Ord_ a, Ord_ b, Monoid (cat a b)) => Monoid (IncreasingT cat a b) where
+    zero = IncreasingT zero
+
+instance Abelian (cat a b) => Abelian (IncreasingT cat a b) where
+
+instance (Ord_ a, Ord_ b, Rg (cat a b)) => Rg (IncreasingT cat a b) where
+    (IncreasingT f)*(IncreasingT g) = IncreasingT $ f*g
+
+instance (Ord_ a, Ord_ b, Rig (cat a b)) => Rig (IncreasingT cat a b) where
+    one = IncreasingT one
+
+-------------------
+
+newtype instance ProofOf IncreasingT a = ProofOf { unProofOf :: a }
+
+instance Semigroup a => Semigroup (ProofOf IncreasingT a) where
+    (ProofOf a1)+(ProofOf a2) = ProofOf (a1+a2)
+
+instance Monoid a => Monoid (ProofOf IncreasingT a) where
+    zero = ProofOf zero
+
+instance Abelian a => Abelian (ProofOf IncreasingT a)
+
+-------------------
+
+type Increasing a = Increasing_ a
+type family Increasing_ a where
+    Increasing_ ( (cat :: * -> * -> *) a b) = IncreasingT cat a b
+
+proveIncreasing ::
+    ( Ord_ a
+    , Ord_ b
+    ) => (ProofOf IncreasingT a -> ProofOf IncreasingT b) -> Increasing (a -> b)
+proveIncreasing f = IncreasingT $ \a -> unProofOf $ f $ ProofOf a
+
+unsafeProveIncreasing ::
+    ( Ord_ a
+    , Ord_ b
+    ) => (a -> b) -> Increasing (a -> b)
+unsafeProveIncreasing = IncreasingT
+
+-------------------------------------------------------------------------------
+
 type Mon = MonT Hask
 
 -- type family ValidMon a :: Constraint where

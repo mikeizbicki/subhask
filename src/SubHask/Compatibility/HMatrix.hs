@@ -200,10 +200,20 @@ instance
     , IsScalar r
     , Field r
     , VectorSpace r
+    , HM.Field r
     ) => OuterProductSpace (Vector r)
         where
     type Outer (Vector r) = Matrix r
     v1 >< v2 = Matrix $ HM.outer v1 v2
+
+    vXm v Zero = VS.map (const 0) v
+    vXm v (One r) = VS.map (P.*r) v
+    vXm v (Matrix m) = v `HM.vXm` m
+
+    mXv Zero v = VS.map (const 0) v
+    mXv (One r) v = VS.map (P.*r) v
+    mXv (Matrix m) v = m `HM.mXv` v
+
 
 instance
     ( HM.Container HM.Matrix r
@@ -212,6 +222,7 @@ instance
     , IsScalar r
     , Field r
     , VectorSpace r
+    , HM.Field r
     ) => OuterProductSpace (Matrix r)
         where
     type Outer (Matrix r) = Matrix r
@@ -239,16 +250,6 @@ toVector (Matrix m) = HM.flatten m
 -- toVector (Matrix m) = if HM.rows m == 1 || HM.cols m == 1
 --     then HM.flatten m
 --     else error "toVector called on non-vector matrix"
-
-vXm :: (HM.Container HM.Matrix r, HM.Product r) => VS.Vector r -> Matrix r -> VS.Vector r
-vXm v Zero = VS.map (const 0) v
-vXm v (One r) = VS.map (P.*r) v
-vXm v (Matrix m) = v `HM.vXm` m
-
-mXv :: (HM.Container HM.Matrix r, HM.Product r) => Matrix r -> VS.Vector r -> VS.Vector r
-mXv Zero v = VS.map (const 0) v
-mXv (One r) v = VS.map (P.*r) v
-mXv (Matrix m) v = m `HM.mXv` v
 
 -------------------------------------------------------------------------------
 

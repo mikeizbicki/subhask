@@ -227,6 +227,7 @@ module SubHask.Algebra
     , Cone (..)
     , Module (..)
     , (*.)
+    , FiniteModule (..)
     , VectorSpace (..)
     , Banach (..)
     , Hilbert (..)
@@ -1488,7 +1489,13 @@ class (Cancellative m, HasScalar m, Rig (Scalar m)) => Cone m where
 
 ---------------------------------------
 
-class (Abelian v, Group v, HasScalar v) => Module v where
+class
+    ( Abelian v
+    , Group v
+    , HasScalar v
+    ) => Module v
+        where
+
     infixl 7 .*
     (.*) :: v -> Scalar v -> v
 
@@ -1514,9 +1521,33 @@ instance Module Float     where (.*) = (*); (.*.) = (*)
 instance Module Double    where (.*) = (*); (.*.) = (*)
 instance Module Rational  where (.*) = (*); (.*.) = (*)
 
-instance Module b => Module (a -> b) where
+instance
+    ( Module b
+    ) => Module (a -> b)
+        where
     f .*  b = \a -> f a .*  b
     g .*. f = \a -> g a .*. f a
+
+---------------------------------------
+
+-- | If our "Module" has a finite basis, then we can index into the module and easily construct it.
+--
+-- FIXME:
+-- Is there a more descriptive name for this class?
+--
+-- We should add a function
+--
+-- > unsafeIxToModule :: [(Int,Scalar s)] -> s
+--
+-- for sparse representations.
+class (Module s, IxContainer s, Elem s~Scalar s, Index s~Int) => FiniteModule s where
+    unsafeToModule :: [Scalar s] -> s
+
+instance FiniteModule Int       where  unsafeToModule [x] = x
+instance FiniteModule Integer   where  unsafeToModule [x] = x
+instance FiniteModule Float     where  unsafeToModule [x] = x
+instance FiniteModule Double    where  unsafeToModule [x] = x
+instance FiniteModule Rational  where  unsafeToModule [x] = x
 
 ---------------------------------------
 
@@ -1591,14 +1622,36 @@ innerProductDistance v1 v2 = innerProductNorm $ v1-v2
 -- | FIXME: This needs to relate to a Monoidal category
 class
     ( VectorSpace v
+    , Field (Outer v)
+    , HasScalar v
     , Scalar (Outer v) ~ Scalar v
-    , Ring (Outer v)
     ) => OuterProductSpace v
         where
     type Outer v
     infix 8 ><
     (><) :: v -> v -> Outer v
 
+    vXm :: v -> Outer v -> v
+
+    mXv :: Outer v -> v -> v
+
+instance OuterProductSpace Float where
+    type Outer Float = Float
+    (><) = (*)
+    vXm = (*)
+    mXv = (*)
+
+instance OuterProductSpace Double where
+    type Outer Double = Double
+    (><) = (*)
+    vXm = (*)
+    mXv = (*)
+
+instance OuterProductSpace Rational where
+    type Outer Rational = Rational
+    (><) = (*)
+    vXm = (*)
+    mXv = (*)
 
 ---------------------------------------
 
@@ -2227,6 +2280,22 @@ defn_IxContainer_hasIndex ::
 defn_IxContainer_hasIndex s i = case s !? i of
     Nothing -> not $ hasIndex s i
     Just _  -> hasIndex s i
+
+-- FIXME:
+-- It would be interesting to make the "Index" of scalars be ().
+-- Is it worth it?
+#define mkIxContainer(t) \
+type instance Index t = Int; \
+type instance Elem t = t; \
+instance IxContainer t where \
+    lookup 0 x = Just x; \
+    lookup _ _ = Nothing
+
+mkIxContainer(Int)
+mkIxContainer(Integer)
+mkIxContainer(Float)
+mkIxContainer(Double)
+mkIxContainer(Rational)
 
 -- | Some containers that use indices are not typically constructed with those indices (e.g. Arrays).
 class IxContainer s => IxConstructible s where

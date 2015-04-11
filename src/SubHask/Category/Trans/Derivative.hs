@@ -1,8 +1,10 @@
 {-# LANGUAGE IncoherentInstances #-}
 
 -- | This module provides a category transformer for automatic differentiation.
--- There are many notions of a generalized derivative.
+--
+-- There are many alternative notions of a generalized derivative.
 -- Perhaps the most common is the differential Ring.
+-- In Haskell, this might be defined as:
 --
 -- > class Field r => Differential r where
 -- >    derivative :: r -> r
@@ -26,9 +28,149 @@ import SubHask.SubType
 import SubHask.Internal.Prelude
 
 import qualified Prelude as P
+import qualified Numeric.AD as AD
+import qualified Numeric.AD.Mode.Reverse as AD
 
 import SubHask.Compatibility.Vector
 import SubHask.Compatibility.HMatrix
+
+
+--------------------------------------------------------------------------------
+
+infixr >><<
+type family (>><<) (a::k1) (b::k2) :: * where
+    Int       >><< Int        = Int
+    Integer   >><< Integer    = Integer
+    Float     >><< Float      = Float
+    Double    >><< Double     = Double
+    Rational  >><< Rational   = Rational
+--     (a -> b)  >><< c          = a -> (b>><<c)
+--     c         >><< (a -> b)   = a -> (c>><<b)
+--     Vector >><< Double = Vector Double
+--     Vector Double >><< Double = Vector Double
+--     Vector Double >><< Vector Double = Matrix Double
+
+--------------------------------------------------------------------------------
+
+-- |
+-- FIXME:
+--
+-- Add reverse mode auto-differentiation for vectors.
+-- Apply the "ProofOf" framework from Monotonic
+data AD1 a = AD1
+    { val  :: !a
+    , val' ::  a
+    }
+    deriving (Typeable,Show)
+
+diffAD1 :: Ring a => (AD1 a -> AD1 a) -> a -> a
+diffAD1 f a = val' $ f (AD1 a 1)
+
+instance Semigroup a => Semigroup (AD1 a) where
+    (AD1 a1 a1')+(AD1 a2 a2') = AD1 (a1+a2) (a1'+a2')
+
+instance Cancellative a => Cancellative (AD1 a) where
+    (AD1 a1 a1')-(AD1 a2 a2') = AD1 (a1-a2) (a1'-a2')
+
+instance Monoid a => Monoid (AD1 a) where
+    zero = AD1 zero zero
+
+instance Group a => Group (AD1 a) where
+    negate (AD1 a b) = AD1 (negate a) (negate b)
+
+instance Abelian a => Abelian (AD1 a)
+
+instance Rg a => Rg (AD1 a) where
+    (AD1 a1 a1')*(AD1 a2 a2') = AD1 (a1*a2) (a1*a2'+a2*a1')
+
+instance Rig a => Rig (AD1 a) where
+    one = AD1 one zero
+
+instance Ring a => Ring (AD1 a) where
+    fromInteger x = AD1 (fromInteger x) zero
+
+instance Field a => Field (AD1 a) where
+    reciprocal (AD1 a a') = AD1 (reciprocal a) (-a'/(a*a))
+    (AD1 a1 a1')/(AD1 a2 a2') = AD1 (a1/a2) ((a1'*a2+a1*a2')/(a2'*a2'))
+    fromRational r = AD1 (fromRational r) 0
+
+--------------------------------------------------------------------------------
+
+class C (cat :: * -> * -> *) where
+    type D cat :: * -> * -> *
+    derivative :: cat a b -> D cat a (a >><< b)
+
+
+data Diff (n::Nat) a b where
+    Diff0 :: (a -> b) -> Diff 0 a b
+    Diffn :: (a -> b) -> Diff (n-1) a (a >><< b) -> Diff n a b
+
+---------
+
+instance Sup (->) (Diff n) (->)
+instance Sup (Diff n) (->) (->)
+
+instance Diff 0 <: (->) where
+    embedType_ = Embed2 unDiff0
+        where
+            unDiff0 :: Diff 0 a b -> a -> b
+            unDiff0 (Diff0 f) = f
+
+instance Diff n <: (->) where
+    embedType_ = Embed2 unDiffn
+        where
+            unDiffn :: Diff n a b -> a -> b
+            unDiffn (Diffn f f') = f
+--
+-- FIXME: these subtyping instance should be made more generic
+-- the problem is that type families aren't currently powerful enough
+--
+instance Sup (Diff 0) (Diff 1) (Diff 0)
+instance Sup (Diff 1) (Diff 0) (Diff 0)
+instance Diff 1 <: Diff 0  where embedType_ = Embed2 m2n where m2n (Diffn f f') = Diff0 f
+
+instance Sup (Diff 0) (Diff 2) (Diff 0)
+instance Sup (Diff 2) (Diff 0) (Diff 0)
+instance Diff 2 <: Diff 0  where embedType_ = Embed2 m2n where m2n (Diffn f f') = Diff0 f
+
+instance Sup (Diff 1) (Diff 2) (Diff 1)
+instance Sup (Diff 2) (Diff 1) (Diff 1)
+instance Diff 2 <: Diff 1  where embedType_ = Embed2 m2n where m2n (Diffn f f') = Diffn f (embedType2 f')
+
+---------
+
+instance (1 <= n) => C (Diff n) where
+    type D (Diff n) = Diff (n-1)
+    derivative (Diffn f f') = f'
+
+unsafeProveC0 :: (a -> b) -> Diff 0 a b
+unsafeProveC0 f = Diff0 f
+
+unsafeProveC1
+    :: (a -> b)     -- ^ f(x)
+    -> (a -> a>><<b)  -- ^ f'(x)
+    -> C1 (a -> b)
+unsafeProveC1 f f' = Diffn f $ unsafeProveC0 f'
+
+unsafeProveC2
+    :: (a -> b)         -- ^ f(x)
+    -> (a -> a>><<b)      -- ^ f'(x)
+    -> (a -> a>><<a>><<b)   -- ^ f''(x)
+    -> C2 (a -> b)
+unsafeProveC2 f f' f'' = Diffn f $ unsafeProveC1 f' f''
+
+type family C1 (f :: *) :: * where
+    C1 (a -> b) = Diff 1 a b
+
+type family C2 (f :: *) :: * where
+    C2 (a -> b) = Diff 2 a b
+
+--------------------------------------------------------------------------------
+{-
+
+newtype (+>) a b = Linear (a><b)
+
+deriving instance Show (a><b) => Show (a +> b)
 
 infixr ><
 type family (><) (a::k1) (b::k2) :: * where
@@ -38,18 +180,7 @@ type family (><) (a::k1) (b::k2) :: * where
     Vector Double >< Vector Double = Matrix Double
     a >< (b +> c) = a >< b >< c
 
--- class C  (n::Nat) (cat :: * -> * -> *) | cat -> n where
---     type D cat :: * -> * -> *
---     derivative_ :: cat a b -> D cat a (a >< b)
 
--- data family a +> b
--- newtype instance Double +> Double = DD Double
--- newtype instance Vector Double +> Double = VD (Vector Double)
--- newtype instance Vector Double +> Vector Double = VV (Matrix Double)
-
-newtype (+>) a b = Linear (a><b)
-
-deriving instance Show (a><b) => Show (a +> b)
 
 class C (dcat :: * -> * -> *) (n::Nat) (cat :: * -> * -> *) | dcat cat -> n where
     type D dcat cat :: * -> * -> *
@@ -59,6 +190,9 @@ class (D dcat cat~cat) => Smooth dcat cat
 
 --------------------------------------------------------------------------------
 
+type family A0 (f :: *) :: *
+type instance A0 (a -> b) = CT dcat 0 (->) a b
+
 data CT dcat (n::Nat) cat a b where
     CT0 :: cat a b -> CT dcat 0 cat a b
     CTn :: cat a b -> CT dcat (n-1) cat a (dcat a b) -> CT dcat n cat a b
@@ -66,13 +200,6 @@ data CT dcat (n::Nat) cat a b where
 instance (1 <= n) => C dcat n (CT dcat n cat) where
     type D dcat (CT dcat n cat) = CT dcat (n-1) cat
     derivative_ _ (CTn _ f') = f'
-
--- instance
---     ( Semigroup b
---     ) => Semigroup (CT n Hask a b)
---         where
---     (CT0 f   )+(CT0 g   ) = CT0 (f+g)
---     (CTn f f')+(CTn g g') = CTn (f+g) (f'+g')
 
 derivative :: C (+>) n cat => cat a b -> D (+>) cat a (a +> b)
 derivative = derivative_ (Proxy::Proxy (+>))
@@ -85,16 +212,6 @@ unsafeProveC1 f f' = CTn f $ unsafeProveC0 f'
 
 unsafeProveC2 :: cat a b -> cat a (dcat a b) -> cat a (dcat a (dcat a b)) -> CT dcat 2 cat a b
 unsafeProveC2 f f' f'' = CTn f $ unsafeProveC1 f' f''
-
--- derivative_ :: (1 <= n) => CT dcat n cat a b -> CT dcat (n-1) cat a (a+>b)
--- derivative_ (CTn _ f') = f'
---
--- derivative :: (1 <= n) => Ring a => CT dcat n Hask a b -> CT dcat 0 Hask a b
--- derivative (CTn _ (CT0 f'  )) = CT0 $ \a -> f' a 1
--- derivative (CTn _ (CTn f' _)) = CT0 $ \a -> f' a 1
---
--- derivative2 :: Ring a => CT dcat 2 Hask a b -> CT dcat 0 Hask a b
--- derivative2 (CTn _ (CTn _ (CT0 f'))) = CT0 $ \a -> f' a 1 1
 
 -------------------
 
@@ -159,3 +276,4 @@ test2 = unsafeProveC2
         w = VG.fromList [1,2] :: Vector Double
 
 v = VG.fromList [1,3] :: Vector Double
+-}

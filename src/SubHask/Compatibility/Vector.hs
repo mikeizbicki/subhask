@@ -438,6 +438,18 @@ instance
                     tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
                               *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
 
+type instance Index (VU.Vector r) = Int
+type instance Elem (VU.Vector r) = r
+type instance SetElem (VU.Vector r) b = VU.Vector b
+
+instance (IsScalar r, VU.Unbox r) => IxContainer (VU.Vector r) where
+    lookup i s = s VG.!? i
+    indices s = [0..VG.length s-1]
+    values = VG.toList
+
+instance (IsScalar r, Module r, VU.Unbox r) => FiniteModule (VU.Vector r) where
+    unsafeToModule = VG.fromList
+
 -------------------------------------------------------------------------------
 
 type BoxedVector = V.Vector
@@ -545,6 +557,18 @@ instance
             then error "inner product on vectors of different sizes"
             else VG.foldl' (+) zero $ VG.zipWith (<>) v1 v2
 
+
+type instance Index (V.Vector r) = Int
+type instance Elem (V.Vector r) = r
+type instance SetElem (V.Vector r) b = V.Vector b
+
+instance (IsScalar r) => IxContainer (V.Vector r) where
+    lookup i s = s VG.!? i
+    indices s = [0..VG.length s-1]
+    values = VG.toList
+
+instance (IsScalar r, Module r) => FiniteModule (V.Vector r) where
+    unsafeToModule = VG.fromList
 
 -------------------------------------------------------------------------------
 
@@ -674,3 +698,14 @@ instance
                 else VG.foldl' (+) zero $ VG.zipWith (*) v1 v2
 
 
+type instance Index (VS.Vector r) = Int
+type instance Elem (VS.Vector r) = r
+type instance SetElem (VS.Vector r) b = VS.Vector b
+
+instance (IsScalar r, VS.Storable r) => IxContainer (VS.Vector r) where
+    lookup i s = s VG.!? i
+    indices s = [0..VG.length s-1]
+    values = VG.toList
+
+instance (IsScalar r, Module r, VS.Storable r) => FiniteModule (VS.Vector r) where
+    unsafeToModule = VG.fromList
