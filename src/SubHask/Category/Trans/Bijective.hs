@@ -27,6 +27,17 @@ import SubHask.Algebra
 import SubHask.SubType
 import SubHask.Internal.Prelude
 
+
+data family ProofOf (c::k) a
+
+newtype instance ProofOf InjectiveT a = ProofOf { unProofOf :: a }
+
+instance Semigroup a => Semigroup (ProofOf InjectiveT a) where
+    (ProofOf a1)+(ProofOf a2) = ProofOf (a1+a2)
+
+proveInjective :: (ProofOf InjectiveT a -> ProofOf InjectiveT b) -> InjectiveT (->) a b
+proveInjective f = InjectiveT $ \a -> unProofOf $ f $ ProofOf a
+
 -------------------------------------------------------------------------------
 
 -- | Injective (one-to-one) functions map every input to a unique output.  See

@@ -1611,6 +1611,7 @@ instance Banach Rational
 -- See <http://en.wikipedia.org/wiki/Hilbert_space wikipedia> for more details.
 class
     ( Banach v
+    , TensorAlgebra v
     , Floating (Scalar v)
     ) => Hilbert v
         where

@@ -156,6 +156,8 @@ instance
     , Field r
     , Floating r
     , Normed r
+    , HM.Field r
+    , VectorSpace r
     , ClassicalLogic r
     , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Banach (Matrix r)
@@ -165,10 +167,12 @@ instance
     , HM.Product r
     , HM.Numeric r
     , P.Eq r
+    , HM.Field r
     , IsScalar r
     , Floating r
     , Normed r
     , Logic r~Bool
+    , VectorSpace r
     , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Hilbert (Matrix r)
         where
@@ -187,7 +191,9 @@ instance
     , IsScalar r
     , Floating r
     , Normed r
+    , HM.Field r
     , Logic r~Bool
+    , VectorSpace r
     , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Metric (Matrix r)
         where
@@ -201,7 +207,9 @@ instance
     , IsScalar r
     , Floating r
     , Normed r
+    , HM.Field r
     , Logic r~Bool
+    , VectorSpace r
     , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Normed (Matrix r)
         where
@@ -310,8 +318,11 @@ instance
     , Logic r~Bool
     , VectorSpace r
     , Floating r
+    , HM.Field r
     , VS.Storable r
     , VectorOuterProduct (Vector r) r ~ Vector r
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
+    , P.Eq r
     ) => Normed (VS.Vector r)
         where
     size = innerProductNorm
@@ -322,8 +333,11 @@ instance
     , Logic r~Bool
     , VectorSpace r
     , Floating r
+    , HM.Field r
     , VS.Storable r
     , VectorOuterProduct (Vector r) r ~ Vector r
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
+    , P.Eq r
     ) => Banach (VS.Vector r)
 
 instance
@@ -332,8 +346,11 @@ instance
     , Logic r~Bool
     , VectorSpace r
     , Floating r
+    , HM.Field r
     , VS.Storable r
     , VectorOuterProduct (Vector r) r ~ Vector r
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
+    , P.Eq r
     ) => Metric (VS.Vector r)
         where
     distance = innerProductDistance
@@ -345,7 +362,12 @@ instance
     , VectorSpace r
     , Floating r
     , VS.Storable r
+    , HM.Container Vector r
+    , HM.Product r
+    , HM.Field r
     , VectorOuterProduct (Vector r) r ~ Vector r
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
+    , P.Eq r
     ) => Hilbert (VS.Vector r)
         where
     v1 <> v2 = if VG.length v1 == 0

@@ -361,42 +361,42 @@ instance (VU.Unbox r, VectorSpace r, IsScalar (Scalar r)) => VectorSpace (VU.Vec
         then VG.zipWith (./.) u v
         else error "(./.): u and v have different lengths"
 
-instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
-    , VU.Unbox r
-    ) => Normed (VU.Vector r)
-        where
-    size = innerProductNorm
-
-instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
-    , VU.Unbox r
-    ) => Banach (VU.Vector r)
-
-instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
-    , VU.Unbox r
-    ) => Hilbert (VU.Vector r)
-        where
-    v1 <> v2 = if VG.length v1 == 0
-        then zero
-        else if VG.length v2 == 0
-            then zero
-            else if VG.length v1 /= VG.length v2
-                then error "inner product on storable vectors of different sizes"
-                else VG.foldl' (+) zero $ VG.zipWith (*) v1 v2
+-- instance
+--     ( IsScalar r
+--     , Normed r
+--     , Logic r~Bool
+--     , VectorSpace r
+--     , Floating r
+--     , VU.Unbox r
+--     ) => Normed (VU.Vector r)
+--         where
+--     size = innerProductNorm
+--
+-- instance
+--     ( IsScalar r
+--     , Normed r
+--     , Logic r~Bool
+--     , VectorSpace r
+--     , Floating r
+--     , VU.Unbox r
+--     ) => Banach (VU.Vector r)
+--
+-- instance
+--     ( IsScalar r
+--     , Normed r
+--     , Logic r~Bool
+--     , VectorSpace r
+--     , Floating r
+--     , VU.Unbox r
+--     ) => Hilbert (VU.Vector r)
+--         where
+--     v1 <> v2 = if VG.length v1 == 0
+--         then zero
+--         else if VG.length v2 == 0
+--             then zero
+--             else if VG.length v1 /= VG.length v2
+--                 then error "inner product on storable vectors of different sizes"
+--                 else VG.foldl' (+) zero $ VG.zipWith (*) v1 v2
 
 instance
     ( IsScalar r
@@ -407,8 +407,6 @@ instance
     , VU.Unbox r
     ) => Metric (VU.Vector r)
         where
-
-    distance = innerProductDistance
 
     {-# INLINE[1] distanceUB #-}
     distanceUB !v1 !v2 !dist = {-# SCC distanceUB_UVector #-}
@@ -530,35 +528,35 @@ instance ( VectorSpace r, IsScalar (Scalar r)) => VectorSpace (V.Vector r) where
         then VG.zipWith (./.) u v
         else error "(./.): u and v have different lengths"
 
-instance
-    ( Hilbert r
-    , Floating (Scalar r)
-    ) => Normed (V.Vector r)
-        where
-    size = innerProductNorm
+-- instance
+--     ( Hilbert r
+--     , Floating (Scalar r)
+--     ) => Normed (V.Vector r)
+--         where
+--     size = innerProductNorm
+--
+-- instance
+--     ( Hilbert r
+--     , Floating (Scalar r)
+--     ) => Banach (V.Vector r)
 
-instance
-    ( Hilbert r
-    , Floating (Scalar r)
-    ) => Banach (V.Vector r)
-
-instance
-    ( Hilbert r
-    , Floating (Scalar r)
-    ) => Metric (V.Vector r)
-        where
-    distance = innerProductDistance
-
-instance
-    ( Hilbert r
-    , Floating (Scalar r)
-    ) => Hilbert (V.Vector r)
-        where
-    v1 <> v2 = if VG.length v1 == 0 || VG.length v2 == 0
-        then zero
-        else if VG.length v1 /= VG.length v2
-            then error "inner product on vectors of different sizes"
-            else VG.foldl' (+) zero $ VG.zipWith (<>) v1 v2
+-- instance
+--     ( Hilbert r
+--     , Floating (Scalar r)
+--     ) => Metric (V.Vector r)
+--         where
+--     distance = innerProductDistance
+--
+-- instance
+--     ( Hilbert r
+--     , Floating (Scalar r)
+--     ) => Hilbert (V.Vector r)
+--         where
+--     v1 <> v2 = if VG.length v1 == 0 || VG.length v2 == 0
+--         then zero
+--         else if VG.length v1 /= VG.length v2
+--             then error "inner product on vectors of different sizes"
+--             else VG.foldl' (+) zero $ VG.zipWith (<>) v1 v2
 
 
 type instance Index (V.Vector r) = Int
