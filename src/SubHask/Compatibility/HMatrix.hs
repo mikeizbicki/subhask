@@ -56,6 +56,16 @@ data Matrix r
 type instance Scalar (Matrix r) = r
 type instance Logic (Matrix r) = Bool
 
+type instance Matrix a >< b = MatrixOuterProduct (Matrix a) b
+type family MatrixOuterProduct a b where
+    MatrixOuterProduct (Matrix a) (Matrix b) = Matrix (a><b)
+    MatrixOuterProduct (Matrix a) b = Matrix (a><b)
+
+type instance Vector a >< b = VectorOuterProduct (Vector a) b
+type family VectorOuterProduct a b where
+    VectorOuterProduct (Vector a) (Vector b) = Matrix (a><b)
+    VectorOuterProduct (Vector a) b = Vector (a><b)
+
 instance (Storable r, NFData r) => NFData (Matrix r) where
     rnf Zero = ()
     rnf (One r) = ()
@@ -117,6 +127,7 @@ instance
     , P.Eq r
     , IsScalar r
     , Ring r
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Module (Matrix r)
         where
     (Matrix m) .* r = Matrix $ HM.scale r m
@@ -131,6 +142,7 @@ instance
     , P.Eq r
     , IsScalar r
     , Field r
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => VectorSpace (Matrix r)
         where
     (Matrix m1) ./. (Matrix m2) = Matrix $ HM.divide m1 m2
@@ -145,6 +157,7 @@ instance
     , Floating r
     , Normed r
     , ClassicalLogic r
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Banach (Matrix r)
 
 instance
@@ -156,6 +169,7 @@ instance
     , Floating r
     , Normed r
     , Logic r~Bool
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Hilbert (Matrix r)
         where
     Zero <> _ = 0
@@ -174,6 +188,7 @@ instance
     , Floating r
     , Normed r
     , Logic r~Bool
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Metric (Matrix r)
         where
     distance m1 m2 = innerProductDistance m2 m2
@@ -187,6 +202,7 @@ instance
     , Floating r
     , Normed r
     , Logic r~Bool
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Normed (Matrix r)
         where
     size = innerProductNorm
@@ -201,9 +217,10 @@ instance
     , Field r
     , VectorSpace r
     , HM.Field r
-    ) => OuterProductSpace (Vector r)
+    , VectorOuterProduct (Vector r) r ~ Vector r
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
+    ) => TensorAlgebra (Vector r)
         where
-    type Outer (Vector r) = Matrix r
     v1 >< v2 = Matrix $ HM.outer v1 v2
 
     vXm v Zero = VS.map (const 0) v
@@ -223,9 +240,9 @@ instance
     , Field r
     , VectorSpace r
     , HM.Field r
-    ) => OuterProductSpace (Matrix r)
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
+    ) => TensorAlgebra (Matrix r)
         where
-    type Outer (Matrix r) = Matrix r
     Zero >< _ = Zero
     _ >< Zero = Zero
     (Matrix m1) >< (Matrix m2) = Matrix $ HM.kronecker m1 m2
@@ -265,3 +282,89 @@ mkMatrix r c xs = Matrix $ (r HM.>< c) xs
 -- t = mkMatrix 2 2 [2..10] :: Matrix Double
 
 
+-------------------------------------------------------------------------------
+-- moved from Vector for dependency issues
+
+instance (Storable r, Module r, IsScalar (Scalar r), VectorOuterProduct (Vector r) (Scalar r) ~ Vector r) => Module (VS.Vector r) where
+
+    {-# INLINE (.*) #-}
+    v .* r = VG.map (r*.) v
+
+    {-# INLINE (.*.) #-}
+    u .*. v = if VG.length u == VG.length v
+        then VG.zipWith (.*.) u v
+        else error "(.*.): u and v have different lengths"
+
+instance (Storable r, VectorSpace r, IsScalar (Scalar r), VectorOuterProduct (Vector r) (Scalar r) ~ Vector r) => VectorSpace (VS.Vector r) where
+    {-# INLINE (./) #-}
+    v ./ r = VG.map (./r) v
+
+    {-# INLINE (./.) #-}
+    u ./. v = if VG.length u == VG.length v
+        then VG.zipWith (./.) u v
+        else error "(./.): u and v have different lengths"
+
+instance
+    ( IsScalar r
+    , Normed r
+    , Logic r~Bool
+    , VectorSpace r
+    , Floating r
+    , VS.Storable r
+    , VectorOuterProduct (Vector r) r ~ Vector r
+    ) => Normed (VS.Vector r)
+        where
+    size = innerProductNorm
+
+instance
+    ( IsScalar r
+    , Normed r
+    , Logic r~Bool
+    , VectorSpace r
+    , Floating r
+    , VS.Storable r
+    , VectorOuterProduct (Vector r) r ~ Vector r
+    ) => Banach (VS.Vector r)
+
+instance
+    ( IsScalar r
+    , Normed r
+    , Logic r~Bool
+    , VectorSpace r
+    , Floating r
+    , VS.Storable r
+    , VectorOuterProduct (Vector r) r ~ Vector r
+    ) => Metric (VS.Vector r)
+        where
+    distance = innerProductDistance
+
+instance
+    ( IsScalar r
+    , Normed r
+    , Logic r~Bool
+    , VectorSpace r
+    , Floating r
+    , VS.Storable r
+    , VectorOuterProduct (Vector r) r ~ Vector r
+    ) => Hilbert (VS.Vector r)
+        where
+    v1 <> v2 = if VG.length v1 == 0
+        then zero
+        else if VG.length v2 == 0
+            then zero
+            else if VG.length v1 /= VG.length v2
+                then error "inner product on storable vectors of different sizes"
+                else VG.foldl' (+) zero $ VG.zipWith (*) v1 v2
+
+
+type instance Index (VS.Vector r) = Int
+type instance Elem (VS.Vector r) = r
+type instance SetElem (VS.Vector r) b = VS.Vector b
+
+instance (IsScalar r, VS.Storable r) => IxContainer (VS.Vector r) where
+    lookup i s = s VG.!? i
+    indices s = [0..VG.length s-1]
+    values = VG.toList
+
+instance (IsScalar r, Module r, VS.Storable r, VectorOuterProduct (Vector r) r ~ Vector r) => FiniteModule (VS.Vector r) where
+    unsafeToModule = VG.fromList

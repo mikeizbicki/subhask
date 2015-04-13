@@ -1,3 +1,4 @@
+{-# LANGUAGE NoAutoDeriveTypeable #-}
 module SubHask.Category.Trans.Monotonic
 --     ( MonT
 --     , Mon

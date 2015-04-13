@@ -5,6 +5,7 @@ import qualified Prelude as P
 import SubHask
 import SubHask.TemplateHaskell.Deriving
 
+{-
 kernel2distance :: (Floating (Scalar v), VectorSpace v) => (v -> v -> Scalar v) -> v -> v -> Scalar v
 kernel2distance kernel v1 v2 = sqrt $ kernel v1 v1 - kernel v1 v2 - kernel v2 v1 + kernel v2 v2
 
@@ -102,3 +103,4 @@ instance (Hilbert v) => Metric (Sigmoid n v) where
             sigmoid (Sigmoid v1) (Sigmoid v2) = tanh $ alpha * v1<>v2 + beta
             alpha=1/10000
             beta=0
+-}

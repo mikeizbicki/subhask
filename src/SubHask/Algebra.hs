@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP,MagicHash,UnboxedTuples #-}
--- {-# LANGUAGE IncoherentInstances #-}
 
 -- | This module defines the algebraic type-classes used in subhask.
 -- The class hierarchies are significantly more general than those in the standard Prelude.
@@ -224,6 +223,7 @@ module SubHask.Algebra
     , Scalar
     , IsScalar
     , HasScalar
+    , type (><)
     , Cone (..)
     , Module (..)
     , (*.)
@@ -233,7 +233,7 @@ module SubHask.Algebra
     , Hilbert (..)
     , innerProductDistance
     , innerProductNorm
-    , OuterProductSpace (..)
+    , TensorAlgebra (..)
 
     -- * Helper functions
     , simpleMutableDefn
@@ -1421,9 +1421,23 @@ instance Floating Double where
 
 type family Scalar m
 
+infixr 8 ><
+type family (><) (a::k1) (b::k2) :: *
+type instance Int       >< Int        = Int
+type instance Integer   >< Integer    = Integer
+type instance Float     >< Float      = Float
+type instance Double    >< Double     = Double
+type instance Rational  >< Rational   = Rational
+
+-- type instance (a,b)     >< Scalar b   = (a,b)
+-- type instance (a,b,c)   >< Scalar b   = (a,b,c)
+
+type instance (a -> b)  >< c          = a -> (b><c)
+-- type instance c         >< (a -> b)   = a -> (c><b)
+
 -- FIXME: made into classes due to TH limitations
-class (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r) => IsScalar r
-instance (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r) => IsScalar r
+class (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r)) => IsScalar r
+instance (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r)) => IsScalar r
 
 -- FIXME: made into classes due to TH limitations
 class (IsScalar (Scalar a)) => HasScalar a
@@ -1493,6 +1507,8 @@ class
     ( Abelian v
     , Group v
     , HasScalar v
+    , v ~ (v><Scalar v)
+--     , v ~ (Scalar v><v)
     ) => Module v
         where
 
@@ -1619,39 +1635,32 @@ innerProductDistance v1 v2 = innerProductNorm $ v1-v2
 
 ---------------------------------------
 
--- | FIXME: This needs to relate to a Monoidal category
+-- |
+--
+-- See <https://en.wikipedia.org/wiki/Tensor_algebra wikipedia> for details.
+--
+-- FIXME:
+-- This needs to be replaced by the Tensor product in the Monoidal category Vect
 class
     ( VectorSpace v
-    , Field (Outer v)
-    , HasScalar v
-    , Scalar (Outer v) ~ Scalar v
-    ) => OuterProductSpace v
+    , VectorSpace (v><v)
+    , Scalar (v><v) ~ Scalar v
+    , Field (v><v)
+    ) => TensorAlgebra v
         where
-    type Outer v
-    infix 8 ><
-    (><) :: v -> v -> Outer v
 
-    vXm :: v -> Outer v -> v
+    -- | Take the tensor product of two vectors
+    (><) :: v -> v -> (v><v)
 
-    mXv :: Outer v -> v -> v
+    -- | "left multiplication" of a square matrix
+    vXm :: v -> (v><v) -> v
 
-instance OuterProductSpace Float where
-    type Outer Float = Float
-    (><) = (*)
-    vXm = (*)
-    mXv = (*)
+    -- | "right multiplication" of a square matrix
+    mXv :: (v><v) -> v -> v
 
-instance OuterProductSpace Double where
-    type Outer Double = Double
-    (><) = (*)
-    vXm = (*)
-    mXv = (*)
-
-instance OuterProductSpace Rational where
-    type Outer Rational = Rational
-    (><) = (*)
-    vXm = (*)
-    mXv = (*)
+instance TensorAlgebra Float    where  (><) = (*); vXm = (*);  mXv = (*)
+instance TensorAlgebra Double   where  (><) = (*); vXm = (*);  mXv = (*)
+instance TensorAlgebra Rational where  (><) = (*); vXm = (*);  mXv = (*)
 
 ---------------------------------------
 
@@ -2498,21 +2507,21 @@ instance (Abelian a, Abelian b) => Abelian (a,b)
 
 instance (Abelian a, Abelian b, Abelian c) => Abelian (a,b,c)
 
-instance (Module a, Module b, Scalar a ~ Scalar b) => Module (a,b) where
-    (a,b) .* r = (r*.a, r*.b)
-    (a1,b1).*.(a2,b2) = (a1.*.a2,b1.*.b2)
-
-instance (Module a, Module b, Module c, Scalar a ~ Scalar b, Scalar c~Scalar b) => Module (a,b,c) where
-    (a,b,c) .* r = (r*.a, r*.b,r*.c)
-    (a1,b1,c1).*.(a2,b2,c2) = (a1.*.a2,b1.*.b2,c1.*.c2)
-
-instance (VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => VectorSpace (a,b) where
-    (a,b) ./ r = (a./r,b./r)
-    (a1,b1)./.(a2,b2) = (a1./.a2,b1./.b2)
-
-instance (VectorSpace a,VectorSpace b, VectorSpace c, Scalar a ~ Scalar b, Scalar c~Scalar b) => VectorSpace (a,b,c) where
-    (a,b,c) ./ r = (a./r,b./r,c./r)
-    (a1,b1,c1)./.(a2,b2,c2) = (a1./.a2,b1./.b2,c1./.c2)
+-- instance (Module a, Module b, Scalar a ~ Scalar b) => Module (a,b) where
+--     (a,b) .* r = (r*.a, r*.b)
+--     (a1,b1).*.(a2,b2) = (a1.*.a2,b1.*.b2)
+--
+-- instance (Module a, Module b, Module c, Scalar a ~ Scalar b, Scalar c~Scalar b) => Module (a,b,c) where
+--     (a,b,c) .* r = (r*.a, r*.b,r*.c)
+--     (a1,b1,c1).*.(a2,b2,c2) = (a1.*.a2,b1.*.b2,c1.*.c2)
+--
+-- instance (VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => VectorSpace (a,b) where
+--     (a,b) ./ r = (a./r,b./r)
+--     (a1,b1)./.(a2,b2) = (a1./.a2,b1./.b2)
+--
+-- instance (VectorSpace a,VectorSpace b, VectorSpace c, Scalar a ~ Scalar b, Scalar c~Scalar b) => VectorSpace (a,b,c) where
+--     (a,b,c) ./ r = (a./r,b./r,c./r)
+--     (a1,b1,c1)./.(a2,b2,c2) = (a1./.a2,b1./.b2,c1./.c2)
 
 --------------------------------------------------------------------------------
 

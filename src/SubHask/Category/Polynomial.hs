@@ -61,6 +61,8 @@ instance Ring r => Rg (Polynomial r r) where
 instance Ring r => Rig (Polynomial r r) where
     one = Polynomial [one]
 
+type instance Polynomial r r >< r = Polynomial r r
+
 instance (IsScalar r, Ring r) => Module (Polynomial r r) where
     (Polynomial xs) .*  r               = Polynomial $ P.map (*r) xs
     (Polynomial xs) .*. (Polynomial ys) = Polynomial $ zipWith (*) xs ys

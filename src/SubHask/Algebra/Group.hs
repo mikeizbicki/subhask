@@ -126,6 +126,8 @@ instance (Rig a, Quotient a b) => Rig (a/b) where
 instance (Ring a, Quotient a b) => Ring (a/b) where
     fromInteger i = mkQuotient $ fromInteger i
 
+type instance ((a/b)><c) = (a><c)/b
+
 instance (Module a, Quotient a b) => Module (a/b) where
     (Mod a) .*  r       = mkQuotient $ a .*  r
     (Mod a) .*. (Mod b) = mkQuotient $ a .*. b
@@ -165,6 +167,8 @@ extendedEuclid a b = go zero one one zero b a
 -- FIXME: Many arithmetic operations over Galois Fields can be implemented more efficiently than the standard operations.
 -- See <http://en.wikipedia.org/wiki/Finite_field_arithmetic>.
 newtype Galois (p::Nat) (k::Nat) = Galois (Z (p^k))
+
+type instance Galois p k >< Integer = Galois p k
 
 deriveHierarchy ''Galois [''Eq_,''Ring]
 

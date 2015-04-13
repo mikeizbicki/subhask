@@ -14,6 +14,7 @@ import SubHask.TemplateHaskell.Deriving
 
 newtype Match v a = Match { unMatch :: v a }
 
+type instance (Match v a)><b = Match v (a><b)
 deriveHierarchy ''Match
     [ ''Ord
     , ''Boolean
@@ -91,6 +92,7 @@ instance
 
 newtype HistogramIntersection v a = HistogramIntersection { unHistogramIntersection :: v a }
 
+type instance (HistogramIntersection v a)><b = HistogramIntersection v (a><b)
 deriveHierarchy ''HistogramIntersection
     [ ''Ord
     , ''Boolean
@@ -170,6 +172,7 @@ instance
 
 newtype Xi2 v a = Xi2 { unXi2 :: v a }
 
+type instance (Xi2 v a)><b = Xi2 v (a><b)
 deriveHierarchy ''Xi2
     [ ''Ord
     , ''Boolean
@@ -253,6 +256,7 @@ instance
 
 newtype JensenShannonDivergence v a = JensenShannonDivergence { unJensenShannonDivergence :: v a }
 
+type instance (JensenShannonDivergence v a)><b = JensenShannonDivergence v (a><b)
 deriveHierarchy ''JensenShannonDivergence
     [ ''Ord
     , ''Boolean

@@ -28,8 +28,8 @@ import SubHask.SubType
 import SubHask.Internal.Prelude
 
 import qualified Prelude as P
-import qualified Numeric.AD as AD
-import qualified Numeric.AD.Mode.Reverse as AD
+-- import qualified Numeric.AD as AD
+-- import qualified Numeric.AD.Mode.Reverse as AD
 
 import SubHask.Compatibility.Vector
 import SubHask.Compatibility.HMatrix
@@ -37,73 +37,85 @@ import SubHask.Compatibility.HMatrix
 
 --------------------------------------------------------------------------------
 
-infixr >><<
-type family (>><<) (a::k1) (b::k2) :: * where
-    Int       >><< Int        = Int
-    Integer   >><< Integer    = Integer
-    Float     >><< Float      = Float
-    Double    >><< Double     = Double
-    Rational  >><< Rational   = Rational
---     (a -> b)  >><< c          = a -> (b>><<c)
---     c         >><< (a -> b)   = a -> (c>><<b)
---     Vector >><< Double = Vector Double
---     Vector Double >><< Double = Vector Double
---     Vector Double >><< Vector Double = Matrix Double
-
 --------------------------------------------------------------------------------
 
--- |
+data AD a = AD
+    { v  :: Scalar a
+    , v' :: a
+    }
+
+instance (HasScalar a, Semigroup a) => Semigroup (AD a) where
+    (AD a1 a1')+(AD a2 a2') = AD (a1+a2) (a1'+a2')
+
+-- proveC1_ :: (a~Vector Double) => (AD a -> AD a) -> C1 (a -> Scalar a)
+-- proveC1_ f
+--     = Diffn (\a -> v  $ f $ AD a ones)
+--     $ Diff0 (\a -> v' $ f $ AD a ones)
+
+ones :: Vector Double
+ones = unsafeToModule [1,1,1,1,1]
+
+-- | This is essentially just a translation of the "Numeric.AD.Forward.Forward" type
+-- for use with the SubHask numeric hierarchy.
+--
 -- FIXME:
 --
 -- Add reverse mode auto-differentiation for vectors.
 -- Apply the "ProofOf" framework from Monotonic
-data AD1 a = AD1
+data Forward a = Forward
     { val  :: !a
     , val' ::  a
     }
     deriving (Typeable,Show)
 
-diffAD1 :: Ring a => (AD1 a -> AD1 a) -> a -> a
-diffAD1 f a = val' $ f (AD1 a 1)
+instance Semigroup a => Semigroup (Forward a) where
+    (Forward a1 a1')+(Forward a2 a2') = Forward (a1+a2) (a1'+a2')
 
-instance Semigroup a => Semigroup (AD1 a) where
-    (AD1 a1 a1')+(AD1 a2 a2') = AD1 (a1+a2) (a1'+a2')
+instance Cancellative a => Cancellative (Forward a) where
+    (Forward a1 a1')-(Forward a2 a2') = Forward (a1-a2) (a1'-a2')
 
-instance Cancellative a => Cancellative (AD1 a) where
-    (AD1 a1 a1')-(AD1 a2 a2') = AD1 (a1-a2) (a1'-a2')
+instance Monoid a => Monoid (Forward a) where
+    zero = Forward zero zero
 
-instance Monoid a => Monoid (AD1 a) where
-    zero = AD1 zero zero
+instance Group a => Group (Forward a) where
+    negate (Forward a b) = Forward (negate a) (negate b)
 
-instance Group a => Group (AD1 a) where
-    negate (AD1 a b) = AD1 (negate a) (negate b)
+instance Abelian a => Abelian (Forward a)
 
-instance Abelian a => Abelian (AD1 a)
+instance Rg a => Rg (Forward a) where
+    (Forward a1 a1')*(Forward a2 a2') = Forward (a1*a2) (a1*a2'+a2*a1')
 
-instance Rg a => Rg (AD1 a) where
-    (AD1 a1 a1')*(AD1 a2 a2') = AD1 (a1*a2) (a1*a2'+a2*a1')
+instance Rig a => Rig (Forward a) where
+    one = Forward one zero
 
-instance Rig a => Rig (AD1 a) where
-    one = AD1 one zero
+instance Ring a => Ring (Forward a) where
+    fromInteger x = Forward (fromInteger x) zero
 
-instance Ring a => Ring (AD1 a) where
-    fromInteger x = AD1 (fromInteger x) zero
+instance Field a => Field (Forward a) where
+    reciprocal (Forward a a') = Forward (reciprocal a) (-a'/(a*a))
+    (Forward a1 a1')/(Forward a2 a2') = Forward (a1/a2) ((a1'*a2+a1*a2')/(a2'*a2'))
+    fromRational r = Forward (fromRational r) 0
 
-instance Field a => Field (AD1 a) where
-    reciprocal (AD1 a a') = AD1 (reciprocal a) (-a'/(a*a))
-    (AD1 a1 a1')/(AD1 a2 a2') = AD1 (a1/a2) ((a1'*a2+a1*a2')/(a2'*a2'))
-    fromRational r = AD1 (fromRational r) 0
+---------
+
+proveC1 :: (a ~ (a><a), Rig a) => (Forward a -> Forward a) -> C1 (a -> a)
+proveC1 f = Diffn (\a -> val $ f $ Forward a one) $ Diff0 $ \a -> val' $ f $ Forward a one
+
+proveC2 :: (a ~ (a><a), Rig a) => (Forward (Forward a) -> Forward (Forward a)) -> C2 (a -> a)
+proveC2 f
+    = Diffn (\a -> val  $ val  $ f $ Forward (Forward a one) one)
+    $ Diffn (\a -> val' $ val  $ f $ Forward (Forward a one) one)
+    $ Diff0 (\a -> val' $ val' $ f $ Forward (Forward a one) one)
 
 --------------------------------------------------------------------------------
 
 class C (cat :: * -> * -> *) where
     type D cat :: * -> * -> *
-    derivative :: cat a b -> D cat a (a >><< b)
-
+    derivative :: cat a b -> D cat a (a >< b)
 
 data Diff (n::Nat) a b where
     Diff0 :: (a -> b) -> Diff 0 a b
-    Diffn :: (a -> b) -> Diff (n-1) a (a >><< b) -> Diff n a b
+    Diffn :: (a -> b) -> Diff (n-1) a (a >< b) -> Diff n a b
 
 ---------
 
@@ -148,132 +160,21 @@ unsafeProveC0 f = Diff0 f
 
 unsafeProveC1
     :: (a -> b)     -- ^ f(x)
-    -> (a -> a>><<b)  -- ^ f'(x)
+    -> (a -> a><b)  -- ^ f'(x)
     -> C1 (a -> b)
 unsafeProveC1 f f' = Diffn f $ unsafeProveC0 f'
 
 unsafeProveC2
     :: (a -> b)         -- ^ f(x)
-    -> (a -> a>><<b)      -- ^ f'(x)
-    -> (a -> a>><<a>><<b)   -- ^ f''(x)
+    -> (a -> a><b)      -- ^ f'(x)
+    -> (a -> a><a><b)   -- ^ f''(x)
     -> C2 (a -> b)
 unsafeProveC2 f f' f'' = Diffn f $ unsafeProveC1 f' f''
 
-type family C1 (f :: *) :: * where
-    C1 (a -> b) = Diff 1 a b
+type C1 a = C1_ a
+type family C1_ (f :: *) :: * where
+    C1_ (a -> b) = Diff 1 a b
 
-type family C2 (f :: *) :: * where
-    C2 (a -> b) = Diff 2 a b
-
---------------------------------------------------------------------------------
-{-
-
-newtype (+>) a b = Linear (a><b)
-
-deriving instance Show (a><b) => Show (a +> b)
-
-infixr ><
-type family (><) (a::k1) (b::k2) :: * where
-    Double >< Double = Double
-    Vector >< Double = Vector Double
-    Vector Double >< Double = Vector Double
-    Vector Double >< Vector Double = Matrix Double
-    a >< (b +> c) = a >< b >< c
-
-
-
-class C (dcat :: * -> * -> *) (n::Nat) (cat :: * -> * -> *) | dcat cat -> n where
-    type D dcat cat :: * -> * -> *
-    derivative_ :: proxy dcat -> cat a b -> D dcat cat a (dcat a b)
-
-class (D dcat cat~cat) => Smooth dcat cat
-
---------------------------------------------------------------------------------
-
-type family A0 (f :: *) :: *
-type instance A0 (a -> b) = CT dcat 0 (->) a b
-
-data CT dcat (n::Nat) cat a b where
-    CT0 :: cat a b -> CT dcat 0 cat a b
-    CTn :: cat a b -> CT dcat (n-1) cat a (dcat a b) -> CT dcat n cat a b
-
-instance (1 <= n) => C dcat n (CT dcat n cat) where
-    type D dcat (CT dcat n cat) = CT dcat (n-1) cat
-    derivative_ _ (CTn _ f') = f'
-
-derivative :: C (+>) n cat => cat a b -> D (+>) cat a (a +> b)
-derivative = derivative_ (Proxy::Proxy (+>))
-
-unsafeProveC0 :: cat a b -> CT dcat 0 cat a b
-unsafeProveC0 f = CT0 f
-
-unsafeProveC1 :: cat a b -> cat a (dcat a b) -> CT dcat 1 cat a b
-unsafeProveC1 f f' = CTn f $ unsafeProveC0 f'
-
-unsafeProveC2 :: cat a b -> cat a (dcat a b) -> cat a (dcat a (dcat a b)) -> CT dcat 2 cat a b
-unsafeProveC2 f f' f'' = CTn f $ unsafeProveC1 f' f''
-
--------------------
-
-instance Sup (CT dcat n cat) cat cat
-instance Sup cat (CT dcat n cat) cat
-
-instance CT dcat 0 cat <: cat where
-    embedType_ = Embed2 unCT0
-        where
-            unCT0 :: CT dcat 0 cat a b -> cat a b
-            unCT0 (CT0 f) = f
-
-instance CT dcat n cat <: cat where
-    embedType_ = Embed2 unCTn
-        where
-            unCTn :: CT dcat n cat a b -> cat a b
-            unCTn (CTn f f') = f
-
--- FIXME: these subtyping instance should be made more generic
--- the problem is that type families aren't currently powerful enough
-
-instance Sup (CT dcat 0 cat) (CT dcat 1 cat) (CT dcat 0 cat)
-instance Sup (CT dcat 1 cat) (CT dcat 0 cat) (CT dcat 0 cat)
-instance CT dcat 1 cat <: CT dcat 0 cat where embedType_ = Embed2 m2n where m2n (CTn f f') = CT0 f
-
-instance Sup (CT dcat 0 cat) (CT dcat 2 cat) (CT dcat 0 cat)
-instance Sup (CT dcat 2 cat) (CT dcat 0 cat) (CT dcat 0 cat)
-instance CT dcat 2 cat <: CT dcat 0 cat where embedType_ = Embed2 m2n where m2n (CTn f f') = CT0 f
-
-instance Sup (CT dcat 1 cat) (CT dcat 2 cat) (CT dcat 1 cat)
-instance Sup (CT dcat 2 cat) (CT dcat 1 cat) (CT dcat 1 cat)
-instance CT dcat 2 cat <: CT dcat 1 cat where embedType_ = Embed2 m2n where m2n (CTn f f') = CTn f (embedType2 f')
-
--------------------
-
-instance Category cat => Category (CT dcat 0 cat) where
-    type ValidCategory (CT dcat 0 cat) a = ValidCategory cat a
-    id = CT0 id
-    (CT0 f).(CT0 g) = CT0 $ f.g
-
--- | FIXME: these instances could be made more generic if the <: instance were more generic
--- instance Category Hask => Category (CT dcat 1 Hask) where
---     type ValidCategory (CT dcat 1 Hask) a = (Rg a, ValidCategory Hask a)
---     id = CTn id (CT0 $ \x -> id)
---     (CTn f f') . g_@(CTn g g') = CTn (f.g) ((f'.embedType2 g_) *** g')
---         where
---             (***) :: CT dcat 0 Hask a (b -> c) -> CT dcat 0 Hask a (a -> b) -> CT dcat 0 Hask a (a -> c)
---             (***) f g = CT0 $ \a -> (f $ a) . (g $ a)
-
---------------------------------------------------------------------------------
--- tests
-
-test1 :: CT (+>) 1 Hask Double Double
-test1 = unsafeProveC1 (\x -> x**3) (\x -> Linear $ 3*x**2)
-
-test2 :: CT (+>) 2 Hask (Vector Double) Double
-test2 = unsafeProveC2
-    (\x -> exp (- x<>w) )
-    (\x -> Linear $ exp (- x<>w) *. (-w) )
-    (\x -> Linear $ exp (- x<>w) *. w >< w )
-    where
-        w = VG.fromList [1,2] :: Vector Double
-
-v = VG.fromList [1,3] :: Vector Double
--}
+type C2 a = C2_ a
+type family C2_ (f :: *) :: * where
+    C2_ (a -> b) = Diff 2 a b

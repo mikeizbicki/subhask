@@ -287,6 +287,9 @@ type UnboxedVector = VU.Vector
 type instance Scalar (VU.Vector r) = Scalar r
 type instance Logic (VU.Vector r) = Logic r
 
+type instance VU.Vector a >< b = VU.Vector (a><b)
+type instance V.Vector  a >< b = V.Vector  (a><b)
+
 instance (VU.Unbox r, Arbitrary r) => Arbitrary (VU.Vector r) where
     arbitrary = liftM VG.fromList arbitrary
     shrink v = map VG.fromList $ shrink (VG.toList v)
@@ -630,82 +633,3 @@ instance (Storable r, Cancellative r) => Cancellative (VS.Vector r) where
 instance (Storable r, Group r) => Group (VS.Vector r) where
     {-# INLINE negate #-}
     negate v = VG.map negate v
-
-instance (Storable r, Module r, IsScalar (Scalar r)) => Module (VS.Vector r) where
-    {-# INLINE (.*) #-}
-    v .* r = VG.map (r*.) v
-
-    {-# INLINE (.*.) #-}
-    u .*. v = if VG.length u == VG.length v
-        then VG.zipWith (.*.) u v
-        else error "(.*.): u and v have different lengths"
-
-instance (Storable r, VectorSpace r, IsScalar (Scalar r)) => VectorSpace (VS.Vector r) where
-    {-# INLINE (./) #-}
-    v ./ r = VG.map (./r) v
-
-    {-# INLINE (./.) #-}
-    u ./. v = if VG.length u == VG.length v
-        then VG.zipWith (./.) u v
-        else error "(./.): u and v have different lengths"
-
-instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
-    , VS.Storable r
-    ) => Normed (VS.Vector r)
-        where
-    size = innerProductNorm
-
-instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
-    , VS.Storable r
-    ) => Banach (VS.Vector r)
-
-instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
-    , VS.Storable r
-    ) => Metric (VS.Vector r)
-        where
-    distance = innerProductDistance
-
-instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , Floating r
-    , VS.Storable r
-    ) => Hilbert (VS.Vector r)
-        where
-    v1 <> v2 = if VG.length v1 == 0
-        then zero
-        else if VG.length v2 == 0
-            then zero
-            else if VG.length v1 /= VG.length v2
-                then error "inner product on storable vectors of different sizes"
-                else VG.foldl' (+) zero $ VG.zipWith (*) v1 v2
-
-
-type instance Index (VS.Vector r) = Int
-type instance Elem (VS.Vector r) = r
-type instance SetElem (VS.Vector r) b = VS.Vector b
-
-instance (IsScalar r, VS.Storable r) => IxContainer (VS.Vector r) where
-    lookup i s = s VG.!? i
-    indices s = [0..VG.length s-1]
-    values = VG.toList
-
-instance (IsScalar r, Module r, VS.Storable r) => FiniteModule (VS.Vector r) where
-    unsafeToModule = VG.fromList

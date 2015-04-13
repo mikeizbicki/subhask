@@ -49,7 +49,7 @@ library
         SubHask.Compatibility.HMatrix
         SubHask.Compatibility.HyperLogLog
         SubHask.Compatibility.Vector
-        SubHask.Compatibility.Vector.HistogramMetrics
+--         SubHask.Compatibility.Vector.HistogramMetrics
         SubHask.Compatibility.Vector.Lebesgue
 
         SubHask.Monad

@@ -235,8 +235,8 @@ newtype Uncompensated s = Uncompensated s
 deriveHierarchy ''Uncompensated
     [ ''Ord
     , ''Boolean
-    , ''Hilbert
-    , ''Ring
+    , ''Normed
+    , ''Monoid
     , ''Constructible
     ]
 
