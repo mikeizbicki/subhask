@@ -44,9 +44,17 @@ provePolynomial f = unProofOf $ f $ ProofOf $ Polynomial [0,1]
 
 -------------------------------------------------------------------------------
 
-data family Polynomial r1 r2
-data instance Polynomial r r where
-    Polynomial :: Ring r => [r] -> Polynomial r r
+-- | The type of Polynomials over an arbitrary ring.
+--
+-- See <https://en.wikipedia.org/wiki/Polynomial_ring wikipedia> for more detail.
+--
+-- FIXME:
+-- "Polynomial" takes two type parameters in order to be compatible with the "Category" hierarchy of classes.
+-- But currently, both types must match each other.
+-- Can/Should we generalize this to allow polynomials between types?
+--
+data Polynomial a b where
+    Polynomial :: (Ring a, a~b) => [a] -> Polynomial a b
 
 instance Show r => Show (Polynomial r r) where
     show (Polynomial p) = concat $ intersperse " + " $ go p 0
@@ -59,10 +67,10 @@ instance Show r => Show (Polynomial r r) where
 
 ---------------------------------------
 
-type instance Scalar (Polynomial r r) = Scalar r
-type instance Logic (Polynomial r r) = Logic r
+type instance Scalar (Polynomial a b) = Scalar b
+type instance Logic (Polynomial a b) = Logic b
 
-instance Eq r => Eq_ (Polynomial r r) where
+instance Eq b => Eq_ (Polynomial a b) where
     (Polynomial xs)==(Polynomial ys) = xs==ys
 
 instance Ring r => Semigroup (Polynomial r r) where
@@ -102,27 +110,25 @@ sumList f xs [] = xs
 sumList f (x:xs) (y:ys) = f x y:sumList f xs ys
 
 ---------------------------------------
---
--- FIXME:
--- None of this works because our definition of a Polynomial requires the domain and range to have the same type.
--- This shouldn't be necessary in general, but it's going to take some thinking to fix it.
---
--- instance Category Polynomial where
---     type ValidCategory Polynomial a = (Ring a, IsScalar a)
---     id = Polynomial [zero, one]
---     p1.p2 = evalPolynomial p1 p2
---
--- instance Sup Polynomial Hask Hask
--- instance Sup Hask Polynomial Hask
---
--- instance Polynomial <: Hask where
---     embedType_ = Embed2 evalPolynomial
+
+instance Category Polynomial where
+    type ValidCategory Polynomial a = Ring a
+    id = Polynomial [zero, one]
+    (Polynomial xs) . p2@(Polynomial _) = Polynomial (map (\x -> Polynomial [x]) xs) $ p2
+
+instance Sup Polynomial Hask Hask
+instance Sup Hask Polynomial Hask
+
+instance Polynomial <: Hask where
+    embedType_ = Embed2 evalPolynomial
 
 pow :: Rig r => r -> Int -> r
-pow r i = P.foldl (*) one $ P.replicate i r
+pow r i = foldl' (*) one $ P.replicate i r
 
-evalPolynomial :: Polynomial m m -> m -> m
-evalPolynomial (Polynomial xs) m = P.foldl1 (+) $ P.map (\(i,c) -> c*(pow m i)) $ P.zip [0..] xs
+evalPolynomial :: Polynomial a b -> a -> b
+evalPolynomial (Polynomial xs) r = sum $ map go $ P.zip [0..] xs
+    where
+        go (i,x) = x*pow r i
 
 -------------------------------------------------------------------------------
 
