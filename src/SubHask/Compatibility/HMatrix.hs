@@ -154,7 +154,7 @@ instance
     , P.Eq r
     , IsScalar r
     , Field r
-    , Floating r
+    , ExpField r
     , Normed r
     , HM.Field r
     , VectorSpace r
@@ -169,7 +169,7 @@ instance
     , P.Eq r
     , HM.Field r
     , IsScalar r
-    , Floating r
+    , ExpField r
     , Normed r
     , Logic r~Bool
     , VectorSpace r
@@ -189,7 +189,7 @@ instance
     , HM.Numeric r
     , P.Eq r
     , IsScalar r
-    , Floating r
+    , ExpField r
     , Normed r
     , HM.Field r
     , Logic r~Bool
@@ -205,7 +205,7 @@ instance
     , HM.Numeric r
     , P.Eq r
     , IsScalar r
-    , Floating r
+    , ExpField r
     , Normed r
     , HM.Field r
     , Logic r~Bool
@@ -317,7 +317,7 @@ instance
     , Normed r
     , Logic r~Bool
     , VectorSpace r
-    , Floating r
+    , ExpField r
     , HM.Field r
     , VS.Storable r
     , VectorOuterProduct (Vector r) r ~ Vector r
@@ -332,7 +332,7 @@ instance
     , Normed r
     , Logic r~Bool
     , VectorSpace r
-    , Floating r
+    , ExpField r
     , HM.Field r
     , VS.Storable r
     , VectorOuterProduct (Vector r) r ~ Vector r
@@ -345,7 +345,7 @@ instance
     , Normed r
     , Logic r~Bool
     , VectorSpace r
-    , Floating r
+    , ExpField r
     , HM.Field r
     , VS.Storable r
     , VectorOuterProduct (Vector r) r ~ Vector r
@@ -360,7 +360,7 @@ instance
     , Normed r
     , Logic r~Bool
     , VectorSpace r
-    , Floating r
+    , ExpField r
     , VS.Storable r
     , HM.Container Vector r
     , HM.Product r

@@ -366,7 +366,7 @@ instance (VU.Unbox r, VectorSpace r, IsScalar (Scalar r)) => VectorSpace (VU.Vec
 --     , Normed r
 --     , Logic r~Bool
 --     , VectorSpace r
---     , Floating r
+--     , ExpField r
 --     , VU.Unbox r
 --     ) => Normed (VU.Vector r)
 --         where
@@ -377,7 +377,7 @@ instance (VU.Unbox r, VectorSpace r, IsScalar (Scalar r)) => VectorSpace (VU.Vec
 --     , Normed r
 --     , Logic r~Bool
 --     , VectorSpace r
---     , Floating r
+--     , ExpField r
 --     , VU.Unbox r
 --     ) => Banach (VU.Vector r)
 --
@@ -386,7 +386,7 @@ instance (VU.Unbox r, VectorSpace r, IsScalar (Scalar r)) => VectorSpace (VU.Vec
 --     , Normed r
 --     , Logic r~Bool
 --     , VectorSpace r
---     , Floating r
+--     , ExpField r
 --     , VU.Unbox r
 --     ) => Hilbert (VU.Vector r)
 --         where
@@ -403,7 +403,7 @@ instance
     , Normed r
     , Logic r~Bool
     , VectorSpace r
-    , Floating r
+    , ExpField r
     , VU.Unbox r
     ) => Metric (VU.Vector r)
         where
@@ -530,26 +530,26 @@ instance ( VectorSpace r, IsScalar (Scalar r)) => VectorSpace (V.Vector r) where
 
 -- instance
 --     ( Hilbert r
---     , Floating (Scalar r)
+--     , ExpField (Scalar r)
 --     ) => Normed (V.Vector r)
 --         where
 --     size = innerProductNorm
 --
 -- instance
 --     ( Hilbert r
---     , Floating (Scalar r)
+--     , ExpField (Scalar r)
 --     ) => Banach (V.Vector r)
 
 -- instance
 --     ( Hilbert r
---     , Floating (Scalar r)
+--     , ExpField (Scalar r)
 --     ) => Metric (V.Vector r)
 --         where
 --     distance = innerProductDistance
 --
 -- instance
 --     ( Hilbert r
---     , Floating (Scalar r)
+--     , ExpField (Scalar r)
 --     ) => Hilbert (V.Vector r)
 --         where
 --     v1 <> v2 = if VG.length v1 == 0 || VG.length v2 == 0

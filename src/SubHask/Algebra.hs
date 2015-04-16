@@ -205,7 +205,8 @@ module SubHask.Algebra
     , BoundedField(..)
     , infinity
     , negInfinity
-    , Floating (..)
+    , ExpRing (..)
+    , ExpField (..)
     , QuotientField(..)
 
     -- ** Sizes
@@ -1389,33 +1390,111 @@ instance QuotientField b1 b2 => QuotientField (a -> b1) (a -> b2) where
 
 ---------------------------------------
 
--- | FIXME: add rest of Floating functions
+-- | Rings augmented with the ability to take exponents.
 --
--- FIXME: There are better characterizations of many of these functions than floating.
-class Field r => Floating r where
-    pi :: r
-    exp :: r -> r
-    sqrt :: r -> r
-    log :: r -> r
-    tanh :: r -> r
+-- Not all rings have this ability.
+-- Consider the ring of rational numbers (represented by "Rational" in Haskell).
+-- Raising any rational to an integral power results in another rational.
+-- But raising to a fractional power results in an irrational number.
+-- For example, the square root of 2.
+--
+-- See <http://en.wikipedia.org/wiki/Exponential_field#Exponential_rings wikipedia> for more detail.
+--
+-- FIXME:
+-- This class hierarchy doesn't give a nice way exponentiate the integers.
+-- We need to add instances for all the quotient groups.
+class Ring r => ExpRing r where
     (**) :: r -> r -> r
     infixl 8 **
 
-instance Floating Float where
-    pi = P.pi
-    sqrt = P.sqrt
-    log = P.log
-    exp = P.exp
-    tanh = P.tanh
-    (**) = (P.**)
+    logBase :: r -> r -> r
 
-instance Floating Double where
-    pi = P.pi
+-- | An alternate form of "(**)" that some people find more convenient.
+(^) :: ExpRing r => r -> r -> r
+(^) = (**)
+
+instance ExpRing Float where
+    (**) = (P.**)
+    logBase = P.logBase
+
+instance ExpRing Double where
+    (**) = (P.**)
+    logBase = P.logBase
+
+---------------------------------------
+
+-- | Fields augmented with exponents and logarithms.
+--
+-- Technically, there are fields for which only a subset of the functions below are meaningful.
+-- But these fields don't have any practical computational uses that I'm aware of.
+-- So I've combined them all into a single class for simplicity.
+--
+-- See <http://en.wikipedia.org/wiki/Exponential_field wikipedia> for more detail.
+class (ExpRing r, Field r) => ExpField r where
+    sqrt :: r -> r
+    sqrt r = r**(1/2)
+
+    exp :: r -> r
+    log :: r -> r
+
+instance ExpField Float where
     sqrt = P.sqrt
     log = P.log
     exp = P.exp
+
+instance ExpField Double where
+    sqrt = P.sqrt
+    log = P.log
+    exp = P.exp
+
+---------------------------------------
+
+-- | Fields where we can also apply trigonometric functions.
+-- This isn't a commonly studied structure.
+class Field r => TrigField r where
+    pi :: r
+    sin :: r -> r
+    cos :: r -> r
+    tan :: r -> r
+    asin :: r -> r
+    acos :: r -> r
+    atan :: r -> r
+    sinh :: r -> r
+    cosh :: r -> r
+    tanh :: r -> r
+    asinh :: r -> r
+    acosh :: r -> r
+    atanh :: r -> r
+
+instance TrigField Float where
+    pi = P.pi
+    sin = P.sin
+    cos = P.cos
+    tan = P.tan
+    asin = P.asin
+    acos = P.acos
+    atan = P.atan
+    sinh = P.sinh
+    cosh = P.cosh
     tanh = P.tanh
-    (**) = (P.**)
+    asinh = P.asinh
+    acosh = P.acosh
+    atanh = P.atanh
+
+instance TrigField Double where
+    pi = P.pi
+    sin = P.sin
+    cos = P.cos
+    tan = P.tan
+    asin = P.asin
+    acos = P.acos
+    atan = P.atan
+    sinh = P.sinh
+    cosh = P.cosh
+    tanh = P.tanh
+    asinh = P.asinh
+    acosh = P.acosh
+    atanh = P.atanh
 
 ---------------------------------------
 
@@ -1612,7 +1691,7 @@ instance Banach Rational
 class
     ( Banach v
     , TensorAlgebra v
-    , Floating (Scalar v)
+    , ExpField (Scalar v)
     ) => Hilbert v
         where
 

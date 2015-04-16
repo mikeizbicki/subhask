@@ -93,13 +93,13 @@ type instance Scalar (L1 v r) = r
 instance
     ( VG.Vector v r
     , Eq (v r)
-    , Floating r
+    , ExpField r
     , Normed r
     , Ord r
     , IsScalar r
     ) => Metric (L1 v r)
         where
--- instance (VG.Unbox r, RealFrac r,Floating r) => Metric (L1 VG.Vector r) where
+-- instance (VG.Unbox r, RealFrac r,ExpField r) => Metric (L1 VG.Vector r) where
     {-# INLINABLE distance #-}
 
     distance !(L1 v1) !(L1 v2) = go 0 (VG.length v1-1)
@@ -171,7 +171,7 @@ type instance Scalar (L2 v r) = r
 instance
     ( VG.Vector v r
     , Eq (v r)
-    , Floating r
+    , ExpField r
     , Normed r
     , Ord r
     , IsScalar r
@@ -215,7 +215,7 @@ instance
 distance_l2_hask ::
     ( VG.Vector v r
     , Eq (v r)
-    , Floating r
+    , ExpField r
     , Normed r
     , Ord r
     , IsScalar r
@@ -445,14 +445,14 @@ type instance Scalar (Linf v r) = r
 instance
     ( VG.Vector v r
     , Eq (v r)
-    , Floating r
+    , ExpField r
     , Normed r
     , Ord r
     , IsScalar r
     ) => Metric (Linf v r)
         where
 
--- instance (VG.Unbox r, RealFrac r,Floating r) => Metric (Linf VG.Vector r) where
+-- instance (VG.Unbox r, RealFrac r,ExpField r) => Metric (Linf VG.Vector r) where
     {-# INLINABLE distance #-}
     {-# INLINABLE isFartherThan #-}
 
