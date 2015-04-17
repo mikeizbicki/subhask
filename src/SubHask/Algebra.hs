@@ -212,6 +212,7 @@ module SubHask.Algebra
     , ExpRing (..)
     , (^)
     , ExpField (..)
+    , Real (..)
     , QuotientField(..)
 
     -- ** Sizes
@@ -248,6 +249,8 @@ module SubHask.Algebra
     where
 
 import qualified Prelude as P
+import qualified Data.Number.Erf as P
+import qualified Math.Gamma as P
 import qualified Data.List as L
 
 import Prelude (Ordering (..))
@@ -1470,9 +1473,18 @@ instance ExpField Double where
 
 ---------------------------------------
 
--- | Fields where we can also apply trigonometric functions.
--- This isn't a commonly studied structure.
-class Field r => TrigField r where
+-- | This is a catch-all class for things the real numbers can do but don't exist in other classes.
+--
+-- FIXME:
+-- Factor this out into a more appropriate class hierarchy.
+-- For example, some (all?) trig functions need to move to a separate class in order to support trig in finite fields (see <en.wikipedia.org/wiki/Trigonometry_in_Galois_fields wikipedia>).
+--
+-- FIXME:
+-- There's a lot more functions that need adding.
+class ExpField r => Real r where
+    gamma :: r -> r
+    lnGamma :: r -> r
+    erf :: r -> r
     pi :: r
     sin :: r -> r
     cos :: r -> r
@@ -1487,8 +1499,13 @@ class Field r => TrigField r where
     acosh :: r -> r
     atanh :: r -> r
 
-instance TrigField Float where
+instance Real Float where
+    gamma = P.gamma
+    lnGamma = P.lnGamma
+    erf = P.erf
+
     pi = P.pi
+
     sin = P.sin
     cos = P.cos
     tan = P.tan
@@ -1502,8 +1519,13 @@ instance TrigField Float where
     acosh = P.acosh
     atanh = P.atanh
 
-instance TrigField Double where
+instance Real Double where
+    gamma = P.gamma
+    lnGamma = P.lnGamma
+    erf = P.erf
+
     pi = P.pi
+
     sin = P.sin
     cos = P.cos
     tan = P.tan

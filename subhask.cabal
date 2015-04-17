@@ -117,6 +117,10 @@ library
         primitive       >= 0.5.3,
         monad-primitive >= 0.1,
 
+        -- math
+        erf             >= 2.0,
+        gamma           >= 0.9,
+
         -- compatibility layers
         bytestring      >= 0.10.4,
         cassava         >= 0.4.1,
