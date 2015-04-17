@@ -1,31 +1,52 @@
--- | This module defines the basic infrastructure for working with categories.
--- Because we are using the ConstraintKinds extension, we can encode many
--- more categories than the standard "Data.Category" class is capable of.
+{-# LANGUAGE NoAutoDeriveTypeable #-}
+-- | SubHask supports two ways to encode categories in Haskell.
 --
--- There are a number of unfortunate difficulties with encoding category theory.
--- The first is that nomenclature is often nonstandard.
--- In this module, we generally follow the names laid out in John Baez and Mike Stay's
+-- **Method 1**
+--
+-- Create a data type of kind @k -> k -> *@,
+-- and define an instance of the "Category" class.
+-- Because our version of "Category" uses the ConstraintKinds extension,
+-- we can encode many more categories than the standard "Data.Category" class.
+--
+-- There are many subclasses of "Category" for categories with extra features.
+-- Most of this module is spent defining these categories
+-- and instantiating appropriate instances for "Hask".
+--
+-- Unfortunately, many of the terms used in category theory are non-standard.
+-- In this module, we try to follow the names used out in John Baez and Mike Stay's
 -- <http://math.ucr.edu/home/baez/rosetta.pdf Rosetta Stone paper>.
 -- This is a fairly accessible introduction to category theory for Haskeller's ready
 -- to move beyond \"monads are monoids in the category of endofunctors.\"
 --
--- A second unfortunate problem is that the laws for category classes are rather
--- cumbersome to describe.
--- So I haven't explicitly stated the laws for any classes.
--- Instead, I have provided links to wikipedia and ncatlab that provide quite a bit
--- of detail of each class.
--- These resources should also be valuable to the Haskeller wishing to delve more
--- deeply into category theory.
+-- FIXME:
+-- Writing laws for any classes in this file requires at least the "Eq" class from "SubHask.Algebra".
+-- Hence, the laws are not explicitly stated anywhere.
 --
--- FIXME: writing laws for any classes in this file requires the classes in Algebra.
+--
+-- **Method 2**
+--
+-- For any subcategory of "Hask", we can define a type "ProofOf subcat".
+-- Then any function of type @ProofOf subcat a -> ProofOf subcat b@ is an arrow within @subcat@.
+-- This is essentially a generalization of automatic differentiation to any category.
+--
+-- TODO:
+-- This needs a much better explanation and examples.
+--
+-- **Comparison**
+-- Method 1 is the primary way to represent a category.
+-- It's main advantage is that we have complete control over the representation in memory.
+-- With method 2, everything must be wrapped within function calls.
+-- Besides this layer of indirection, we also increase the chance for accidental space leaks.
+--
+-- Usually, it is easier to work with functions using method 1,
+-- but it is easier to construct functions using method 2.
+--
+-- FIXME:
+-- Currently, each category comes with its own mechanism for converting between the two representations.
+-- We need something more generic.
 module SubHask.Category
     (
-    -- * Categories
     Category (..)
-
---     , Functor (..)
---     , Applicative (..)
---     , Monad (..)
 
     -- * Hask
     , Hask
@@ -37,12 +58,6 @@ module SubHask.Category
     , embed2
     , fst
     , snd
-
-    {-
-    -- * Cat
-    , Cat
-    , CatT
-    -}
 
     -- * Special types of categories
     , Concrete (..)
@@ -59,6 +74,11 @@ module SubHask.Category
     , Groupoid (..)
     , Compact (..)
     , Dagger (..)
+
+    -- * Proofs
+    , Provable(..)
+    , ProofOf_
+    , ProofOf
     ) where
 
 import GHC.Prim
@@ -385,3 +405,39 @@ class Closed cat => Compact cat where
 -- and <http://ncatlab.org/nlab/show/dagger-category ncatlab>
 class Category cat => Dagger cat where
     dagger :: cat a b -> cat b a
+
+--------------------------------------------------------------------------------
+
+-- | This data family can be used to provide proofs that an arrow in Hask (i.e. a function) can be embedded in some subcategory.
+-- We're travelling in the opposite direction of the subtyping mechanism.
+-- That's valid only in a small number of cases.
+-- These proofs give a type safe way to capture some (but not all) of those cases.
+data family ProofOf (cat :: k -> k -> *) a
+
+newtype instance ProofOf Hask a = ProofOf { unProofOfHask :: a }
+
+-- FIXME: which direction should the subtyping go?
+instance Sup (ProofOf cat a) a (ProofOf cat a)
+instance Sup a (ProofOf cat a) (ProofOf cat a)
+
+instance a <: ProofOf Hask a where
+    embedType_ = Embed0 ProofOf
+
+-- | A provable category gives us the opposite ability as a Concrete category.
+-- Instead of embedding a function in the subcategory into Hask,
+-- we can embed certain functions from Hask into the subcategory.
+class Concrete cat => Provable cat where
+
+    -- | If you want to apply a function inside of a proof,
+    -- you must use the "($$)" operator instead of the more commonly used "($)".
+    --
+    -- FIXME:
+    -- This is rather inelegant.
+    -- Is there any way to avoid this?
+    infixr 0 $$
+    ($$) :: cat a b -> ProofOf_ cat a -> ProofOf_ cat b
+
+type family ProofOf_ cat a where
+    ProofOf_ Hask a = a
+    ProofOf_ cat  a = ProofOf cat a
+

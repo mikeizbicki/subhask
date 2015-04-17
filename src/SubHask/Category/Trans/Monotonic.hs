@@ -1,4 +1,3 @@
-{-# LANGUAGE NoAutoDeriveTypeable #-}
 module SubHask.Category.Trans.Monotonic
 --     ( MonT
 --     , Mon
@@ -18,11 +17,6 @@ import SubHask.Category.Trans.Constrained
 
 -------------------------------------------------------------------------------
 
-data family ProofOf (c::k) a
-
--------------------
-
--- newtype IncreasingT (cat :: * -> * -> *) a b = IncreasingT (cat a b)
 data IncreasingT cat (a :: *) (b :: *) where
     IncreasingT :: (Ord_ a, Ord_ b) => cat a b -> IncreasingT cat a b
 
@@ -41,28 +35,26 @@ instance (subcat <: cat) => IncreasingT subcat <: cat where
 instance Semigroup (cat a b) => Semigroup (IncreasingT cat a b) where
     (IncreasingT f)+(IncreasingT g) = IncreasingT $ f+g
 
-instance (Ord_ a, Ord_ b, Monoid (cat a b)) => Monoid (IncreasingT cat a b) where
-    zero = IncreasingT zero
-
+-- instance (Ord_ a, Ord_ b, Monoid (cat a b)) => Monoid (IncreasingT cat a b) where
+--     zero = IncreasingT zero
+--
 instance Abelian (cat a b) => Abelian (IncreasingT cat a b) where
 
-instance (Ord_ a, Ord_ b, Rg (cat a b)) => Rg (IncreasingT cat a b) where
-    (IncreasingT f)*(IncreasingT g) = IncreasingT $ f*g
+instance Provable (IncreasingT Hask) where
+    f $$ a = ProofOf $ (f $ unProofOf a)
 
-instance (Ord_ a, Ord_ b, Rig (cat a b)) => Rig (IncreasingT cat a b) where
-    one = IncreasingT one
 
 -------------------
 
-newtype instance ProofOf IncreasingT a = ProofOf { unProofOf :: a }
+newtype instance ProofOf (IncreasingT cat) a = ProofOf { unProofOf :: ProofOf_ cat a }
 
-instance Semigroup a => Semigroup (ProofOf IncreasingT a) where
+instance Semigroup (ProofOf_ cat a) => Semigroup (ProofOf (IncreasingT cat) a) where
     (ProofOf a1)+(ProofOf a2) = ProofOf (a1+a2)
 
-instance Monoid a => Monoid (ProofOf IncreasingT a) where
-    zero = ProofOf zero
+-- instance Monoid (ProofOf cat a) => Monoid (ProofOf (IncreasingT cat) a) where
+--     zero = ProofOf zero
 
-instance Abelian a => Abelian (ProofOf IncreasingT a)
+instance Abelian (ProofOf_ cat a) => Abelian (ProofOf (IncreasingT cat) a)
 
 -------------------
 
@@ -73,8 +65,11 @@ type family Increasing_ a where
 proveIncreasing ::
     ( Ord_ a
     , Ord_ b
-    ) => (ProofOf IncreasingT a -> ProofOf IncreasingT b) -> Increasing (a -> b)
-proveIncreasing f = IncreasingT $ \a -> unProofOf $ f $ ProofOf a
+    ) => (ProofOf (IncreasingT Hask) a -> ProofOf (IncreasingT Hask) b) -> Increasing (a -> b)
+proveIncreasing f = unsafeProveIncreasing $ \a -> unProofOf $ f $ ProofOf a
+
+instance (Ord_ a, Ord_ b) => Hask (ProofOf (IncreasingT Hask) a) (ProofOf (IncreasingT Hask) b) <: (IncreasingT Hask) a b where
+    embedType_ = Embed0 proveIncreasing
 
 unsafeProveIncreasing ::
     ( Ord_ a

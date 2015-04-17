@@ -17,7 +17,7 @@ module SubHask.SubType
 --     , Embed2 (..)
 
     -- * Template Haskell
-    , s
+--     , s
     , subhask
     , mkSubtype
     , mkSubtypeInstance
@@ -30,9 +30,7 @@ import Language.Haskell.TH.Quote
 import Language.Haskell.Meta
 
 import SubHask.Internal.Prelude
-import Prelude (($),id,Eq (..))
-
-import Debug.Trace
+import Prelude
 
 -------------------------------------------------------------------------------
 -- common helper functions
@@ -62,7 +60,8 @@ instance Sup s s s
 -- | We use `s <: t` to denote that s is s subtype of t.
 -- The "embedType" function must be s homomorphism from s to t.
 --
-class (Sup s t t, Sup t s t) => (s :: k) <: (t :: k) where
+-- class (Sup s t t, Sup t s t) => (s :: k) <: (t :: k) where
+class (s :: k) <: (t :: k) where
     embedType_ :: Embed s t -- a b
 
 
@@ -245,7 +244,7 @@ exp_ :: Q Exp -> Q Exp
 exp_ qe = do
     e <- qe
     let ret = subcatExp e
-    trace ("\nsubtype substitution\n  orig="++show e++"\n  ret="++show ret) $ return ()
+--     trace ("\nsubtype substitution\n  orig="++show e++"\n  ret="++show ret) $ return ()
     return ret
 
 dec_ :: Q [Dec] -> Q [Dec]

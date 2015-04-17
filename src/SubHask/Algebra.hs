@@ -168,6 +168,8 @@ module SubHask.Algebra
     , law_Cancellative_rightminus2
     , defn_Cancellative_plusequal
     , Monoid (..)
+    , isZero
+    , notZero
     , law_Monoid_leftid
     , law_Monoid_rightid
     , defn_Monoid_isZero
@@ -187,6 +189,8 @@ module SubHask.Algebra
     , theorem_Rg_distributivityRight
     , defn_Rg_timesequal
     , Rig(..)
+    , isOne
+    , notOne
     , law_Rig_multiplicativeId
     , Rng
     , defn_Ring_fromInteger
@@ -206,6 +210,7 @@ module SubHask.Algebra
     , infinity
     , negInfinity
     , ExpRing (..)
+    , (^)
     , ExpField (..)
     , QuotientField(..)
 
@@ -324,7 +329,7 @@ class Eq_ a where
     -- | In order to have the "not equals to" relation, your logic must have a notion of "not", and therefore must be "Boolean".
     {-# INLINE (/=) #-}
     infix 4 /=
-    (/=) :: Boolean (Logic a) => a -> a -> Logic a
+    (/=) :: ValidLogic a => a -> a -> Logic a
     (/=) = not (==)
 
 law_Eq_reflexive :: Eq a => a -> Logic a
@@ -922,6 +927,10 @@ class Semigroup g => Monoid g where
 isZero :: (Monoid g, ValidEq g) => g -> Logic g
 isZero = (==zero)
 
+-- | FIXME: this should be in the Monoid class, but putting it there requires a lot of changes to Eq
+notZero :: (Monoid g, ValidEq g) => g -> Logic g
+notZero = (/=zero)
+
 law_Monoid_leftid :: (Monoid g, Eq g) => g -> Bool
 law_Monoid_leftid g = zero + g == g
 
@@ -1098,6 +1107,14 @@ class (Monoid r, Rg r) => Rig r where
     -- | the multiplicative identity
     one :: r
 
+-- | FIXME: this should be in the Rig class, but putting it there requires a lot of changes to Eq
+isOne :: (Rig g, ValidEq g) => g -> Logic g
+isOne = (==one)
+
+-- | FIXME: this should be in the Rig class, but putting it there requires a lot of changes to Eq
+notOne :: (Rig g, ValidEq g) => g -> Logic g
+notOne = (/=one)
+
 law_Rig_multiplicativeId :: (Eq r, Rig r) => r -> Bool
 law_Rig_multiplicativeId r = r * one == r && one * r == r
 
@@ -1150,6 +1167,10 @@ instance Ring Double      where fromInteger = P.fromInteger
 instance Ring Rational    where fromInteger = P.fromInteger
 
 instance Ring b => Ring (a -> b) where fromInteger i = \a -> fromInteger i
+
+---------------------------------------
+
+-- class FromInteger
 
 ---------------------------------------
 
@@ -2446,6 +2467,8 @@ insertAt = consAt
 type instance Scalar [a] = Int
 type instance Logic [a] = Logic a
 type instance Elem [a] = a
+type instance SetElem [a] b = [b]
+type instance Index [a] = Int
 
 instance ValidEq a => Eq_ [a] where
     (x:xs)==(y:ys) = x==y && xs==ys
@@ -2504,6 +2527,15 @@ instance Foldable [a] where
     foldl' = L.foldl'
     foldl1 = L.foldl1
     foldl1' = L.foldl1'
+
+instance ValidLogic a => IxContainer [a] where
+    lookup 0 (x:xs) = Just x
+    lookup i (x:xs) = lookup (i-1) xs
+    lookup _ [] = Nothing
+
+    imap f xs = map (uncurry f) $ P.zip [0..] xs
+
+    toIxList xs = P.zip [0..] xs
 
 ----------------------------------------
 
