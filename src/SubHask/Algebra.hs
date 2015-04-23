@@ -355,7 +355,7 @@ instance Eq_ Float    where (==) = (P.==); (/=) = (P./=)
 instance Eq_ Double   where (==) = (P.==); (/=) = (P./=)
 
 instance Eq_ b => Eq_ (a -> b) where
-    (f==g) a = f a == f a
+    (f==g) a = f a == g a
 
 class (Eq_ a, Logic a ~ Bool) => Eq a
 instance (Eq_ a, Logic a ~ Bool) => Eq a
