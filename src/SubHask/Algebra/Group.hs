@@ -96,7 +96,9 @@ class Quotient a (b::k) where
 -- | The type of equivalence classes created by a mod b.
 newtype (/) (a :: *) (b :: k) = Mod a
 
-newtype instance Mutable m (a/b) = Mutable_Mod (Mutable m a)
+-- mkDefaultMutable [t| forall a b. a/b |]
+
+-- newtype instance Mutable m (a/b) = Mutable_Mod (Mutable m a)
 
 instance (Quotient a b, Arbitrary a) => Arbitrary (a/b) where
     arbitrary = liftM mkQuotient arbitrary

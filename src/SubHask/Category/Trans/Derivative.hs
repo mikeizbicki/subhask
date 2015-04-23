@@ -44,6 +44,8 @@ data AD a = AD
     , v' :: a
     }
 
+mkMutable [t| forall a. AD a |]
+
 instance (HasScalar a, Semigroup a) => Semigroup (AD a) where
     (AD a1 a1')+(AD a2 a2') = AD (a1+a2) (a1'+a2')
 
@@ -67,6 +69,8 @@ data Forward a = Forward
     , val' ::  a
     }
     deriving (Typeable,Show)
+
+mkMutable [t| forall a. Forward a |]
 
 instance Semigroup a => Semigroup (Forward a) where
     (Forward a1 a1')+(Forward a2 a2') = Forward (a1+a2) (a1'+a2')

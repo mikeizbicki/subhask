@@ -30,6 +30,8 @@ import SubHask.TemplateHaskell.Deriving
 newtype Seq a = Seq (Seq.Seq a)
     deriving (Read,Show,NFData)
 
+mkMutable [t| forall a. Seq a |]
+
 type instance Scalar (Seq a) = Int
 type instance Logic (Seq a) = Bool
 type instance Elem (Seq a) = a
@@ -122,7 +124,9 @@ instance (ValidEq a) => Partitionable (Seq a) where
 -- | This is a thin wrapper around Data.Map
 
 newtype Map i e = Map (M.Map (WithPreludeOrd i) (WithPreludeOrd e))
-    deriving (Read,Show,NFData)
+    deriving (Show,NFData)
+
+mkMutable [t| forall i e. Map i e |]
 
 type instance Scalar (Map i e) = Int
 type instance Logic (Map i e) = Bool
@@ -179,7 +183,9 @@ instance (Ord i, Eq e) => IxConstructible (Map i e) where
 -- | This is a thin wrapper around Data.Map.Strict
 
 newtype Map' i e = Map' (MS.Map (WithPreludeOrd i) (WithPreludeOrd e))
-    deriving (Read,Show,NFData)
+    deriving (Show,NFData)
+
+mkMutable [t| forall i e. Map' i e |]
 
 type instance Scalar (Map' i e) = Int
 type instance Logic (Map' i e) = Bool
@@ -240,6 +246,8 @@ instance (Ord i, Eq e) => IxConstructible (Map' i e) where
 newtype IntMap e = IntMap (IM.IntMap (WithPreludeOrd e))
     deriving (Read,Show,NFData)
 
+mkMutable [t| forall a. IntMap a |]
+
 type instance Scalar (IntMap e) = Int
 type instance Logic (IntMap e) = Bool
 type instance Index (IntMap e) = IM.Key
@@ -296,6 +304,8 @@ instance (Eq e) => IxContainer (IntMap e) where
 newtype IntMap' e = IntMap' (IMS.IntMap (WithPreludeOrd e))
     deriving (Read,Show,NFData)
 
+mkMutable [t| forall a. IntMap' a |]
+
 type instance Scalar (IntMap' e) = Int
 type instance Logic (IntMap' e) = Bool
 type instance Index (IntMap' e) = IMS.Key
@@ -350,7 +360,9 @@ instance (Eq e) => IxContainer (IntMap' e) where
 -- | This is a thin wrapper around the container's set type
 
 newtype Set a = Set (Set.Set (WithPreludeOrd a))
-    deriving (Read,Show,NFData)
+    deriving (Show,NFData)
+
+mkMutable [t| forall a. Set a |]
 
 instance (Ord a, Arbitrary a) => Arbitrary (Set a) where
     arbitrary = P.fmap fromList arbitrary
@@ -411,6 +423,8 @@ instance Ord a => Foldable (Set a) where
 -- FIXME: add the @Constrained@ Monad
 data LexSet a where
     LexSet :: Ord a => Set a -> LexSet a
+
+mkMutable [t| forall a. LexSet a |]
 
 type instance Scalar (LexSet a) = Int
 type instance Logic (LexSet a) = Bool

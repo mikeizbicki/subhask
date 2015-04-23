@@ -13,6 +13,8 @@ import qualified Data.BloomFilter as BF
 
 newtype BloomFilter (n::Nat) a = BloomFilter (BF.Bloom a)
 
+mkMutable [t| forall n a. BloomFilter n a |]
+
 type instance Scalar (BloomFilter n a) = Int
 type instance Logic (BloomFilter n a) = Bool
 type instance Elem (BloomFilter n a) = a

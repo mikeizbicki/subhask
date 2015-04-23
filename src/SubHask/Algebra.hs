@@ -254,7 +254,7 @@ import qualified Math.Gamma as P
 import qualified Data.List as L
 
 import Prelude (Ordering (..))
-import Control.Monad
+import Control.Monad hiding (liftM)
 import Data.Ratio
 import Data.Typeable
 import Test.QuickCheck (Arbitrary (..), frequency)
@@ -278,7 +278,7 @@ import SubHask.SubType
 -- Helper functions
 
 -- | Creates a quickcheck property for a simple mutable operator defined using "immutable2mutable"
-simpleMutableDefn :: Eq_ a
+simpleMutableDefn :: (Eq_ a, IsMutable a)
     => (Mutable (ST s) a -> b -> ST s ()) -- ^ mutable function
     -> (a -> b -> a)              -- ^ create a mutable function using "immutable2mutable"
     -> (a -> b -> Logic a)        -- ^ the output property
@@ -316,8 +316,7 @@ type instance Logic () = ()
 type ValidLogic a = Complemented (Logic a)
 
 -- | Classical logic is implemented using the Prelude's Bool type.
-class Logic a ~ Bool => ClassicalLogic a
-instance Logic a ~ Bool => ClassicalLogic a
+type ClassicalLogic a = Logic a ~ Bool
 
 -- | Defines equivalence classes over the type.
 -- The values need not have identical representations in the machine to be equal.
@@ -833,18 +832,18 @@ instance Boolean b => Boolean (a -> b)
 -------------------------------------------------------------------------------
 -- numeric classes
 
-class Semigroup g where
+class IsMutable g => Semigroup g where
     infixl 6 +
     (+) :: g -> g -> g
 
     infixr 5 +=
-    (+=) :: PrimMonad m => Mutable m g -> g -> m ()
+    (+=) :: (PrimBase m) => Mutable m g -> g -> m ()
     (+=) = immutable2mutable (+)
 
 law_Semigroup_associativity :: (Eq g, Semigroup g ) => g -> g -> g -> Logic g
 law_Semigroup_associativity g1 g2 g3 = g1 + (g2 + g3) == (g1 + g2) + g3
 
-defn_Semigroup_plusequal :: (Eq_ g, Semigroup g) => g -> g -> Logic g
+defn_Semigroup_plusequal :: (Eq_ g, Semigroup g, IsMutable g) => g -> g -> Logic g
 defn_Semigroup_plusequal = simpleMutableDefn (+=) (+)
 
 -- | Measures the degree to which a Semigroup obeys the associative law.
@@ -885,12 +884,12 @@ type family Actor s
 -- FIXME: These types could probably use a more expressive name.
 --
 -- FIXME: We would like every Semigroup to act on itself, but this results in a class cycle.
-class Semigroup (Actor s) => Action s where
+class (IsMutable s, Semigroup (Actor s)) => Action s where
     infixl 6 .+
     (.+) :: s -> Actor s -> s
 
     infixr 5 .+=
-    (.+=) :: PrimMonad m => Mutable m s -> Actor s -> m ()
+    (.+=) :: (PrimBase m) => Mutable m s -> Actor s -> m ()
     (.+=) = immutable2mutable (.+)
 
 law_Action_compatibility :: (Eq_ s, Action s) => Actor s -> Actor s -> s -> Logic s
@@ -983,7 +982,7 @@ class Semigroup g => Cancellative g where
     (-) :: g -> g -> g
 
     infixr 5 -=
-    (-=) :: PrimMonad m => Mutable m g -> g -> m ()
+    (-=) :: (PrimBase m) => Mutable m g -> g -> m ()
     (-=) = immutable2mutable (-)
 
 
@@ -1069,7 +1068,7 @@ class (Abelian r, Monoid r) => Rg r where
     (*) :: r -> r -> r
 
     infixr 5 *=
-    (*=) :: PrimMonad m => Mutable m r -> r -> m ()
+    (*=) :: (PrimBase m) => Mutable m r -> r -> m ()
     (*=) = immutable2mutable (*)
 
 law_Rg_multiplicativeAssociativity :: (Eq r, Rg r) => r -> r -> r -> Bool
@@ -1282,7 +1281,7 @@ class Ring r => Field r where
     n/d = n * reciprocal d
 
 --     infixr 5 /=
---     (/=) :: PrimMonad m => Mutable m g -> g -> m ()
+--     (/=) :: (PrimBase m) => Mutable m g -> g -> m ()
 --     (/=) = immutable2mutable (/)
 
     {-# INLINE fromRational #-}
@@ -1480,6 +1479,9 @@ instance ExpField Double where
 -- For example, some (all?) trig functions need to move to a separate class in order to support trig in finite fields (see <en.wikipedia.org/wiki/Trigonometry_in_Galois_fields wikipedia>).
 --
 -- FIXME:
+-- This class is misleading/incorrect for complex numbers.
+--
+-- FIXME:
 -- There's a lot more functions that need adding.
 class ExpField r => Real r where
     gamma :: r -> r
@@ -1641,11 +1643,11 @@ class
     (.*.) :: v -> v -> v
 
     infixr 5 .*=
-    (.*=) :: PrimMonad m => Mutable m v -> Scalar v -> m ()
+    (.*=) :: (PrimBase m) => Mutable m v -> Scalar v -> m ()
     (.*=) = immutable2mutable (.*)
 
     infixr 5 .*.=
-    (.*.=) :: PrimMonad m => Mutable m v -> v -> m ()
+    (.*.=) :: (PrimBase m) => Mutable m v -> v -> m ()
     (.*.=) = immutable2mutable (.*.)
 
 {-# INLINE (*.) #-}
@@ -1679,13 +1681,14 @@ instance
 --
 -- for sparse representations.
 class (Module s, IxContainer s, Elem s~Scalar s, Index s~Int) => FiniteModule s where
+    dim :: Ring r => s -> r
     unsafeToModule :: [Scalar s] -> s
 
-instance FiniteModule Int       where  unsafeToModule [x] = x
-instance FiniteModule Integer   where  unsafeToModule [x] = x
-instance FiniteModule Float     where  unsafeToModule [x] = x
-instance FiniteModule Double    where  unsafeToModule [x] = x
-instance FiniteModule Rational  where  unsafeToModule [x] = x
+instance FiniteModule Int       where  dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Integer   where  dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Float     where  dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Double    where  dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Rational  where  dim _ = 1; unsafeToModule [x] = x
 
 ---------------------------------------
 
@@ -1734,7 +1737,7 @@ instance Banach Rational
 class
     ( Banach v
     , TensorAlgebra v
-    , ExpField (Scalar v)
+    , Real (Scalar v)
     ) => Hilbert v
         where
 
@@ -1758,7 +1761,7 @@ innerProductDistance v1 v2 = innerProductNorm $ v1-v2
 
 ---------------------------------------
 
--- |
+-- | Tensor algebras generalize the outer product of vectors to construct a matrix.
 --
 -- See <https://en.wikipedia.org/wiki/Tensor_algebra wikipedia> for details.
 --
@@ -1768,6 +1771,7 @@ class
     ( VectorSpace v
     , VectorSpace (v><v)
     , Scalar (v><v) ~ Scalar v
+    , Normed (v><v)     -- the size represents the determinant
     , Field (v><v)
     ) => TensorAlgebra v
         where
@@ -2711,4 +2715,14 @@ instance Metric x => Metric (Labeled' x y) where
 instance Normed x => Normed (Labeled' x y) where
     size (Labeled' x _) = size x
 
+
+--------------------------------------------------------------------------------
+
+mkMutable [t| POrdering |]
+mkMutable [t| Ordering |]
+mkMutable [t| forall a. Endo a |]
+mkMutable [t| forall a. DualSG a |]
+mkMutable [t| forall a. Maybe a |]
+mkMutable [t| forall a. Maybe' a |]
+mkMutable [t| forall a b. Labeled' a b |]
 

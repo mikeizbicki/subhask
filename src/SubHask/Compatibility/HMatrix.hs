@@ -53,6 +53,8 @@ data Matrix r
     | Matrix !(HM.Matrix r)
     deriving (Show,Typeable)
 
+mkMutable [t| forall a. Matrix a |]
+
 type instance Scalar (Matrix r) = r
 type instance Logic (Matrix r) = Bool
 
@@ -147,73 +149,88 @@ instance
         where
     (Matrix m1) ./. (Matrix m2) = Matrix $ HM.divide m1 m2
 
+
 instance
     ( HM.Container HM.Matrix r
     , HM.Product r
-    , HM.Numeric r
     , P.Eq r
     , IsScalar r
     , Field r
-    , ExpField r
-    , Normed r
     , HM.Field r
-    , VectorSpace r
-    , ClassicalLogic r
-    , MatrixOuterProduct (Matrix r) r ~ Matrix r
-    ) => Banach (Matrix r)
-
-instance
-    ( HM.Container HM.Matrix r
-    , HM.Product r
-    , HM.Numeric r
-    , P.Eq r
-    , HM.Field r
-    , IsScalar r
-    , ExpField r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , MatrixOuterProduct (Matrix r) r ~ Matrix r
-    ) => Hilbert (Matrix r)
-        where
-    Zero <> _ = 0
-    _ <> Zero = 0
-    (One _) <> (One _) = error "inner product of ones undefined without length"
-    (Matrix m) <> (One r) = HM.sumElements $ HM.scale r m
-    (One r) <> (Matrix m) = HM.sumElements $ HM.scale r m
-    (Matrix m1) <> (Matrix m2) = HM.flatten m1 `HM.dot` HM.flatten m2
-
-instance
-    ( HM.Container HM.Matrix r
-    , HM.Product r
-    , HM.Numeric r
-    , P.Eq r
-    , IsScalar r
-    , ExpField r
-    , Normed r
-    , HM.Field r
-    , Logic r~Bool
-    , VectorSpace r
-    , MatrixOuterProduct (Matrix r) r ~ Matrix r
-    ) => Metric (Matrix r)
-        where
-    distance m1 m2 = innerProductDistance m2 m2
-
-instance
-    ( HM.Container HM.Matrix r
-    , HM.Product r
-    , HM.Numeric r
-    , P.Eq r
-    , IsScalar r
-    , ExpField r
-    , Normed r
-    , HM.Field r
-    , Logic r~Bool
-    , VectorSpace r
     , MatrixOuterProduct (Matrix r) r ~ Matrix r
     ) => Normed (Matrix r)
         where
-    size = innerProductNorm
+    size (Matrix m) = HM.det m
+    size (One r) = r
+    size Zero = 0
+
+-- instance
+--     ( HM.Container HM.Matrix r
+--     , HM.Product r
+--     , HM.Numeric r
+--     , P.Eq r
+--     , IsScalar r
+--     , Field r
+--     , Real r
+--     , Normed r
+--     , HM.Field r
+--     , VectorSpace r
+--     , ClassicalLogic r
+--     , MatrixOuterProduct (Matrix r) r ~ Matrix r
+--     ) => Banach (Matrix r)
+--
+-- instance
+--     ( HM.Container HM.Matrix r
+--     , HM.Product r
+--     , HM.Numeric r
+--     , P.Eq r
+--     , HM.Field r
+--     , IsScalar r
+--     , Real r
+--     , Normed r
+--     , Logic r~Bool
+--     , VectorSpace r
+--     , MatrixOuterProduct (Matrix r) r ~ Matrix r
+--     ) => Hilbert (Matrix r)
+--         where
+--     Zero <> _ = 0
+--     _ <> Zero = 0
+--     (One _) <> (One _) = error "inner product of ones undefined without length"
+--     (Matrix m) <> (One r) = HM.sumElements $ HM.scale r m
+--     (One r) <> (Matrix m) = HM.sumElements $ HM.scale r m
+--     (Matrix m1) <> (Matrix m2) = HM.flatten m1 `HM.dot` HM.flatten m2
+--
+-- instance
+--     ( HM.Container HM.Matrix r
+--     , HM.Product r
+--     , HM.Numeric r
+--     , P.Eq r
+--     , IsScalar r
+--     , Real r
+--     , Normed r
+--     , HM.Field r
+--     , Logic r~Bool
+--     , VectorSpace r
+--     , MatrixOuterProduct (Matrix r) r ~ Matrix r
+--     ) => Metric (Matrix r)
+--         where
+--     distance m1 m2 = innerProductDistance m2 m2
+--
+-- instance
+--     ( HM.Container HM.Matrix r
+--     , HM.Product r
+--     , HM.Numeric r
+--     , P.Eq r
+--     , IsScalar r
+--     , Real r
+--     , Normed r
+--     , HM.Field r
+--     , Logic r~Bool
+--     , VectorSpace r
+--     , MatrixOuterProduct (Matrix r) r ~ Matrix r
+--     ) => Normed (Matrix r)
+--         where
+--     size = innerProductNorm
 
 ---------
 
@@ -317,7 +334,7 @@ instance
     , Normed r
     , Logic r~Bool
     , VectorSpace r
-    , ExpField r
+    , Real r
     , HM.Field r
     , VS.Storable r
     , VectorOuterProduct (Vector r) r ~ Vector r
@@ -332,7 +349,7 @@ instance
     , Normed r
     , Logic r~Bool
     , VectorSpace r
-    , ExpField r
+    , Real r
     , HM.Field r
     , VS.Storable r
     , VectorOuterProduct (Vector r) r ~ Vector r
@@ -345,7 +362,7 @@ instance
     , Normed r
     , Logic r~Bool
     , VectorSpace r
-    , ExpField r
+    , Real r
     , HM.Field r
     , VS.Storable r
     , VectorOuterProduct (Vector r) r ~ Vector r
@@ -360,7 +377,7 @@ instance
     , Normed r
     , Logic r~Bool
     , VectorSpace r
-    , ExpField r
+    , Real r
     , VS.Storable r
     , HM.Container Vector r
     , HM.Product r

@@ -24,6 +24,7 @@ testMap = Map.fromList
     , ( "Lattice",[])
     , ( "Ord",[])
     , ( "POrd",[])
+    , ( "IsMutable", [])
 
     -- comparison
 

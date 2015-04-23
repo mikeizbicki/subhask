@@ -284,6 +284,7 @@ distance_l2_m128_unboxed (L2 v1) (L2 v2) = {-# SCC l2_distance_m128_unboxed #-}
         (p1,n1) = unsafeUV2Ptr v1
         (p2,n2) = unsafeUV2Ptr v2
 
+mkMutable [t| IntPtr |]
 type instance Logic IntPtr = Bool
 instance Eq_ IntPtr where (==) = (P.==)
 instance Semigroup IntPtr where (+) = (P.+)

@@ -22,6 +22,8 @@ data Strictness
 -- Add all the BS. functions into the Foldable/Unfoldable classes
 data family ByteString (lazy::Strictness) elem
 
+mkMutable [t| forall l a. ByteString l a |]
+
 type instance Scalar (ByteString a b) = Int
 type instance Logic (ByteString a b) = Bool
 type instance Elem (ByteString a b) = b

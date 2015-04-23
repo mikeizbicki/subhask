@@ -7,11 +7,47 @@ import qualified Prelude as P
 import SubHask.Internal.Prelude
 import SubHask.Category
 import SubHask.Algebra
+import SubHask.Monad
 import SubHask.SubType
 
 -------------------------------------------------------------------------------
 
+
+-- | The type of polynomials over an arbitrary ring.
+--
+-- See <https://en.wikipedia.org/wiki/Polynomial__ring wikipedia> for more detail.
+type Polynomial a = Polynomial_ a a
+
+-- |
+-- FIXME:
+-- "Polynomial_" takes two type parameters in order to be compatible with the "Category" hierarchy of classes.
+-- But currently, both types must match each other.
+-- Can/Should we generalize this to allow polynomials between types?
+--
+data Polynomial_ a b where
+    Polynomial_ :: (ValidLogic a, Ring a, a~b) => {-#UNPACK#-}![a] -> Polynomial_ a b
+
+mkMutable [t| forall a b. Polynomial_ a b |]
+
+instance (Eq r, Show r) => Show (Polynomial_ r r) where
+    show (Polynomial_ xs) = concat $ intersperse " + " $ filter (/=[]) $ reverse $ imap go xs
+        where
+            -- FIXME:
+            -- The code below results in prettier output but incurs an "Eq" constraint that confuses ghci
+            go :: Int -> r -> String
+            go 0 x = when (zero/=x) $ show x
+            go 1 x = when (zero/=x) $ when (one/=x) (show x) ++ "x"
+            go i x = when (zero/=x) $ when (one/=x) (show x) ++ "x^" ++ show i
+
+            when :: Monoid a => Bool -> a -> a
+            when cond x = if cond then x else zero
+
+
+-------------------------------------------------------------------------------
+
 newtype instance ProofOf Polynomial_ a = ProofOf { unProofOf :: Polynomial_ a a }
+
+mkMutable [t| forall a. ProofOf Polynomial_ a |]
 
 instance Ring a => Semigroup (ProofOf Polynomial_ a) where
     (ProofOf p1)+(ProofOf p2) = ProofOf $ p1+p2
@@ -38,37 +74,6 @@ instance (ValidLogic a, Ring a) => Ring (ProofOf Polynomial_ a) where
 
 provePolynomial :: (ValidLogic a, Ring a) => (ProofOf Polynomial_ a -> ProofOf Polynomial_ a) -> Polynomial_ a a
 provePolynomial f = unProofOf $ f $ ProofOf $ Polynomial_ [0,1]
-
--------------------------------------------------------------------------------
-
-
--- | The type of polynomials over an arbitrary ring.
---
--- See <https://en.wikipedia.org/wiki/Polynomial__ring wikipedia> for more detail.
-type Polynomial a = Polynomial_ a a
-
--- |
--- FIXME:
--- "Polynomial_" takes two type parameters in order to be compatible with the "Category" hierarchy of classes.
--- But currently, both types must match each other.
--- Can/Should we generalize this to allow polynomials between types?
---
-data Polynomial_ a b where
-    Polynomial_ :: (ValidLogic a, Ring a, a~b) => {-#UNPACK#-}![a] -> Polynomial_ a b
-
-instance (Eq r, Show r) => Show (Polynomial_ r r) where
-    show (Polynomial_ xs) = concat $ intersperse " + " $ filter (/=[]) $ reverse $ imap go xs
-        where
-            -- FIXME:
-            -- The code below results in prettier output but incurs an "Eq" constraint that confuses ghci
-            go :: Int -> r -> String
-            go 0 x = when (zero/=x) $ show x
-            go 1 x = when (zero/=x) $ when (one/=x) (show x) ++ "x"
-            go i x = when (zero/=x) $ when (one/=x) (show x) ++ "x^" ++ show i
-
-            when :: Monoid a => Bool -> a -> a
-            when cond x = if cond then x else zero
-
 ---------------------------------------
 
 type instance Scalar (Polynomial_ a b) = Scalar b

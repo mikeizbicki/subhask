@@ -57,12 +57,13 @@ library
         SubHask.SubType
 
         SubHask.TemplateHaskell.Base
-        SubHask.TemplateHaskell.CategoryTrans
         SubHask.TemplateHaskell.Deriving
+        SubHask.TemplateHaskell.Mutable
         SubHask.TemplateHaskell.Test
 
     other-modules:
         SubHask.Internal.Prelude
+        SubHask.TemplateHaskell.Common
 
     default-extensions:
         TypeFamilies,
@@ -106,7 +107,7 @@ library
         -mfpmath=sse
 
     build-depends:
-        base            >= 4.7 && <4.8,
+        base            >= 4.8 && <4.9,
         ghc-prim,
         template-haskell,
         haskell-src-meta>= 0.6.0,
@@ -126,18 +127,18 @@ library
         cassava         >= 0.4.1,
         containers      >= 0.5,
         vector          >= 0.10.0,
-        hmatrix         == 0.16.0.5,
-        bloomfilter     == 2.0.0.0,
-        hyperloglog     == 0.3,
+        hmatrix         >= 0.16.0.5,
+        bloomfilter     >= 2.0.0.0,
+        hyperloglog     == 0.3.1,
         mtl             >= 2.1.3,
         pipes           >= 4.1.3,
         MonadRandom     >= 0.1.13,
 
         -- required for hyperloglog compatibility
-        semigroups      == 0.15.2,
-        bytes           == 0.14.1.3,
+        semigroups      == 0.16.2,
+        bytes           == 0.15,
         approximate     == 0.2.1.1,
-        lens            == 4.4.0.2,
+        lens            == 4.9.1,
 
         -- testing
         QuickCheck      >= 2.7,
@@ -183,8 +184,10 @@ Test-Suite TestSuite
 --         OverloadedLists
 
     build-depends:
-        base            >= 4.7 && <4.8,
+        base            >= 4.8 && <4.9,
         ghc-prim,
+        template-haskell,
+        haskell-src-meta>= 0.6.0,
 
         -- special functionality
         parallel        >= 3.2.0.4,
@@ -192,16 +195,27 @@ Test-Suite TestSuite
         primitive       >= 0.5.3,
         monad-primitive >= 0.1,
 
-        template-haskell,
-        haskell-src-meta>= 0.6.0,
+        -- math
+        erf             >= 2.0,
+        gamma           >= 0.9,
 
-        -- example objects
+        -- compatibility layers
         bytestring      >= 0.10.4,
+        cassava         >= 0.4.1,
         containers      >= 0.5,
         vector          >= 0.10.0,
         hmatrix         >= 0.16.0.5,
+        bloomfilter     >= 2.0.0.0,
+        hyperloglog     == 0.3.1,
+        mtl             >= 2.1.3,
+        pipes           >= 4.1.3,
+        MonadRandom     >= 0.1.13,
 
-        memoize         >= 0.6,
+        -- required for hyperloglog compatibility
+        semigroups      == 0.16.2,
+        bytes           == 0.14.1.3,
+        approximate     == 0.2.1.1,
+        lens            == 4.9.1,
 
         -- testing
         QuickCheck      >= 2.7,

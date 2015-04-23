@@ -121,14 +121,20 @@ instance (ValidEq (v r), ValidEq r, VG.Vector v r, Logic (v r)~Logic r) => Valid
 listToVector :: VG.Vector v a => [a] -> v a
 listToVector = VG.fromList
 
+mkMutable [t| forall a. VS.Vector a |]
+mkMutable [t| forall a. VU.Vector a |]
+mkMutable [t| forall a. V.Vector a |]
+
 -------------------------------------------------------------------------------
+
+newtype ArrayT v r = ArrayT { unArrayT :: v r }
+    deriving (Read,Show,Arbitrary,Typeable)
+
+mkMutable [t| forall a b. ArrayT a b |]
 
 type Array = ArrayT BoxedVector
 type UnboxedArray = ArrayT UnboxedVector
 type StorableArray = ArrayT VS.Vector
-
-newtype ArrayT v r = ArrayT { unArrayT :: v r }
-    deriving (Read,Show,Arbitrary,Typeable)
 
 type instance Scalar (ArrayT v r) = Int
 type instance Logic (ArrayT v r) = Logic r
