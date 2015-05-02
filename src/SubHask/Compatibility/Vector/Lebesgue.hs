@@ -27,6 +27,7 @@ import Test.QuickCheck
 
 import qualified Prelude as P
 import SubHask hiding (Functor(..), Applicative(..), Monad(..), Then(..), fail, return, liftM)
+import SubHask.Compatibility.Vector
 
 import Data.Primitive
 import Foreign.C
@@ -50,13 +51,13 @@ deriving instance F.Foldable v => F.Foldable (L1 v)
 -- deriving instance Functor v => Functor (L1 v)
 
 instance VG.Vector v a => VG.Vector (L1 v) a where
-    {-# INLINE basicUnsafeFreeze #-}
-    {-# INLINE basicUnsafeThaw #-}
-    {-# INLINE basicLength #-}
-    {-# INLINE basicUnsafeSlice #-}
-    {-# INLINE basicUnsafeIndexM #-}
-    {-# INLINE basicUnsafeCopy #-}
-    {-# INLINE elemseq #-}
+    {-# INLINABLE basicUnsafeFreeze #-}
+    {-# INLINABLE basicUnsafeThaw #-}
+    {-# INLINABLE basicLength #-}
+    {-# INLINABLE basicUnsafeSlice #-}
+    {-# INLINABLE basicUnsafeIndexM #-}
+    {-# INLINABLE basicUnsafeCopy #-}
+    {-# INLINABLE elemseq #-}
     basicUnsafeFreeze (L1M v) = liftM L1 $ VG.basicUnsafeFreeze v
     basicUnsafeThaw (L1 v) = liftM L1M $ VG.basicUnsafeThaw v
     basicLength (L1 v) = VG.basicLength v
@@ -68,13 +69,13 @@ instance VG.Vector v a => VG.Vector (L1 v) a where
 newtype L1M v s a = L1M { unL1M :: v s a }
 
 instance VGM.MVector v a => VGM.MVector (L1M v) a where
-    {-# INLINE basicLength #-}
-    {-# INLINE basicUnsafeSlice #-}
-    {-# INLINE basicOverlaps #-}
-    {-# INLINE basicUnsafeNew #-}
-    {-# INLINE basicUnsafeReplicate #-}
-    {-# INLINE basicUnsafeRead #-}
-    {-# INLINE basicUnsafeWrite #-}
+    {-# INLINABLE basicLength #-}
+    {-# INLINABLE basicUnsafeSlice #-}
+    {-# INLINABLE basicOverlaps #-}
+    {-# INLINABLE basicUnsafeNew #-}
+    {-# INLINABLE basicUnsafeReplicate #-}
+    {-# INLINABLE basicUnsafeRead #-}
+    {-# INLINABLE basicUnsafeWrite #-}
     basicLength (L1M v) = VGM.basicLength v
     basicUnsafeSlice s t (L1M v) = L1M $ VGM.basicUnsafeSlice s t v
     basicOverlaps (L1M v1) (L1M v2) = VGM.basicOverlaps v1 v2
@@ -122,13 +123,13 @@ deriving instance F.Foldable v => F.Foldable (L2 v)
 -- deriving instance Functor v => Functor (L2 v)
 
 instance VG.Vector v a => VG.Vector (L2 v) a where
-    {-# INLINE basicUnsafeFreeze #-}
-    {-# INLINE basicUnsafeThaw #-}
-    {-# INLINE basicLength #-}
-    {-# INLINE basicUnsafeSlice #-}
-    {-# INLINE basicUnsafeIndexM #-}
-    {-# INLINE basicUnsafeCopy #-}
-    {-# INLINE elemseq #-}
+    {-# INLINABLE basicUnsafeFreeze #-}
+    {-# INLINABLE basicUnsafeThaw #-}
+    {-# INLINABLE basicLength #-}
+    {-# INLINABLE basicUnsafeSlice #-}
+    {-# INLINABLE basicUnsafeIndexM #-}
+    {-# INLINABLE basicUnsafeCopy #-}
+    {-# INLINABLE elemseq #-}
     basicUnsafeFreeze (L2M v) = liftM L2 $ VG.basicUnsafeFreeze v
     basicUnsafeThaw (L2 v) = liftM L2M $ VG.basicUnsafeThaw v
     basicLength (L2 v) = VG.basicLength v
@@ -140,13 +141,13 @@ instance VG.Vector v a => VG.Vector (L2 v) a where
 newtype L2M v s a = L2M { unL2M :: v s a }
 
 instance VGM.MVector v a => VGM.MVector (L2M v) a where
-    {-# INLINE basicLength #-}
-    {-# INLINE basicUnsafeSlice #-}
-    {-# INLINE basicOverlaps #-}
-    {-# INLINE basicUnsafeNew #-}
-    {-# INLINE basicUnsafeReplicate #-}
-    {-# INLINE basicUnsafeRead #-}
-    {-# INLINE basicUnsafeWrite #-}
+    {-# INLINABLE basicLength #-}
+    {-# INLINABLE basicUnsafeSlice #-}
+    {-# INLINABLE basicOverlaps #-}
+    {-# INLINABLE basicUnsafeNew #-}
+    {-# INLINABLE basicUnsafeReplicate #-}
+    {-# INLINABLE basicUnsafeRead #-}
+    {-# INLINABLE basicUnsafeWrite #-}
     basicLength (L2M v) = VGM.basicLength v
     basicUnsafeSlice s t (L2M v) = L2M $ VGM.basicUnsafeSlice s t v
     basicOverlaps (L2M v1) (L2M v2) = VGM.basicOverlaps v1 v2
@@ -155,9 +156,9 @@ instance VGM.MVector v a => VGM.MVector (L2M v) a where
     basicUnsafeRead (L2M v) i = VGM.basicUnsafeRead v i
     basicUnsafeWrite (L2M v) i a = VGM.basicUnsafeWrite v i a
 
-    {-# INLINE basicUnsafeCopy #-}
-    {-# INLINE basicUnsafeMove #-}
-    {-# INLINE basicUnsafeGrow #-}
+    {-# INLINABLE basicUnsafeCopy #-}
+    {-# INLINABLE basicUnsafeMove #-}
+    {-# INLINABLE basicUnsafeGrow #-}
     basicUnsafeCopy (L2M v1) (L2M v2) = VGM.basicUnsafeCopy v1 v2
     basicUnsafeMove (L2M v1) (L2M v2) = VGM.basicUnsafeMove v1 v2
     basicUnsafeGrow (L2M v) i = L2M `liftM` VGM.basicUnsafeGrow v i
@@ -176,12 +177,16 @@ instance
     , Ord r
     , IsScalar r
     ) => Metric (L2 v r)
+--     ( VG.Vector v Float
+--     , Eq (v Float)
+--     ) => Metric (L2 v Float)
+--     Metric (L2 VU.Vector Float)
         where
 
-    {-# INLINE[1] distance #-}
+    {-# INLINE[3] distance #-}
     distance = distance_l2_hask
 
-    {-# INLINE[1] distanceUB #-}
+    {-# INLINE[3] distanceUB #-}
     distanceUB (L2 v1) (L2 v2) !dist = {-# SCC distanceUB_l2_hask #-}
         go 0 0
         where
@@ -212,15 +217,20 @@ instance
                     tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
                               *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
 
-distance_l2_hask ::
-    ( VG.Vector v r
-    , Eq (v r)
-    , ExpField r
-    , Normed r
-    , Ord r
-    , IsScalar r
-    ) => L2 v r -> L2 v r -> r
-distance_l2_hask (L2 v1) (L2 v2) = {-# SCC distance_l2_hask #-} sqrt $ go 0 0
+{-# INLINE[1] distance_l2_hask_float #-}
+-- distance_l2_haskEach ::
+--     ( VG.Vector v r
+--     , Eq (v r)
+--     , ExpField r
+--     , Normed r
+--     , Ord r
+--     , IsScalar r
+--     ) => L2 v r -> L2 v r -> r
+distance_l2_hask_float ::
+    ( VG.Vector v Float
+    ) => L2 v Float -> L2 v Float -> Float
+-- distance_l2_hask_float :: L2 UnboxedVector Float -> L2 UnboxedVector Float -> Float
+distance_l2_hask_float v1 v2 = {-# SCC distance_l2_hask #-} sqrt $ go 0 0
     where
         go !tot !i =  if i>VG.length v1-4
             then goEach tot i
@@ -242,7 +252,90 @@ distance_l2_hask (L2 v1) (L2 v2) = {-# SCC distance_l2_hask #-} sqrt $ go 0 0
             where
                 tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
                           *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+
+{-# INLINE[1] distanceUB_l2_hask_float #-}
+-- distanceUB_l2_hask_float ::
+--     ( VG.Vector v Float
+--     ) => L2 v Float -> L2 v Float -> Float -> Float
+distanceUB_l2_hask_float :: L2 UnboxedVector Float -> L2 UnboxedVector Float -> Float -> Float
+distanceUB_l2_hask_float (L2 v1) (L2 v2) !dist = {-# SCC distanceUB_l2_hask #-}
+    go 0 0
+    where
+        dist2=dist*dist
+
+        go !tot !i = if i>VG.length v1-4
+            then goEach tot i
+            else if tot'>dist2
+                then tot'
+                else go tot' (i+4)
+            where
+                tot' = tot
+                    +(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                    *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                    +(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                    *(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                    +(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                    *(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                    +(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+                    *(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+
+        goEach !tot !i = if i>= VG.length v1
+            then sqrt tot
+            else if tot'>dist2
+                then tot'
+                else goEach tot' (i+1)
+            where
+                tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                          *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+
+{-# INLINE[3] distance_l2_hask_float_unboxed #-}
+distance_l2_hask_float_unboxed :: L2 UnboxedVector Float -> L2 UnboxedVector Float -> Float
+distance_l2_hask_float_unboxed a b = distance_l2_hask_float a b
+
+{-# INLINE[3] distanceUB_l2_hask_float_unboxed #-}
+distanceUB_l2_hask_float_unboxed :: L2 UnboxedVector Float -> L2 UnboxedVector Float -> Float -> Float
+distanceUB_l2_hask_float_unboxed a b c = distanceUB_l2_hask_float a b c
+
+{-# INLINE distance_l2_hask #-}
+distance_l2_hask ::
+    ( VG.Vector v r
+    , Eq (v r)
+    , ExpField r
+    , Normed r
+    , Ord r
+    , IsScalar r
+    ) => v r -> v r -> r
+-- distance_l2_hask  :: L2 UnboxedVector Float -> L2 UnboxedVector Float -> Float
+distance_l2_hask v1 v2 = {-# SCC distance_l2_hask #-} sqrt $ go 0 0
+    where
+        go !tot !i =  if i>VG.length v1-4
+            then goEach tot i
+            else go tot' (i+4)
+            where
+                tot' = tot
+                    +(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                    *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                    +(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                    *(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                    +(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                    *(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                    +(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+                    *(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+
+        goEach !tot !i = if i>= VG.length v1
+            then tot
+            else goEach tot' (i+1)
+            where
+                tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                          *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+
 --------------------------------------------------------------------------------
+
+{-# RULES
+"subhask/distance_float"      distance = distance_l2_hask_float_unboxed
+"subhask/distanceUB_float"    distanceUB = distanceUB_l2_hask_float_unboxed
+  #-}
+--   "subhask/distance_float"    forall (v :: VG.Vector v Float => L2 v Float). distance v = distance_l2_hask_float v
 
 -- {-# RULES
 --
@@ -404,13 +497,13 @@ deriving instance F.Foldable v => F.Foldable (Linf v)
 deriving instance Functor v => Functor (Linf v)
 
 instance VG.Vector v a => VG.Vector (Linf v) a where
-    {-# INLINE basicUnsafeFreeze #-}
-    {-# INLINE basicUnsafeThaw #-}
-    {-# INLINE basicLength #-}
-    {-# INLINE basicUnsafeSlice #-}
-    {-# INLINE basicUnsafeIndexM #-}
-    {-# INLINE basicUnsafeCopy #-}
-    {-# INLINE elemseq #-}
+    {-# INLINABLE basicUnsafeFreeze #-}
+    {-# INLINABLE basicUnsafeThaw #-}
+    {-# INLINABLE basicLength #-}
+    {-# INLINABLE basicUnsafeSlice #-}
+    {-# INLINABLE basicUnsafeIndexM #-}
+    {-# INLINABLE basicUnsafeCopy #-}
+    {-# INLINABLE elemseq #-}
     basicUnsafeFreeze (LinfM v) = liftM Linf $ VG.basicUnsafeFreeze v
     basicUnsafeThaw (Linf v) = liftM LinfM $ VG.basicUnsafeThaw v
     basicLength (Linf v) = VG.basicLength v
@@ -422,13 +515,13 @@ instance VG.Vector v a => VG.Vector (Linf v) a where
 newtype LinfM v s a = LinfM { unLinfM :: v s a }
 
 instance VGM.MVector v a => VGM.MVector (LinfM v) a where
-    {-# INLINE basicLength #-}
-    {-# INLINE basicUnsafeSlice #-}
-    {-# INLINE basicOverlaps #-}
-    {-# INLINE basicUnsafeNew #-}
-    {-# INLINE basicUnsafeReplicate #-}
-    {-# INLINE basicUnsafeRead #-}
-    {-# INLINE basicUnsafeWrite #-}
+    {-# INLINABLE basicLength #-}
+    {-# INLINABLE basicUnsafeSlice #-}
+    {-# INLINABLE basicOverlaps #-}
+    {-# INLINABLE basicUnsafeNew #-}
+    {-# INLINABLE basicUnsafeReplicate #-}
+    {-# INLINABLE basicUnsafeRead #-}
+    {-# INLINABLE basicUnsafeWrite #-}
     basicLength (LinfM v) = VGM.basicLength v
     basicUnsafeSlice s t (LinfM v) = LinfM $ VGM.basicUnsafeSlice s t v
     basicOverlaps (LinfM v1) (LinfM v2) = VGM.basicOverlaps v1 v2

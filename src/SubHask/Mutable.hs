@@ -7,6 +7,7 @@ module SubHask.Mutable
     ( Mutable
     , IsMutable (..)
     , immutable2mutable
+    , mutable2immutable
     , unsafeRunMutableProperty
 
     , mkMutable
@@ -63,10 +64,20 @@ instance (IsMutable a, PrimBase m, Arbitrary a) => Arbitrary (Mutable m a) where
         return $ unsafePerformIO $ unsafePrimToIO $ thaw a
 
 -- | A Simple default implementation for mutable operations.
+{-# INLINE immutable2mutable #-}
 immutable2mutable :: IsMutable a => (a -> b -> a) -> (PrimBase m => Mutable m a -> b -> m ())
 immutable2mutable f ma b = do
     a <- freeze ma
     write ma (f a b)
+
+-- | A Simple default implementation for immutable operations.
+{-# INLINE mutable2immutable #-}
+mutable2immutable :: IsMutable a => (forall m. PrimBase m => Mutable m a -> b -> m ()) -> a -> b -> a
+mutable2immutable f a b = runST ( do
+    ma <- thaw a
+    f ma b
+    unsafeFreeze ma
+    )
 
 -- | This function should only be used from within quickcheck properties.
 -- All other uses are unsafe.

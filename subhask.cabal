@@ -49,6 +49,7 @@ library
         SubHask.Compatibility.HMatrix
         SubHask.Compatibility.HyperLogLog
         SubHask.Compatibility.Vector
+        SubHask.Compatibility.StaticVector
 --         SubHask.Compatibility.Vector.HistogramMetrics
         SubHask.Compatibility.Vector.Lebesgue
 
@@ -85,6 +86,7 @@ library
         BangPatterns,
         FunctionalDependencies,
         TupleSections,
+        MultiWayIf,
 
         AutoDeriveTypeable,
         RebindableSyntax
@@ -98,13 +100,47 @@ library
 
     cc-options:
         -O3
-        -msse2
---         -mavx
         -ffast-math
-        -fassociative-math
-        -ftree-vectorize
+
+--         -msse2
+--         -mavx
+--         -ftree-vectorize
 --         -march=native
-        -mfpmath=sse
+--         -mfpmath=sse
+
+    ghc-options:
+        -O2
+        -funbox-strict-fields
+        -fexcess-precision
+
+--         -fliberate-case-threshold=100000
+--         -fexpose-all-unfoldings
+--         -fmax-simplifier-iterations=10
+--         -fmax-worker-args=100
+--         -fsimplifier-phases=5
+--         -fspec-constr-count=50
+--         -fstrictness-before=3
+
+        -fllvm
+        -optlo-O3
+        -optlo-enable-fp-mad
+        -optlo-enable-no-infs-fp-math
+        -optlo-enable-no-nans-fp-math
+        -optlo-enable-unsafe-fp-math
+
+--         -ddump-rule-firings
+--         -ddump-rule-rewrites
+--         -ddump-rules
+--         -ddump-to-file
+--         -ddump-cmm
+--         -ddump-simpl
+--         -ddump-simpl-stats
+--         -dppr-debug
+--         -dsuppress-module-prefixes
+--         -dsuppress-uniques
+--         -dsuppress-idinfo
+--         -dsuppress-coercions
+--         -dsuppress-type-applications
 
     build-depends:
         base            >= 4.8 && <4.9,
@@ -226,11 +262,18 @@ benchmark Vector
     type:             exitcode-stdio-1.0
     hs-source-dirs:   bench
     main-is:          Vector.hs
-    build-depends:    base, subhask, criterion, vector, MonadRandom
+    build-depends:    base, subhask, criterion, vector, MonadRandom, reflection
     ghc-options:
         -O2
         -funbox-strict-fields
         -fexcess-precision
+
+--         -fliberate-case-threshold=100000
+--         -fexpose-all-unfoldings
+--         -fmax-simplifier-iterations=10
+--         -fmax-worker-args=100
+--         -fsimplifier-phases=5
+--         -fspec-constr-count=50
 
         -fllvm
         -optlo-O3
@@ -239,16 +282,16 @@ benchmark Vector
         -optlo-enable-no-nans-fp-math
         -optlo-enable-unsafe-fp-math
 
---         -ddump-rule-firings
---         -ddump-rule-rewrites
---         -ddump-rules
---         -ddump-to-file
---         -ddump-cmm
---         -ddump-simpl
---         -ddump-simpl-stats
---         -dppr-debug
---         -dsuppress-module-prefixes
---         -dsuppress-uniques
---         -dsuppress-idinfo
---         -dsuppress-coercions
---         -dsuppress-type-applications
+        -ddump-rule-firings
+        -ddump-rule-rewrites
+        -ddump-rules
+        -ddump-to-file
+        -ddump-cmm
+        -ddump-simpl
+        -ddump-simpl-stats
+        -dppr-debug
+        -dsuppress-module-prefixes
+        -dsuppress-uniques
+        -dsuppress-idinfo
+        -dsuppress-coercions
+        -dsuppress-type-applications

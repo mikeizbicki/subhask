@@ -57,24 +57,41 @@ helper_liftM = liftM
 helper_id :: a -> a
 helper_id x = x
 
--- | Convert ''Group into [''Semigroup, ''Monoid, ''Cancellative, ''Group]
+-- | List all the superclasses of a one parameter class.
+-- This does not include:
+--   * constraints involving types other than the parameter (e.g. made with type families).
+--   * type synonyms (although these will get substituted in the recursion)
+--
+-- For example, convert ''Group into [''Semigroup, ''Monoid, ''Cancellative, ''Group]
 listSuperClasses :: Name -> Q [Name]
 listSuperClasses className = do
     info <- reify className
     case info of
-        ClassI (ClassD ctx _ bndrs _ _) _ -> do
-            let var = case bndrs of
-                    [PlainTV var       ] -> var
-                    [KindedTV var StarT] -> var
-            liftM (className:) $ liftM concat $ mapM (go var) ctx
-        TyConI _ -> return []
-        info -> error $ "class "++nameBase className++" not a unary class\n\ninfo="++show info
+
+        ClassI (ClassD ctx _ bndrs _ _) _ ->
+            liftM (className:) $ liftM concat $ mapM (go $ bndrs2var bndrs) ctx
+
+        TyConI (TySynD _ bndrs t) ->
+            liftM concat $ mapM (go $ bndrs2var bndrs) $ tuple2list t
+
+        info -> error $ "type "++nameBase className++" not a unary class\n\ninfo="++show info
+
     where
---         go var (ClassP name [VarT var']) = if var==var'
+        bndrs2var bndrs = case bndrs of
+            [PlainTV var       ] -> var
+            [KindedTV var StarT] -> var
+
         go var (AppT (ConT name) (VarT var')) = if var==var'
             then listSuperClasses name
             else return [] -- class depends on another type tested elsewhere
         go var _ = return []
+
+tuple2list :: Type -> [Type]
+tuple2list (AppT (AppT (TupleT 2) t1) t2) = [t1,t2]
+tuple2list (AppT (AppT (AppT (TupleT 3) t1) t2) t3) = [t1,t2,t3]
+tuple2list (AppT (AppT (AppT (AppT (TupleT 4) t1) t2) t3) t4) = [t1,t2,t3,t4]
+tuple2list (AppT (AppT (AppT (AppT (AppT (TupleT 5) t1) t2) t3) t4) t5) = [t1,t2,t3,t4,t5]
+tuple2list t = [t]
 
 -- | creates the instance:
 --

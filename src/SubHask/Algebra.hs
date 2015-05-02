@@ -255,6 +255,7 @@ import qualified Data.List as L
 
 import Prelude (Ordering (..))
 import Control.Monad hiding (liftM)
+import Control.Monad.ST
 import Data.Ratio
 import Data.Typeable
 import Test.QuickCheck (Arbitrary (..), frequency)
@@ -833,9 +834,19 @@ instance Boolean b => Boolean (a -> b)
 -- numeric classes
 
 class IsMutable g => Semigroup g where
+    {-# MINIMAL (+) | (+=) #-}
+
+    {-# INLINE (+) #-}
     infixl 6 +
     (+) :: g -> g -> g
+--     g1+g2 = runST ( do
+--         mg1 <- thaw g1
+--         mg1 += g2
+--         unsafeFreeze mg1
+--         )
+    (+) = mutable2immutable (+=)
 
+    {-# INLINE (+=) #-}
     infixr 5 +=
     (+=) :: (PrimBase m) => Mutable m g -> g -> m ()
     (+=) = immutable2mutable (+)
@@ -978,9 +989,14 @@ instance Monoid      b => Monoid      (a -> b) where zero = \a -> zero
 --
 -- See <http://en.wikipedia.org/wiki/Cancellative_semigroup wikipedia> for more details.
 class Semigroup g => Cancellative g where
+    {-# MINIMAL (-) | (-=) #-}
+
+    {-# INLINE (-) #-}
     infixl 6 -
     (-) :: g -> g -> g
+    (-) = mutable2immutable (-=)
 
+    {-# INLINE (-=) #-}
     infixr 5 -=
     (-=) :: (PrimBase m) => Mutable m g -> g -> m ()
     (-=) = immutable2mutable (-)
@@ -1064,9 +1080,14 @@ instance Abelian b => Abelian (a -> b)
 -- See <http://math.stackexchange.com/questions/359437/name-for-a-semiring-minus-multiplicative-identity-requirement this stackexchange question> for a discussion on naming.
 --
 class (Abelian r, Monoid r) => Rg r where
+    {-# MINIMAL (*) | (*=) #-}
+
+    {-# INLINE (*) #-}
     infixl 7 *
     (*) :: r -> r -> r
+    (*) = mutable2immutable (*=)
 
+    {-# INLINE (*=) #-}
     infixr 5 *=
     (*=) :: (PrimBase m) => Mutable m r -> r -> m ()
     (*=) = immutable2mutable (*)
@@ -1130,10 +1151,8 @@ instance Rig b => Rig (a -> b) where one = \a -> one
 
 ---------------------------------------
 
--- | FIXME: made into a class due to TH limitations
--- > type Rng r = (Rg r, Group r)
-class (Rg r, Group r) => Rng r
-instance (Rg r, Group r) => Rng r
+-- | A "Ring" without identity.
+type Rng r = (Rg r, Group r)
 
 -- |
 --
@@ -1144,6 +1163,12 @@ instance (Rg r, Group r) => Rng r
 -- See <https://en.wikipedia.org/wiki/Ring_%28mathematics%29 wikipedia>
 -- and <http://ncatlab.org/nlab/show/ring ncatlab>
 -- for more details.
+--
+-- FIXME:
+-- We can construct a "Module" from any ring by taking (*)=(.*.).
+-- Thus, "Module" should be a superclass of "Ring".
+-- Currently, however, this creates a class cycle, so we can't do it.
+-- A number of type signatures are therefore more complicated than they need to be.
 class (Rng r, Rig r) => Ring r where
     fromInteger :: Integer -> r
     fromInteger = slowFromInteger
@@ -1559,13 +1584,11 @@ type instance Rational  >< Rational   = Rational
 type instance (a -> b)  >< c          = a -> (b><c)
 -- type instance c         >< (a -> b)   = a -> (c><b)
 
--- FIXME: made into classes due to TH limitations
-class (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r)) => IsScalar r
-instance (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r)) => IsScalar r
+-- | A synonym that covers everything we intuitively thing scalar variables should have.
+type IsScalar r = (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r))
 
--- FIXME: made into classes due to TH limitations
-class (IsScalar (Scalar a)) => HasScalar a
-instance (IsScalar (Scalar a)) => HasScalar a
+-- | A (sometimes) more convenient version of "IsScalar".
+type HasScalar a = IsScalar (Scalar a)
 
 type instance Scalar Int      = Int
 type instance Scalar Integer  = Integer
@@ -1636,16 +1659,24 @@ class
     ) => Module v
         where
 
+    {-# MINIMAL (.*) , (.*.) | (.*=) , (.*.=) #-}
+
+    {-# INLINE (.*) #-}
     infixl 7 .*
     (.*) :: v -> Scalar v -> v
+    (.*) = mutable2immutable (.*=)
 
+    {-# INLINE (.*.) #-}
     infixl 7 .*.
     (.*.) :: v -> v -> v
+    (.*.) = mutable2immutable (.*.=)
 
+    {-# INLINE (.*=) #-}
     infixr 5 .*=
     (.*=) :: (PrimBase m) => Mutable m v -> Scalar v -> m ()
     (.*=) = immutable2mutable (.*)
 
+    {-# INLINE (.*.=) #-}
     infixr 5 .*.=
     (.*.=) :: (PrimBase m) => Mutable m v -> v -> m ()
     (.*.=) = immutable2mutable (.*.)
@@ -1681,7 +1712,7 @@ instance
 --
 -- for sparse representations.
 class (Module s, IxContainer s, Elem s~Scalar s, Index s~Int) => FiniteModule s where
-    dim :: Ring r => s -> r
+    dim :: s -> Int
     unsafeToModule :: [Scalar s] -> s
 
 instance FiniteModule Int       where  dim _ = 1; unsafeToModule [x] = x
@@ -1693,13 +1724,29 @@ instance FiniteModule Rational  where  dim _ = 1; unsafeToModule [x] = x
 ---------------------------------------
 
 class (Module v, Field (Scalar v)) => VectorSpace v where
+
+    {-# MINIMAL (./.) | (./.=) #-}
+
     {-# INLINE (./) #-}
     infixl 7 ./
     (./) :: v -> Scalar v -> v
     v ./ r = v .* reciprocal r
 
+    {-# INLINE (./.) #-}
     infixl 7 ./.
     (./.) :: v -> v -> v
+    (./.) = mutable2immutable (./.=)
+
+    {-# INLINE (./=) #-}
+    infixr 5 ./=
+    (./=) :: (PrimBase m) => Mutable m v -> Scalar v -> m ()
+    (./=) = immutable2mutable (./)
+
+    {-# INLINE (./.=) #-}
+    infixr 5 ./.=
+    (./.=) :: (PrimBase m) => Mutable m v -> v -> m ()
+    (./.=) = immutable2mutable (./.)
+
 
 instance VectorSpace Float     where (./) = (/); (./.) = (/)
 instance VectorSpace Double    where (./) = (/); (./.) = (/)
@@ -1709,11 +1756,21 @@ instance VectorSpace b => VectorSpace (a -> b) where g ./. f = \a -> g a ./. f a
 
 ---------------------------------------
 
+-- | A Reisz space is a vector space obeying nice partial ordering laws.
+--
+-- See <http://en.wikipedia.org/wiki/Riesz_space wikipedia> for more details.
+class (VectorSpace v, Lattice_ v) => Reisz v where
+    --
+    -- | An element of a reisz space can always be split into positive and negative components.
+    reiszSplit :: v -> (v,v)
+
+---------------------------------------
+
 -- | A Banach space is a Vector Space equipped with a compatible Norm and Metric.
 --
 -- See <http://en.wikipedia.org/wiki/Banach_space wikipedia> for more details.
 class (VectorSpace v, Normed v, Metric v) => Banach v where
-    {-# INLINABLE normalize #-}
+    {-# INLINE normalize #-}
     normalize :: v -> v
     normalize v = v ./ size v
 
@@ -1734,13 +1791,7 @@ instance Banach Rational
 -- | Hilbert spaces are a natural generalization of Euclidean space that allows for infinite dimension.
 --
 -- See <http://en.wikipedia.org/wiki/Hilbert_space wikipedia> for more details.
-class
-    ( Banach v
-    , TensorAlgebra v
-    , Real (Scalar v)
-    ) => Hilbert v
-        where
-
+class ( Banach v , TensorAlgebra v , Real (Scalar v) ) => Hilbert v where
     infix 8 <>
     (<>) :: v -> v -> Scalar v
 
@@ -1753,11 +1804,11 @@ squaredInnerProductNorm v = v<>v
 
 {-# INLINE innerProductNorm #-}
 innerProductNorm :: Hilbert v => v -> Scalar v
-innerProductNorm = sqrt . squaredInnerProductNorm
+innerProductNorm = undefined -- sqrt . squaredInnerProductNorm
 
 {-# INLINE innerProductDistance #-}
 innerProductDistance :: Hilbert v => v -> v -> Scalar v
-innerProductDistance v1 v2 = innerProductNorm $ v1-v2
+innerProductDistance v1 v2 = undefined --innerProductNorm $ v1-v2
 
 ---------------------------------------
 
@@ -1822,7 +1873,7 @@ law_Bregman_triangle ::
 
 -- | Metric spaces give us the most intuitive notion of distance between objects.
 --
--- FIXME: There are many other notions of distance and we should make a while hierarchy.
+-- FIXME: There are many other notions of distance and we should make a whole hierarchy.
 class
     ( HasScalar v
     , Eq_ v
@@ -1836,17 +1887,17 @@ class
     -- | If the distance between two datapoints is less than or equal to the upper bound,
     -- then this function will return the distance.
     -- Otherwise, it will return some number greater than the upper bound.
-    {-# INLINABLE distanceUB #-}
+    {-# INLINE distanceUB #-}
     distanceUB :: v -> v -> Scalar v -> Scalar v
     distanceUB v1 v2 _ = {-# SCC distanceUB #-} distance v1 v2
 
 -- | Calling this function will be faster on some 'Metric's than manually checking if distance is greater than the bound.
-{-# INLINABLE isFartherThan #-}
+{-# INLINE isFartherThan #-}
 isFartherThan :: Metric v => v -> v -> Scalar v -> Logic v
 isFartherThan s1 s2 b = {-# SCC isFartherThan #-} distanceUB s1 s2 b > b
 
 -- | This function constructs an efficient default implementation for 'distanceUB' given a function that lower bounds the distance metric.
-{-# INLINABLE lb2distanceUB #-}
+{-# INLINE lb2distanceUB #-}
 lb2distanceUB ::
     ( Metric a
     , ClassicalLogic a

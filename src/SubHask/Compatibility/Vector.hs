@@ -404,15 +404,32 @@ instance (VU.Unbox r, VectorSpace r, IsScalar (Scalar r)) => VectorSpace (VU.Vec
 --                 then error "inner product on storable vectors of different sizes"
 --                 else VG.foldl' (+) zero $ VG.zipWith (*) v1 v2
 
-instance
-    ( IsScalar r
-    , Normed r
-    , Logic r~Bool
-    , VectorSpace r
-    , ExpField r
-    , VU.Unbox r
-    ) => Metric (VU.Vector r)
+instance Metric (VU.Vector Float)
         where
+
+    {-# INLINABLE[1] distance #-}
+    distance v1 v2 = {-# SCC distance_l2_hask #-} sqrt $ go 0 0
+        where
+            go !tot !i =  if i>VG.length v1-4
+                then goEach tot i
+                else go tot' (i+4)
+                where
+                    tot' = tot
+                        +(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                        *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                        +(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                        *(v1 `VG.unsafeIndex` (i+1)-v2 `VG.unsafeIndex` (i+1))
+                        +(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                        *(v1 `VG.unsafeIndex` (i+2)-v2 `VG.unsafeIndex` (i+2))
+                        +(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+                        *(v1 `VG.unsafeIndex` (i+3)-v2 `VG.unsafeIndex` (i+3))
+
+            goEach !tot !i = if i>= VG.length v1
+                then tot
+                else goEach tot' (i+1)
+                where
+                    tot' = tot+(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
+                              *(v1 `VG.unsafeIndex` i-v2 `VG.unsafeIndex` i)
 
     {-# INLINE[1] distanceUB #-}
     distanceUB !v1 !v2 !dist = {-# SCC distanceUB_UVector #-}
