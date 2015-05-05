@@ -36,19 +36,7 @@ import Debug.Trace
 
 -- | This class provides an artificial hierarchy that defines all the classes that a "well behaved" data type should implement.
 -- All newtypes will derive them automatically.
-class
-    ( Show t
-    , Read t
-    , Arbitrary t
-    , NFData t
-    ) => BasicType t
-
-instance
-    ( Show t
-    , Read t
-    , Arbitrary t
-    , NFData t
-    ) => BasicType t
+type BasicType t = (Show t, Read t, Arbitrary t, NFData t)
 
 -- | We need to export this function for deriving of Monadic functions to work
 helper_liftM :: Monad m => (a -> b) -> m a -> m b
@@ -130,8 +118,12 @@ deriveSingleInstance typename classname = if show classname == "SubHask.Mutable.
     else do
         typeinfo <- reify typename
         (conname,typekind,typeapp) <- case typeinfo of
-            TyConI (NewtypeD [] _ typekind (NormalC conname [(  _,typeapp)]) _) -> return (conname,typekind,typeapp)
-            TyConI (NewtypeD [] _ typekind (RecC    conname [(_,_,typeapp)]) _) -> return (conname,typekind,typeapp)
+            TyConI (NewtypeD [] _ typekind (NormalC conname [(  _,typeapp)]) _)
+                -> return (conname,typekind,typeapp)
+
+            TyConI (NewtypeD [] _ typekind (RecC    conname [(_,_,typeapp)]) _)
+                -> return (conname,typekind,typeapp)
+
             _ -> error $ "\nderiveSingleInstance; typeinfo="++show typeinfo
 
         typefamilies <- deriveTypefamilies
@@ -173,11 +165,14 @@ deriveSingleInstance typename classname = if show classname == "SubHask.Mutable.
                                 (last (arrow2list sigtype))
                                 (list2exp $ (VarE f):(typeL2expL $ init $ arrow2list sigtype ))
 
-                            return $ FunD f $
-                                [ Clause
-                                    ( typeL2patL conname varname $ init $ arrow2list sigtype )
-                                    ( NormalB body )
-                                    []
+                            return
+                                [ FunD f $
+                                    [ Clause
+                                        ( typeL2patL conname varname $ init $ arrow2list sigtype )
+                                        ( NormalB body )
+                                        []
+                                    ]
+                                , PragmaD $ InlineP f Inline FunLike AllPhases
                                 ]
 
     --                     trace ("classname="++show classname++"; typename="++show typename)
@@ -188,7 +183,7 @@ deriveSingleInstance typename classname = if show classname == "SubHask.Mutable.
     --                             ( ClassP classname [typeapp] : map (substitutePat varname typeapp) ctx )
                                 ( AppT (ConT classname) typeapp : map (substitutePat varname typeapp) ctx )
                                 ( AppT (ConT classname) $ apply2varlist (ConT typename) typekind )
-                                funcL
+                                ( concat funcL )
                              ]
 
 expandTySyn :: Type -> Q Type

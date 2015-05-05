@@ -234,8 +234,8 @@ instance ValidVector v r => Foldable (ArrayT v r) where
     {-# INLINE foldl1 #-}
     {-# INLINE foldl1' #-}
     foldr   f x (ArrayT v) = VG.foldr   f x v
-    foldr'  f x (ArrayT v) = {-# SCC foldr' #-} VG.foldr'  f x v
---     foldr'  f x (ArrayT v) = {-# SCC foldr' #-} vecfold  f x v
+--     foldr'  f x (ArrayT v) = {-# SCC foldr'_ArrayT #-} VG.foldr'  f x v
+    foldr'  !f !x (ArrayT !v) = {-# SCC foldr'_ArrayT #-} vecfold  f x v
     foldr1  f   (ArrayT v) = VG.foldr1  f   v
     foldr1' f   (ArrayT v) = VG.foldr1' f   v
     foldl   f x (ArrayT v) = VG.foldl   f x v
@@ -282,9 +282,17 @@ type instance Index (ArrayT v s) = Int
 
 instance (Eq_ s, Complemented (Logic s)) => IxContainer (Array s) where
     lookup i s = s VG.!? i
+    (!) = VG.unsafeIndex
     indices s = [0..VG.length s-1]
     values = VG.toList
     imap = VG.imap
+
+instance (VU.Unbox s, Eq_ s, Complemented (Logic s)) => IxContainer (UnboxedArray s) where
+    lookup i s = s VG.!? i
+    (!) = VG.unsafeIndex
+    indices s = [0..VG.length s-1]
+    values = VG.toList
+--     imap = VG.imap
 
 -------------------------------------------------------------------------------
 

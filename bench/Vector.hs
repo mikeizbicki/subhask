@@ -30,6 +30,8 @@ main = do
         d1 = unsafeToModule (xs1+xs2) :: DynVector n Float
         d2 = unsafeToModule (xs1+xs3) `asTypeOf` d1
 
+    let ub = distance s1 s2 * 3/4
+
     deepseq s1 $ deepseq s2 $ return ()
 
     -----------------------------------
@@ -49,6 +51,14 @@ main = do
         [ bgroup "distance"
             [ bench "static"  $ nf (distance s1) s2
             , bench "dynamic" $ nf (distance d1) d2
+            ]
+        , bgroup "distanceUB - bound (3/4)"
+            [ bench "static"  $ nf (distanceUB s1 s2) ub
+            , bench "dynamic" $ nf (distanceUB d1 d2) ub
+            ]
+        , bgroup "distanceUB - bound infinity"
+            [ bench "static"  $ nf (distanceUB s1 s2) infinity
+            , bench "dynamic" $ nf (distanceUB d1 d2) infinity
             ]
 --         [ bgroup "size"
 --             [ bench "static"  $ nf size s1

@@ -19,11 +19,11 @@ import SubHask.Internal.Prelude
 
 -------------------------------------------------------------------------------
 
-type EqHask  = ConstrainedT '[Eq ] Hask
-type OrdHask = ConstrainedT '[Ord] Hask
+type EqHask  = ConstrainedT '[Eq_ ] Hask
+type OrdHask = ConstrainedT '[Ord_] Hask
 
 type family AppConstraints (f :: [* -> Constraint]) (a :: *) :: Constraint
-type instance AppConstraints '[] a = ()
+type instance AppConstraints '[] a = (ClassicalLogic a)
 type instance AppConstraints (x ': xs) a = (x a, AppConstraints xs a)
 
 ---------
