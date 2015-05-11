@@ -24,7 +24,7 @@ Some more controversial changes include:
   <li> Every type has an associated `Logic` that may be non-classical; this lets us perform equality on every time---including arbitrary functions---for certain non-classical notions of equality
   <li> A subtyping mechanism; subhasks's notion of subtypes is different than what I think most haskeller's want when they say they wish haskell supported subtyping, but it is useful in the context of our class hierarchies
   <li> A dependence on essentially every GHC extension
-  <li> (even worse) a dependence on template haskell for syntactic sugar that makes working with the new class hierarchies tollerable
+  <li> (even worse) a dependence on template haskell for syntactic sugar that makes working with the new class hierarchies tolerable
 </ol>
 See the [src/SubHask/Algebra.hs](src/SubHask/Algebra.hs) file for details on algebraic structures; [src/SubHask/Category.hs](src/SubHask/Category.hs) file for details on categorical structures; and [src/SubHask/Monad.hs](src/SubHask/Monad.hs) file for details on monadic structures.
 
