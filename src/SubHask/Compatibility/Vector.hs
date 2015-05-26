@@ -361,6 +361,7 @@ instance (VU.Unbox r,  Module r, IsScalar (Scalar r)) => Module (VU.Vector r) wh
     {-# INLINE (.*) #-}
     v .* r = VG.map (r*.) v
 
+instance (VU.Unbox r,  FreeModule r, IsScalar (Scalar r)) => FreeModule (VU.Vector r) where
     {-# INLINE (.*.) #-}
     u .*. v = if VG.length u == VG.length v
         then VG.zipWith (.*.) u v
@@ -479,7 +480,7 @@ instance (IsScalar r, VU.Unbox r) => IxContainer (VU.Vector r) where
     indices s = [0..VG.length s-1]
     values = VG.toList
 
-instance (IsScalar r, Module r, VU.Unbox r) => FiniteModule (VU.Vector r) where
+instance (IsScalar r, FreeModule r, VU.Unbox r) => FiniteModule (VU.Vector r) where
     unsafeToModule = VG.fromList
 
 -------------------------------------------------------------------------------
@@ -545,6 +546,7 @@ instance ( Module r, IsScalar (Scalar r)) => Module (V.Vector r) where
     {-# INLINE (.*) #-}
     v .* r = VG.map (r*.) v
 
+instance ( FreeModule r, IsScalar (Scalar r)) => FreeModule (V.Vector r) where
     {-# INLINE (.*.) #-}
     u .*. v = if VG.length u == VG.length v
         then VG.zipWith (.*.) u v
@@ -599,7 +601,7 @@ instance (IsScalar r) => IxContainer (V.Vector r) where
     indices s = [0..VG.length s-1]
     values = VG.toList
 
-instance (IsScalar r, Module r) => FiniteModule (V.Vector r) where
+instance (IsScalar r, FreeModule r) => FiniteModule (V.Vector r) where
     unsafeToModule = VG.fromList
 
 -------------------------------------------------------------------------------

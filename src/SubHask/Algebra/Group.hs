@@ -132,7 +132,6 @@ type instance ((a/b)><c) = (a><c)/b
 
 instance (Module a, Quotient a b) => Module (a/b) where
     (Mod a) .*  r       = mkQuotient $ a .*  r
-    (Mod a) .*. (Mod b) = mkQuotient $ a .*. b
 
 -- | The type of integers modulo n
 type Z (n::Nat) = Integer/n
@@ -176,7 +175,6 @@ deriveHierarchy ''Galois [''Eq_,''Ring]
 
 instance KnownNat (p^k) => Module  (Galois p k) where
     z  .*   i = Galois (Mod i) * z
-    z1 .*. z2 = z1 * z2
 
 instance (Prime p, KnownNat (p^k)) => Field (Galois p k) where
     reciprocal (Galois (Mod i)) = Galois $ mkQuotient $ t

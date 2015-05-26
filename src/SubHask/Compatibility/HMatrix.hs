@@ -136,6 +136,15 @@ instance
     (One r2)   .* r = One $ r*r2
     Zero       .* r = Zero
 
+instance
+    ( HM.Container HM.Matrix r
+    , HM.Product r
+    , P.Eq r
+    , IsScalar r
+    , Ring r
+    , MatrixOuterProduct (Matrix r) r ~ Matrix r
+    ) => FreeModule (Matrix r)
+        where
     (Matrix m1) .*. (Matrix m2) = Matrix $ HM.mul m1 m2
 
 instance
@@ -315,6 +324,8 @@ instance (Storable r, Module r, IsScalar (Scalar r), VectorOuterProduct (Vector 
     {-# INLINE (.*) #-}
     v .* r = VG.map (r*.) v
 
+instance (Storable r, FreeModule r, IsScalar (Scalar r), VectorOuterProduct (Vector r) (Scalar r) ~ Vector r) => FreeModule (VS.Vector r) where
+
     {-# INLINE (.*.) #-}
     u .*. v = if VG.length u == VG.length v
         then VG.zipWith (.*.) u v
@@ -405,5 +416,5 @@ instance (IsScalar r, VS.Storable r) => IxContainer (VS.Vector r) where
     indices s = [0..VG.length s-1]
     values = VG.toList
 
-instance (IsScalar r, Module r, VS.Storable r, VectorOuterProduct (Vector r) r ~ Vector r) => FiniteModule (VS.Vector r) where
+instance (IsScalar r, FreeModule r, VS.Storable r, VectorOuterProduct (Vector r) r ~ Vector r) => FiniteModule (VS.Vector r) where
     unsafeToModule = VG.fromList

@@ -401,7 +401,7 @@ instance (Show r, Monoid r, Storable r) => Show (DynVector n  r) where
 instance (NFData r, Storable r) => NFData (DynVector n r) where
     rnf (DynVector fp off n) = seq fp ()
 
-instance (FromField r, Storable r, IsScalar r, Module r) => FromRecord (DynVector n r) where
+instance (FromField r, Storable r, IsScalar r, FreeModule r) => FromRecord (DynVector n r) where
     parseRecord r = do
         rs :: [r] <- parseRecord r
         return $ unsafeToModule rs
@@ -595,6 +595,7 @@ instance (Module r, Storable r) => Module (DynVector n r) where
     {-# INLINE (.*)   #-} ;  (.*)  v r = monopDyn  (.*r) v
     {-# INLINE (.*=)  #-} ;  (.*=) v r = monopDynM (.*r) v
 
+instance (FreeModule r, Storable r) => FreeModule (DynVector n r) where
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopDyn  (.*.)
     {-# INLINE (.*.=) #-} ;  (.*.=)    = binopDynM (.*.)
 
@@ -614,7 +615,7 @@ instance (Monoid r, ValidLogic r, Storable r, IsScalar r) => IxContainer (DynVec
     (!) (DynVector fp off n) i = unsafeInlineIO $ withForeignPtr fp $ \p -> peekElemOff p (off+i)
 
 
-instance (Module r, ValidLogic r, Storable r, IsScalar r) => FiniteModule (DynVector n r) where
+instance (FreeModule r, ValidLogic r, Storable r, IsScalar r) => FiniteModule (DynVector n r) where
 
     {-# INLINE dim #-}
     dim (DynVector _ _ n) = n
@@ -786,7 +787,7 @@ instance (Show r, Monoid r, Storable r) => Show (UnsafeDynVector n  r) where
 instance (NFData r, Storable r) => NFData (UnsafeDynVector n r) where
     rnf (UnsafeDynVector fp n) = seq fp ()
 
-instance (FromField r, Storable r, IsScalar r, Module r) => FromRecord (UnsafeDynVector n r) where
+instance (FromField r, Storable r, IsScalar r, FreeModule r) => FromRecord (UnsafeDynVector n r) where
     parseRecord r = do
         rs :: [r] <- parseRecord r
         return $ unsafeToModule rs
@@ -979,6 +980,7 @@ instance (Module r, Storable r) => Module (UnsafeDynVector n r) where
     {-# INLINE (.*)   #-} ;  (.*)  v r = monopUnsafeDyn  (.*r) v
     {-# INLINE (.*=)  #-} ;  (.*=) v r = monopUnsafeDynM (.*r) v
 
+instance (FreeModule r, Storable r) => FreeModule (UnsafeDynVector n r) where
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopUnsafeDyn  (.*.)
     {-# INLINE (.*.=) #-} ;  (.*.=)    = binopUnsafeDynM (.*.)
 
@@ -998,7 +1000,7 @@ instance (Monoid r, ValidLogic r, Storable r, IsScalar r) => IxContainer (Unsafe
     (!) (UnsafeDynVector fp n) i = unsafeInlineIO $ withForeignPtr fp $ \p -> peekElemOff p i
 
 
-instance (Module r, ValidLogic r, Storable r, IsScalar r) => FiniteModule (UnsafeDynVector n r) where
+instance (FreeModule r, ValidLogic r, Storable r, IsScalar r) => FiniteModule (UnsafeDynVector n r) where
 
     {-# INLINE dim #-}
     dim (UnsafeDynVector _ n) = n
@@ -1336,6 +1338,7 @@ instance (KnownNat n, Module r, Storable r) => Module (StaticVector n r) where
     {-# INLINE (.*)   #-} ;  (.*)  v r = monopStatic  (.*r) v
     {-# INLINE (.*=)  #-} ;  (.*=) v r = monopStaticM (.*r) v
 
+instance (KnownNat n, FreeModule r, Storable r) => FreeModule (StaticVector n r) where
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopStatic  (.*.)
     {-# INLINE (.*.=) #-} ;  (.*.=)    = binopStaticM (.*.)
 
@@ -1355,7 +1358,7 @@ instance (KnownNat n, Monoid r, ValidLogic r, Storable r, IsScalar r) => IxConta
     (!) (StaticVector fp) i = unsafeInlineIO $ withForeignPtr fp $ \p -> peekElemOff p i
 
 
-instance (KnownNat n, Module r, ValidLogic r, Storable r, IsScalar r) => FiniteModule (StaticVector n r) where
+instance (KnownNat n, FreeModule r, ValidLogic r, Storable r, IsScalar r) => FiniteModule (StaticVector n r) where
 
     {-# INLINE dim #-}
     dim v = n

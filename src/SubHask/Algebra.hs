@@ -234,6 +234,7 @@ module SubHask.Algebra
     , Cone (..)
     , Module (..)
     , (*.)
+    , FreeModule (..)
     , FiniteModule (..)
     , VectorSpace (..)
     , Banach (..)
@@ -1813,71 +1814,104 @@ class
     ) => Module v
         where
 
-    {-# MINIMAL (.*) , (.*.) | (.*=) , (.*.=) #-}
+    {-# MINIMAL (.*) | (.*=) #-}
 
+    -- | Scalar multiplication.
     {-# INLINE (.*) #-}
     infixl 7 .*
     (.*) :: v -> Scalar v -> v
     (.*) = mutable2immutable (.*=)
-
-    {-# INLINE (.*.) #-}
-    infixl 7 .*.
-    (.*.) :: v -> v -> v
-    (.*.) = mutable2immutable (.*.=)
 
     {-# INLINE (.*=) #-}
     infixr 5 .*=
     (.*=) :: (PrimBase m) => Mutable m v -> Scalar v -> m ()
     (.*=) = immutable2mutable (.*)
 
-    {-# INLINE (.*.=) #-}
-    infixr 5 .*.=
-    (.*.=) :: (PrimBase m) => Mutable m v -> v -> m ()
-    (.*.=) = immutable2mutable (.*.)
 
 {-# INLINE (*.) #-}
 infixl 7 *.
 (*.) :: Module v => Scalar v -> v -> v
 r *. v  = v .* r
 
-instance Module Int       where (.*) = (*); (.*.) = (*)
-instance Module Integer   where (.*) = (*); (.*.) = (*)
-instance Module Float     where (.*) = (*); (.*.) = (*)
-instance Module Double    where (.*) = (*); (.*.) = (*)
-instance Module Rational  where (.*) = (*); (.*.) = (*)
+instance Module Int       where (.*) = (*)
+instance Module Integer   where (.*) = (*)
+instance Module Float     where (.*) = (*)
+instance Module Double    where (.*) = (*)
+instance Module Rational  where (.*) = (*)
 
 instance
     ( Module b
     ) => Module (a -> b)
         where
     f .*  b = \a -> f a .*  b
+
+---------------------------------------
+
+-- | Free modules have a basis.
+-- This means it makes sense to perform operations elementwise on the basis coefficients.
+--
+-- See <https://en.wikipedia.org/wiki/Free_module wikipedia> for more detail.
+class (Module v) => FreeModule v where
+
+    {-# MINIMAL ones, ((.*.) | (.*.=)) #-}
+
+    -- | Multiplication of the components pointwise.
+    -- For matrices, this is commonly called Hadamard multiplication.
+    --
+    -- See <http://en.wikipedia.org/wiki/Hadamard_product_%28matrices%29 wikipedia> for more detail.
+    --
+    -- FIXME: This is only valid for modules with a basis.
+    {-# INLINE (.*.) #-}
+    infixl 7 .*.
+    (.*.) :: v -> v -> v
+    (.*.) = mutable2immutable (.*.=)
+
+    {-# INLINE (.*.=) #-}
+    infixr 5 .*.=
+    (.*.=) :: (PrimBase m) => Mutable m v -> v -> m ()
+    (.*.=) = immutable2mutable (.*.)
+
+    -- | The identity for Hadamard multiplication.
+    -- Intuitively, this object has the value "one" in every column.
+    ones :: v
+
+instance FreeModule Int       where (.*.) = (*); ones = one
+instance FreeModule Integer   where (.*.) = (*); ones = one
+instance FreeModule Float     where (.*.) = (*); ones = one
+instance FreeModule Double    where (.*.) = (*); ones = one
+instance FreeModule Rational  where (.*.) = (*); ones = one
+
+instance
+    ( FreeModule b
+    ) => FreeModule (a -> b)
+        where
     g .*. f = \a -> g a .*. f a
+    ones = \a -> ones
 
 ---------------------------------------
 
--- | If our "Module" has a finite basis, then we can index into the module and easily construct it.
+-- | If our "FreeModule" has a finite basis, then we can:
 --
--- FIXME:
--- Is there a more descriptive name for this class?
+-- * index into the modules basis coefficients
 --
--- We should add a function
---
--- > unsafeIxToModule :: [(Int,Scalar s)] -> s
---
--- for sparse representations.
-class (Module s, IxContainer s, Elem s~Scalar s, Index s~Int) => FiniteModule s where
-    dim :: s -> Int
-    unsafeToModule :: [Scalar s] -> s
+-- * provide a dense construction method that's a bit more convenient than "fromIxList".
+class (FreeModule v, IxContainer v, Elem v~Scalar v, Index v~Int) => FiniteModule v where
+    -- | Returns the dimension of the object.
+    -- For some objects, this may be known statically, and so the parameter will not be "seq"ed.
+    -- But for others, this may not be known statically, and so the parameter will be "seq"ed.
+    dim :: v -> Int
 
-instance FiniteModule Int       where  dim _ = 1; unsafeToModule [x] = x
-instance FiniteModule Integer   where  dim _ = 1; unsafeToModule [x] = x
-instance FiniteModule Float     where  dim _ = 1; unsafeToModule [x] = x
-instance FiniteModule Double    where  dim _ = 1; unsafeToModule [x] = x
-instance FiniteModule Rational  where  dim _ = 1; unsafeToModule [x] = x
+    unsafeToModule :: [Scalar v] -> v
+
+instance FiniteModule Int       where dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Integer   where dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Float     where dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Double    where dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Rational  where dim _ = 1; unsafeToModule [x] = x
 
 ---------------------------------------
 
-class (Module v, Field (Scalar v)) => VectorSpace v where
+class (FreeModule v, Field (Scalar v)) => VectorSpace v where
 
     {-# MINIMAL (./.) | (./.=) #-}
 
