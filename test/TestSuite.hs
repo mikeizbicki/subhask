@@ -1,13 +1,15 @@
 import SubHask.Algebra
 import SubHask.Category
 import SubHask.Internal.Prelude
+import SubHask.Algebra.Array
 import SubHask.Algebra.Group
 import SubHask.Algebra.Container
 import SubHask.Algebra.Logic
 import SubHask.Algebra.Metric
 import SubHask.Algebra.Parallel
+import SubHask.Algebra.Vector
 import SubHask.Compatibility.ByteString
-import SubHask.Compatibility.Vector
+-- import SubHask.Compatibility.Vector
 import SubHask.Compatibility.Containers
 
 import SubHask.TemplateHaskell.Deriving
@@ -16,10 +18,12 @@ import SubHask.TemplateHaskell.Test
 
 import Test.Framework (defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.Framework.Runners.Console
+import Test.Framework.Runners.Options
 import Test.QuickCheck hiding (NonNegative)
 import Test.QuickCheck.Arbitrary
 
-main = defaultMain
+main = defaultMain --WithOpts
     [ testGroup "simple"
         [ testGroup "numeric"
             [ $( mkSpecializedClassTests [t| Int      |] [''Enum,''Ring, ''Bounded, ''Metric] )
@@ -34,6 +38,15 @@ main = defaultMain
                 , $( mkSpecializedClassTests [t| NonNegative (Z 57) |] [''Rig] )
                 ]
             ]
+        , testGroup "vector"
+            [ $( mkSpecializedClassTests [t| SVector 0     Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| SVector 1     Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| SVector 2     Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| SVector 19    Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| SVector 1001  Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| SVector "dyn" Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| UVector "dyn" Int |] [ ''Module ] )
+            ]
         , testGroup "non-numeric"
             [ $( mkSpecializedClassTests [t| Bool      |] [''Enum,''Boolean] )
             , $( mkSpecializedClassTests [t| Char      |] [''Enum,''Bounded] )
@@ -45,29 +58,15 @@ main = defaultMain
                 ]
             ]
         ]
-        -- FIXME: vector Arbitrary broken due to different sizes
-        -- FIXME: vector identity is different than x-x, so spurious failures
---     , testGroup "vectors"
---         [ $( mkSpecializedClassTests [t| Vector Int |] [ ''Group, ''Ord, ''Lattice ] )
---         [ testGroup "metrics"
---             [ $( mkSpecializedClassTests [t| Vector Double |] [''Metric ] )
---             , $( mkSpecializedClassTests [t| Polynomial 2 (Vector Double) |] [''Metric] )
---             , $( mkSpecializedClassTests [t| RBF 2 (Vector Double) |] [''Metric] )
---             , $( mkSpecializedClassTests [t| Sigmoid 2 (Vector Double) |] [''Metric] )
---             , $( mkSpecializedClassTests [t| Match                   Vector Double  |] [''Metric] )
---             , $( mkSpecializedClassTests [t| Xi2                     Vector Double  |] [''Metric] )
---             , $( mkSpecializedClassTests [t| HistogramIntersection   Vector Double  |] [''Metric] )
---             , $( mkSpecializedClassTests [t| JensenShannonDivergence Vector Double  |] [''Metric] )
---             ]
---         ]
     , testGroup "objects"
         [ $( mkSpecializedClassTests [t| Labeled' Int Int |] [ ''Action,''Ord,''Metric ] )
         ]
     , testGroup "containers"
         [ $( mkSpecializedClassTests [t| []            Char |] [ ''Foldable,''MinBound,''Partitionable ] )
-        , $( mkSpecializedClassTests [t| Array         Char |] [ ''Foldable,''MinBound,''Partitionable ] )
-        , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''Foldable,''MinBound,''Partitionable ] )
-        , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''Foldable,''MinBound,''Partitionable ] )
+        , $( mkSpecializedClassTests [t| BArray        Char |] [ ''Foldable,''MinBound ] ) --''Foldable,''MinBound,''Partitionable ] )
+        , $( mkSpecializedClassTests [t| UArray        Char |] [ ''Foldable,''MinBound ] ) --''Foldable,''MinBound,''Partitionable ] )
+--         , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''Foldable,''MinBound,''Partitionable ] )
+--         , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Set           Char |] [ ''Foldable,''MinBound ] )
         , $( mkSpecializedClassTests [t| Seq           Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Map  Int Int |] [ ''MinBound, ''IxConstructible ] )
@@ -89,6 +88,16 @@ main = defaultMain
             ]
         ]
     ]
+--     $ RunnerOptions
+--         { ropt_threads          = Nothing
+--         , ropt_test_options     = Nothing
+--         , ropt_test_patterns    = Nothing
+--         , ropt_xml_output       = Nothing
+--         , ropt_xml_nested       = Nothing
+--         , ropt_color_mode       = Just ColorAlways
+--         , ropt_hide_successes   = Just False
+--         , ropt_list_only        = Just True
+--         }
 
 --------------------------------------------------------------------------------
 -- orphan instances needed for compilation

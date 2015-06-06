@@ -141,6 +141,8 @@ module SubHask.Algebra
     , defn_IxContainer_hasIndex
     , (!?)
 
+    , Sliceable (..)
+
     , IxConstructible (..)
     , law_IxConstructible_lookup
     , defn_IxConstructible_consAt
@@ -233,8 +235,17 @@ module SubHask.Algebra
     , type (><)
     , Cone (..)
     , Module (..)
+    , law_Module_multiplication
+    , law_Module_addition
+    , law_Module_action
+    , law_Module_unital
+    , defn_Module_dotstarequal
     , (*.)
     , FreeModule (..)
+    , law_FreeModule_commutative
+    , law_FreeModule_associative
+    , law_FreeModule_id
+    , defn_FreeModule_dotstardotequal
     , FiniteModule (..)
     , VectorSpace (..)
     , Banach (..)
@@ -1827,6 +1838,21 @@ class
     (.*=) :: (PrimBase m) => Mutable m v -> Scalar v -> m ()
     (.*=) = immutable2mutable (.*)
 
+law_Module_multiplication :: (Eq_ m, Module m) => m -> m -> Scalar m -> Logic m
+law_Module_multiplication m1 m2 s = s *. (m1 + m2) == s*.m1 + s*.m2
+
+law_Module_addition :: (Eq_ m, Module m) => m -> Scalar m -> Scalar m -> Logic m
+law_Module_addition  m s1 s2 = (s1+s2)*.m == s1*.m + s2*.m
+
+law_Module_action :: (Eq_ m, Module m) => m -> Scalar m -> Scalar m -> Logic m
+law_Module_action m s1 s2 = s1*.(s2*.m) == (s1*s2)*.m
+
+law_Module_unital :: (Eq_ m, Module m) => m -> Logic m
+law_Module_unital m = 1 *. m == m
+
+defn_Module_dotstarequal :: (Eq_ m, Module m) => m -> Scalar m -> Logic m
+defn_Module_dotstarequal = simpleMutableDefn (.*=) (.*)
+
 
 {-# INLINE (*.) #-}
 infixl 7 *.
@@ -1874,6 +1900,18 @@ class (Module v) => FreeModule v where
     -- | The identity for Hadamard multiplication.
     -- Intuitively, this object has the value "one" in every column.
     ones :: v
+
+law_FreeModule_commutative :: (Eq_ m, FreeModule m) => m -> m -> Logic m
+law_FreeModule_commutative m1 m2 = m1.*.m2 == m2.*.m1
+
+law_FreeModule_associative :: (Eq_ m, FreeModule m) => m -> m -> m -> Logic m
+law_FreeModule_associative m1 m2 m3 = m1.*.(m2.*.m3) == (m1.*.m2).*.m3
+
+law_FreeModule_id :: (Eq_ m, FreeModule m) => m -> Logic m
+law_FreeModule_id m = m == m.*.ones
+
+defn_FreeModule_dotstardotequal :: (Eq_ m, FreeModule m) => m -> m -> Logic m
+defn_FreeModule_dotstardotequal = simpleMutableDefn (.*.=) (.*.)
 
 instance FreeModule Int       where (.*.) = (*); ones = one
 instance FreeModule Integer   where (.*.) = (*); ones = one
@@ -2609,7 +2647,10 @@ class (ValidLogic s, Monoid s) => IxContainer s where
         Just _ -> true
 
     -- | FIXME: should the functions below be moved to other classes?
-    imap :: (Index s -> Elem s -> b) -> s -> SetElem s b
+    type ValidElem s e :: Constraint
+    type ValidElem s e = ()
+
+    imap :: (ValidElem s (Elem s), ValidElem s b) => (Index s -> Elem s -> b) -> s -> SetElem s b
 
     toIxList :: s -> [(Index s, Elem s)]
 
@@ -2671,6 +2712,10 @@ mkIxContainer(Integer)
 mkIxContainer(Float)
 mkIxContainer(Double)
 mkIxContainer(Rational)
+
+-- | Sliceable containers generalize the notion of a substring to any IxContainer.
+class (IxContainer s, Enum (Index s)) => Sliceable s where
+    slice :: Index s -> Int -> s -> s
 
 -- | Some containers that use indices are not typically constructed with those indices (e.g. Arrays).
 class IxContainer s => IxConstructible s where

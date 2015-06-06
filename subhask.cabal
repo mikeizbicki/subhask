@@ -21,6 +21,7 @@ library
         SubHask
 
         SubHask.Algebra
+        SubHask.Algebra.Array
         SubHask.Algebra.Container
         SubHask.Algebra.Group
         SubHask.Algebra.Logic
@@ -28,6 +29,7 @@ library
         SubHask.Algebra.Ord
         SubHask.Algebra.Parallel
         SubHask.Algebra.Trans.Kernel
+        SubHask.Algebra.Vector
 
         SubHask.Category
         SubHask.Category.Finite
@@ -48,10 +50,10 @@ library
         SubHask.Compatibility.Containers
         SubHask.Compatibility.HMatrix
         SubHask.Compatibility.HyperLogLog
-        SubHask.Compatibility.Vector
-        SubHask.Compatibility.StaticVector
+--         SubHask.Compatibility.Vector
+--         SubHask.Compatibility.StaticVector
 --         SubHask.Compatibility.Vector.HistogramMetrics
-        SubHask.Compatibility.Vector.Lebesgue
+--         SubHask.Compatibility.Vector.Lebesgue
 
         SubHask.Monad
         SubHask.Mutable
@@ -214,6 +216,7 @@ Test-Suite TestSuite
         TemplateHaskell,
         BangPatterns,
         FunctionalDependencies,
+        MultiWayIf,
 
         AutoDeriveTypeable,
         RebindableSyntax
