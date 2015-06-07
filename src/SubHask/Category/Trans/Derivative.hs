@@ -31,8 +31,8 @@ import qualified Prelude as P
 -- import qualified Numeric.AD as AD
 -- import qualified Numeric.AD.Mode.Reverse as AD
 
-import SubHask.Compatibility.Vector
-import SubHask.Compatibility.HMatrix
+-- import SubHask.Compatibility.Vector
+-- import SubHask.Compatibility.HMatrix
 
 
 --------------------------------------------------------------------------------
@@ -53,9 +53,6 @@ instance (HasScalar a, Semigroup a) => Semigroup (AD a) where
 -- proveC1_ f
 --     = Diffn (\a -> v  $ f $ AD a ones)
 --     $ Diff0 (\a -> v' $ f $ AD a ones)
-
-ones :: Vector Double
-ones = unsafeToModule [1,1,1,1,1]
 
 -- | This is essentially just a translation of the "Numeric.AD.Forward.Forward" type
 -- for use with the SubHask numeric hierarchy.

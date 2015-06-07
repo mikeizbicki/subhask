@@ -1,6 +1,11 @@
-import SubHask.Algebra
-import SubHask.Category
-import SubHask.Internal.Prelude
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DataKinds #-}
+
+module Main
+    where
+
+import SubHask
 import SubHask.Algebra.Array
 import SubHask.Algebra.Group
 import SubHask.Algebra.Container
@@ -9,19 +14,17 @@ import SubHask.Algebra.Metric
 import SubHask.Algebra.Parallel
 import SubHask.Algebra.Vector
 import SubHask.Compatibility.ByteString
--- import SubHask.Compatibility.Vector
 import SubHask.Compatibility.Containers
 
 import SubHask.TemplateHaskell.Deriving
 import SubHask.TemplateHaskell.Test
--- import Language.Haskell.TH hiding (Match)
 
 import Test.Framework (defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework.Runners.Console
 import Test.Framework.Runners.Options
-import Test.QuickCheck hiding (NonNegative)
-import Test.QuickCheck.Arbitrary
+
+--------------------------------------------------------------------------------
 
 main = defaultMain --WithOpts
     [ testGroup "simple"
@@ -65,8 +68,6 @@ main = defaultMain --WithOpts
         [ $( mkSpecializedClassTests [t| []            Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| BArray        Char |] [ ''Foldable,''MinBound ] ) --''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| UArray        Char |] [ ''Foldable,''MinBound ] ) --''Foldable,''MinBound,''Partitionable ] )
---         , $( mkSpecializedClassTests [t| UnboxedArray  Char |] [ ''Foldable,''MinBound,''Partitionable ] )
---         , $( mkSpecializedClassTests [t| StorableArray Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Set           Char |] [ ''Foldable,''MinBound ] )
         , $( mkSpecializedClassTests [t| Seq           Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Map  Int Int |] [ ''MinBound, ''IxConstructible ] )

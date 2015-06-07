@@ -16,6 +16,8 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+--------------------------------------------------------------------------------
+
 library
     exposed-modules:
         SubHask
@@ -48,12 +50,8 @@ library
         SubHask.Compatibility.ByteString
         SubHask.Compatibility.Cassava
         SubHask.Compatibility.Containers
-        SubHask.Compatibility.HMatrix
+--         SubHask.Compatibility.HMatrix
         SubHask.Compatibility.HyperLogLog
---         SubHask.Compatibility.Vector
---         SubHask.Compatibility.StaticVector
---         SubHask.Compatibility.Vector.HistogramMetrics
---         SubHask.Compatibility.Vector.Lebesgue
 
         SubHask.Monad
         SubHask.Mutable
@@ -104,11 +102,84 @@ library
         -O3
         -ffast-math
 
---         -msse2
---         -mavx
---         -ftree-vectorize
---         -march=native
---         -mfpmath=sse
+    ghc-options:
+        -O2
+        -funbox-strict-fields
+
+    build-depends:
+        -- NOTE:
+        -- We specify the *exact* versions of all non-base libraries to ensure that we get reproducible builds.
+        -- This helps prevent performance regressions.
+        -- The downside of exact version dependencies is that the user probably doesn't have these versions installed.
+        -- This can result in significantly longer build times and build conflicts.
+        -- But since subhask is designed as an alternative to base, this is an acceptable tradeoff.
+
+        -- haskell language
+        base                        >= 4.8 && <4.9,
+        ghc-prim                    == 0.4.0.0,
+        template-haskell            == 2.10.0.0,
+        haskell-src-meta            == 0.6.0.9,
+
+        -- special functionality
+        parallel                    == 3.2.0.6,
+        deepseq                     == 1.4.1.1,
+        primitive                   == 0.6,
+        monad-primitive             == 0.1,
+        QuickCheck                  == 2.7,
+
+        -- math
+        erf                         == 2.0.0.0,
+        gamma                       == 0.9.0.2,
+        vector                      == 0.10.12.3,
+        hmatrix                     == 0.16.1.5,
+
+        -- compatibility control flow
+        mtl                         == 2.2.1,
+        MonadRandom                 == 0.1.13,
+        pipes                       == 4.1.3,
+
+        -- compatibility data structures
+        bytestring                  == 0.10.6.0,
+        bloomfilter                 == 2.0.1.0,
+        cassava                     == 0.4.2.3,
+        containers                  == 0.5.6.2,
+        hyperloglog                 == 0.3.1,
+
+        -- required for hyperloglog compatibility
+        semigroups                  == 0.16.2.2,
+        bytes                       == 0.15,
+        approximate                 == 0.2.1.1,
+        lens                        == 4.9.1
+
+    default-language:
+        Haskell2010
+
+--------------------------------------------------------------------------------
+
+Test-Suite TestSuite
+    type:               exitcode-stdio-1.0
+    hs-source-dirs:     test
+    main-is:            TestSuite.hs
+
+    build-depends:
+        subhask,
+        test-framework-quickcheck2  == 0.3.0,
+        test-framework              == 0.8.0.3
+
+    ghc-options:
+        -O
+
+--------------------------------------------------------------------------------
+
+benchmark Vector
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   bench
+    main-is:          Vector.hs
+    build-depends:
+        base,
+        subhask,
+        criterion                   == 1.1.0.0,
+        MonadRandom
 
     ghc-options:
         -O2
@@ -121,7 +192,6 @@ library
 --         -fmax-worker-args=100
 --         -fsimplifier-phases=5
 --         -fspec-constr-count=50
---         -fstrictness-before=3
 
         -fllvm
         -optlo-O3
@@ -130,10 +200,10 @@ library
         -optlo-enable-no-nans-fp-math
         -optlo-enable-unsafe-fp-math
 
+        -ddump-to-file
 --         -ddump-rule-firings
 --         -ddump-rule-rewrites
 --         -ddump-rules
---         -ddump-to-file
 --         -ddump-cmm
 --         -ddump-simpl
 --         -ddump-simpl-stats
@@ -143,158 +213,3 @@ library
 --         -dsuppress-idinfo
 --         -dsuppress-coercions
 --         -dsuppress-type-applications
-
-    build-depends:
-        base            >= 4.8 && <4.9,
-        ghc-prim,
-        template-haskell,
-        haskell-src-meta>= 0.6.0,
-
-        -- special functionality
-        parallel        >= 3.2.0.4,
-        deepseq         >= 1.3,
-        primitive       >= 0.5.3,
-        monad-primitive >= 0.1,
-
-        -- math
-        erf             >= 2.0,
-        gamma           >= 0.9,
-
-        -- compatibility layers
-        bytestring      >= 0.10.4,
-        cassava         >= 0.4.1,
-        containers      >= 0.5,
-        vector          >= 0.10.0,
-        hmatrix         >= 0.16.0.5,
-        bloomfilter     >= 2.0.0.0,
-        hyperloglog     == 0.3.1,
-        mtl             >= 2.1.3,
-        pipes           >= 4.1.3,
-        MonadRandom     >= 0.1.13,
-
-        -- required for hyperloglog compatibility
-        semigroups      == 0.16.2.2,
-        bytes           == 0.15,
-        approximate     == 0.2.1.1,
-        lens            == 4.9.1,
-
-        -- testing
-        QuickCheck      >= 2.7,
-        test-framework-quickcheck2 >= 0.3.0,
-        test-framework  >= 0.8.0.3
-
-    default-language:
-        Haskell2010
-
-Test-Suite TestSuite
-    type:
-        exitcode-stdio-1.0
-
-    main-is:
-        TestSuite.hs
-
-    hs-source-dirs:
-        src
-        test
-
-    default-extensions:
-        TypeFamilies,
-        ConstraintKinds,
-        DataKinds,
-        GADTs,
-        MultiParamTypeClasses,
-        FlexibleInstances,
-        FlexibleContexts,
-        TypeOperators,
-        RankNTypes,
-        InstanceSigs,
-        ScopedTypeVariables,
-        UndecidableInstances,
-        PolyKinds,
-        StandaloneDeriving,
-        GeneralizedNewtypeDeriving,
-        TemplateHaskell,
-        BangPatterns,
-        FunctionalDependencies,
-        MultiWayIf,
-
-        AutoDeriveTypeable,
-        RebindableSyntax
---         OverloadedLists
-
-    build-depends:
-        base            >= 4.8 && <4.9,
-        ghc-prim,
-        template-haskell,
-        haskell-src-meta>= 0.6.0,
-
-        -- special functionality
-        parallel        >= 3.2.0.4,
-        deepseq         >= 1.3,
-        primitive       >= 0.5.3,
-        monad-primitive >= 0.1,
-
-        -- math
-        erf             >= 2.0,
-        gamma           >= 0.9,
-
-        -- compatibility layers
-        bytestring      >= 0.10.4,
-        cassava         >= 0.4.1,
-        containers      >= 0.5,
-        vector          >= 0.10.0,
-        hmatrix         >= 0.16.0.5,
-        bloomfilter     >= 2.0.0.0,
-        hyperloglog     == 0.3.1,
-        mtl             >= 2.1.3,
-        pipes           >= 4.1.3,
-        MonadRandom     >= 0.1.13,
-
-        -- required for hyperloglog compatibility
-        semigroups      == 0.16.2.2,
-        bytes           == 0.15,
-        approximate     == 0.2.1.1,
-        lens            == 4.9.1,
-
-        -- testing
-        QuickCheck      >= 2.7,
-        test-framework-quickcheck2 >= 0.3.0,
-        test-framework  >= 0.8.0.3
-
-benchmark Vector
-    type:             exitcode-stdio-1.0
-    hs-source-dirs:   bench
-    main-is:          Vector.hs
-    build-depends:    base, subhask, criterion, vector, MonadRandom, reflection
-    ghc-options:
-        -O2
-        -funbox-strict-fields
-        -fexcess-precision
-
---         -fliberate-case-threshold=100000
---         -fexpose-all-unfoldings
---         -fmax-simplifier-iterations=10
---         -fmax-worker-args=100
---         -fsimplifier-phases=5
---         -fspec-constr-count=50
-
-        -fllvm
-        -optlo-O3
-        -optlo-enable-fp-mad
-        -optlo-enable-no-infs-fp-math
-        -optlo-enable-no-nans-fp-math
-        -optlo-enable-unsafe-fp-math
-
-        -ddump-rule-firings
-        -ddump-rule-rewrites
-        -ddump-rules
-        -ddump-to-file
-        -ddump-cmm
-        -ddump-simpl
-        -ddump-simpl-stats
-        -dppr-debug
-        -dsuppress-module-prefixes
-        -dsuppress-uniques
-        -dsuppress-idinfo
-        -dsuppress-coercions
-        -dsuppress-type-applications
