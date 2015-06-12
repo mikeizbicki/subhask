@@ -1,3 +1,5 @@
+{-# LANGUAGE ForeignFunctionInterface #-}
+
 -- | Efficient vectors and linear algebra operations.
 -- FIXME:
 -- shouldn't expose the constructors
@@ -9,6 +11,18 @@ module SubHask.Algebra.Vector
     ( SVector (..)
     , UVector (..)
     , Unbox
+
+    -- * FFI
+    , distance_l2_m128
+    , distance_l2_m128_SVector_Dynamic
+    , distance_l2_m128_UVector_Dynamic
+
+    , distanceUB_l2_m128
+    , distanceUB_l2_m128_SVector_Dynamic
+    , distanceUB_l2_m128_UVector_Dynamic
+
+    -- * Debug
+    , safeNewByteArray
     )
     where
 
@@ -38,6 +52,49 @@ import SubHask.Compatibility.Base
 import Data.Csv (FromRecord,FromField,parseRecord)
 
 import System.IO.Unsafe
+import Unsafe.Coerce
+
+--------------------------------------------------------------------------------
+
+foreign import ccall unsafe "distance_l2_m128" distance_l2_m128
+    :: Ptr Float -> Ptr Float -> Int -> IO Float
+
+foreign import ccall unsafe "distanceUB_l2_m128" distanceUB_l2_m128
+    :: Ptr Float -> Ptr Float -> Int -> Float -> IO Float
+
+{-# INLINE sizeOfFloat #-}
+sizeOfFloat :: Int
+sizeOfFloat = sizeOf (undefined::Float)
+
+{-# INLINE distance_l2_m128_UVector_Dynamic #-}
+distance_l2_m128_UVector_Dynamic :: UVector (s::Symbol) Float -> UVector (s::Symbol) Float -> Float
+distance_l2_m128_UVector_Dynamic (UVector_Dynamic arr1 off1 n) (UVector_Dynamic arr2 off2 _)
+    = unsafeInlineIO $ distance_l2_m128 p1 p2 n
+    where
+        p1 = plusPtr (unsafeCoerce $ byteArrayContents arr1) (off1*sizeOfFloat)
+        p2 = plusPtr (unsafeCoerce $ byteArrayContents arr2) (off2*sizeOfFloat)
+
+{-# INLINE distanceUB_l2_m128_UVector_Dynamic #-}
+distanceUB_l2_m128_UVector_Dynamic :: UVector (s::Symbol) Float -> UVector (s::Symbol) Float -> Float -> Float
+distanceUB_l2_m128_UVector_Dynamic (UVector_Dynamic arr1 off1 n) (UVector_Dynamic arr2 off2 _) ub
+    = unsafeInlineIO $ distanceUB_l2_m128 p1 p2 n ub
+    where
+        p1 = plusPtr (unsafeCoerce $ byteArrayContents arr1) (off1*sizeOfFloat)
+        p2 = plusPtr (unsafeCoerce $ byteArrayContents arr2) (off2*sizeOfFloat)
+
+distance_l2_m128_SVector_Dynamic :: SVector (s::Symbol) Float -> SVector (s::Symbol) Float -> Float
+distance_l2_m128_SVector_Dynamic (SVector_Dynamic fp1 off1 n) (SVector_Dynamic fp2 off2 _)
+    = unsafeInlineIO $
+        withForeignPtr fp1 $ \p1 ->
+        withForeignPtr fp2 $ \p2 ->
+            distance_l2_m128 (plusPtr p1 $ off1*sizeOfFloat) (plusPtr p2 $ off2*sizeOfFloat) n
+
+distanceUB_l2_m128_SVector_Dynamic :: SVector (s::Symbol) Float -> SVector (s::Symbol) Float -> Float -> Float
+distanceUB_l2_m128_SVector_Dynamic (SVector_Dynamic fp1 off1 n) (SVector_Dynamic fp2 off2 _) ub
+    = unsafeInlineIO $
+        withForeignPtr fp1 $ \p1 ->
+        withForeignPtr fp2 $ \p2 ->
+            distanceUB_l2_m128 (plusPtr p1 $ off1*sizeOfFloat) (plusPtr p2 $ off2*sizeOfFloat) n ub
 
 --------------------------------------------------------------------------------
 
@@ -104,13 +161,13 @@ instance Prim r => IsMutable (UVector (n::Symbol) r) where
 
     copy (Mutable_UVector ref) = do
         (UVector_Dynamic arr1 off1 n) <- readPrimRef ref
-        let b = n*Prim.sizeOf (undefined::r)
+        let b = (extendDimensions n)*Prim.sizeOf (undefined::r)
         if n==0
             then do
                 ref <- newPrimRef $ UVector_Dynamic arr1 off1 n
                 return $ Mutable_UVector ref
             else unsafePrimToPrim $ do
-                marr2 <- newPinnedByteArray b
+                marr2 <- safeNewByteArray b 16
                 copyByteArray marr2 0 arr1 off1 b
                 arr2 <- unsafeFreezeByteArray marr2
                 ref2 <- newPrimRef (UVector_Dynamic arr2 0 n)
@@ -124,7 +181,7 @@ instance Prim r => IsMutable (UVector (n::Symbol) r) where
 
             -- only arr1 null: allocate memory then copy arr2 over
             | n1==0 -> do
-                marr1' <- newPinnedByteArray b
+                marr1' <- safeNewByteArray b 16
                 copyByteArray marr1' 0 arr2 off2 b
                 arr1' <- unsafeFreezeByteArray marr1'
                 unsafePrimToPrim $ writePrimRef ref (UVector_Dynamic arr1' 0 n2)
@@ -138,10 +195,23 @@ instance Prim r => IsMutable (UVector (n::Symbol) r) where
                 marr1 <- unsafeThawByteArray arr1
                 copyByteArray marr1 off1 arr2 off2 b
 
-        where b = n2*Prim.sizeOf (undefined::r)
+        where b = (extendDimensions n2)*Prim.sizeOf (undefined::r)
 
 ----------------------------------------
 -- algebra
+
+extendDimensions :: Int -> Int
+extendDimensions i = i+i`rem`4
+
+safeNewByteArray :: PrimMonad m => Int -> Int -> m (MutableByteArray (PrimState m))
+safeNewByteArray b 16 = do
+    let n=extendDimensions $ b`rem`4
+    marr <- newAlignedPinnedByteArray b 16
+    writeByteArray marr (n-0) (0::Float)
+    writeByteArray marr (n-1) (0::Float)
+    writeByteArray marr (n-2) (0::Float)
+    writeByteArray marr (n-3) (0::Float)
+    return marr
 
 {-# INLINE binopDynUV #-}
 binopDynUV :: forall a b n m.
@@ -153,8 +223,8 @@ binopDynUV f v1@(UVector_Dynamic arr1 off1 n1) v2@(UVector_Dynamic arr2 off2 n2)
     | isZero n1 -> monopDynUV (f zero) v2
     | isZero n2 -> monopDynUV (\a -> f a zero) v1
     | otherwise -> unsafeInlineIO $ do
-        let b = n1*Prim.sizeOf (undefined::a)
-        marr3 <- newPinnedByteArray b
+        let b = (extendDimensions n1)*Prim.sizeOf (undefined::a)
+        marr3 <- safeNewByteArray b 16
         go marr3 (n1-1)
         arr3 <- unsafeFreezeByteArray marr3
         return $ UVector_Dynamic arr3 0 n1
@@ -175,7 +245,7 @@ monopDynUV f v@(UVector_Dynamic arr1 off1 n) = if n==0
     then v
     else unsafeInlineIO $ do
         let b = n*Prim.sizeOf (undefined::a)
-        marr2 <- newPinnedByteArray b
+        marr2 <- safeNewByteArray b 16
         go marr2 (n-1)
         arr2 <- unsafeFreezeByteArray marr2
         return $ UVector_Dynamic arr2 0 n
@@ -266,7 +336,7 @@ instance (Monoid r, Cancellative r, Prim r) => Cancellative (UVector (n::Symbol)
 instance (Monoid r, Prim r) => Monoid (UVector (n::Symbol) r) where
     {-# INLINE zero #-}
     zero = unsafeInlineIO $ do
-        marr <- newPinnedByteArray 0
+        marr <- safeNewByteArray 0 16
         arr <- unsafeFreezeByteArray marr
         return $ UVector_Dynamic arr 0 0
 
@@ -312,7 +382,7 @@ instance (FreeModule r, ValidLogic r, Prim r, IsScalar r) => FiniteModule (UVect
 
     {-# INLINABLE unsafeToModule #-}
     unsafeToModule xs = unsafeInlineIO $ do
-        marr <- newPinnedByteArray $ n*Prim.sizeOf (undefined::r)
+        marr <- safeNewByteArray (n*Prim.sizeOf (undefined::r)) 16
         go marr (P.reverse xs) (n-1)
         arr <- unsafeFreezeByteArray marr
         return $ UVector_Dynamic arr 0 n

@@ -232,7 +232,7 @@ instance
 
     {-# INLINABLE fromList1N #-}
     fromList1N n x xs = unsafeInlineIO $ do
-        marr <- newPinnedByteArray (n*size*rbytes)
+        marr <- safeNewByteArray (n*size*rbytes) 16
         let mv = UArray_MUVector marr 0 n size
 
         let go [] (-1) = return ()
@@ -256,7 +256,7 @@ instance
     , IsScalar r
     ) => Monoid (UArray (UVector (s::Symbol) r)) where
     zero = unsafeInlineIO $ do
-        marr <- newPinnedByteArray 0
+        marr <- safeNewByteArray 0 16
         arr <- unsafeFreezeByteArray marr
         return $ UArray $ UArray_UVector arr 0 0 0
 
@@ -277,7 +277,7 @@ instance
 
     {-# INLINABLE fromList1N #-}
     fromList1N n x xs = unsafeInlineIO $ do
-        marr <- newPinnedByteArray (n*(xsize+ysize)*rbytes)
+        marr <- safeNewByteArray (n*(xsize+ysize)*rbytes) 16
         let mv = UArray_Labeled'_MUVector marr 0 n xsize
 
         let go [] (-1) = return ()
@@ -292,7 +292,7 @@ instance
             rbytes=Prim.sizeOf (undefined::r)
 
             xsize=dim $ xLabeled' x
-            ysize=Prim.sizeOf (undefined::y) `quot` rbytes
+            ysize=4 --Prim.sizeOf (undefined::y) `quot` rbytes
 
 instance
     ( ClassicalLogic r
@@ -305,7 +305,7 @@ instance
     , Unbox y
     ) => Monoid (UArray (Labeled' (UVector (s::Symbol) r) y)) where
     zero = unsafeInlineIO $ do
-        marr <- newPinnedByteArray 0
+        marr <- safeNewByteArray 0 16
         arr <- unsafeFreezeByteArray marr
         return $ UArray $ UArray_Labeled'_UVector arr 0 0 0
 
@@ -478,7 +478,7 @@ instance
     {-# INLINABLE basicUnsafeRead #-}
     basicUnsafeRead mv@(UArray_MUVector marr off n size) i = do
         let b=Prim.sizeOf (undefined::elem)
-        marr' <- newPinnedByteArray (size*b)
+        marr' <- safeNewByteArray (size*b) 16
         copyMutableByteArray marr' 0 marr ((off+i*size)*b) (size*b)
         arr <- unsafeFreezeByteArray marr'
         return $ UVector_Dynamic arr 0 size
@@ -539,7 +539,7 @@ instance
     basicUnsafeSlice i lenM' (UArray_Labeled'_MUVector marr off n size)
         = UArray_Labeled'_MUVector marr (off+i*(size+ysize)) lenM' size
         where
-            ysize=Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=4--Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicOverlaps #-}
     basicOverlaps (UArray_Labeled'_MUVector marr1 off1 n1 size) (UArray_Labeled'_MUVector marr2 off2 n2 _)
@@ -556,7 +556,7 @@ instance
 
     {-# INLINABLE basicUnsafeRead #-}
     basicUnsafeRead mv@(UArray_Labeled'_MUVector marr off n size) i = do
-        marr' <- newPinnedByteArray (size*b)
+        marr' <- safeNewByteArray (size*b) 16
         copyMutableByteArray marr' 0 marr ((off+i*(size+ysize))*b) (size*b)
         arr <- unsafeFreezeByteArray marr'
         let x=UVector_Dynamic arr 0 size
@@ -564,7 +564,7 @@ instance
         return $ Labeled' x y
         where
             b=Prim.sizeOf (undefined::elem)
-            ysize=Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicUnsafeWrite #-}
     basicUnsafeWrite
@@ -576,7 +576,7 @@ instance
             writeByteArray marr1 ((off1+i*(size+ysize)+size) `quot` ysize) y
         where
             b=Prim.sizeOf (undefined::elem)
-            ysize=Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicUnsafeCopy #-}
     basicUnsafeCopy
@@ -585,7 +585,7 @@ instance
         = copyMutableByteArray marr1 (off1*b) marr2 (off2*b) (n2*b)
         where
             b = (size1+ysize)*Prim.sizeOf (undefined::elem)
-            ysize=Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicUnsafeMove #-}
     basicUnsafeMove
@@ -594,7 +594,7 @@ instance
         = moveByteArray marr1 (off1*b) marr2 (off2*b) (n2*b)
         where
             b = (size1+ysize)*Prim.sizeOf (undefined::elem)
-            ysize=Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
 ----------------------------------------
 
@@ -619,7 +619,7 @@ instance
     basicUnsafeSlice i len' (UArray_Labeled'_UVector arr off n size)
         = UArray_Labeled'_UVector arr (off+i*(size+ysize)) len' size
         where
-            ysize=Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicUnsafeFreeze #-}
     basicUnsafeFreeze (UArray_Labeled'_MUVector marr off n size) = do
@@ -638,7 +638,7 @@ instance
             off' = off+i*(size+ysize)
             x = UVector_Dynamic arr off' size
             y = indexByteArray arr $ (off'+size) `quot` ysize
-            ysize=Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 --             y = indexByteArray arr $ (off'+size) `shiftR` 1
 --             ysize=2
 

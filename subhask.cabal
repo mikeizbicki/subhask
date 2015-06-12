@@ -101,6 +101,7 @@ library
     cc-options:
         -O3
         -ffast-math
+        -msse3
 
     ghc-options:
         -O2
@@ -146,7 +147,7 @@ library
         hyperloglog                 == 0.3.1,
 
         -- required for hyperloglog compatibility
-        semigroups                  == 0.16.2.2,
+        semigroups                  == 0.16.2,
         bytes                       == 0.15,
         approximate                 == 0.2.1.1,
         lens                        == 4.9.1

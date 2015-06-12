@@ -197,6 +197,7 @@ module SubHask.Algebra
     , Rng
     , defn_Ring_fromInteger
     , Ring(..)
+    , indicator
     , Integral(..)
     , law_Integral_divMod
     , law_Integral_quotRem
@@ -1326,6 +1327,11 @@ instance Ring b => Ring (a -> b) where
     {-# INLINE fromInteger #-}
     fromInteger i = \a -> fromInteger i
 
+{-# INLINABLE indicator #-}
+indicator :: Ring r => Bool -> r
+indicator True = 1
+indicator False = 0
+
 ---------------------------------------
 
 -- | 'Integral' numbers can be formed from a wide class of things that behave
@@ -2017,7 +2023,13 @@ instance Banach Rational
 -- | Hilbert spaces are a natural generalization of Euclidean space that allows for infinite dimension.
 --
 -- See <http://en.wikipedia.org/wiki/Hilbert_space wikipedia> for more details.
-class ( Banach v , TensorAlgebra v , Real (Scalar v) ) => Hilbert v where
+--
+-- FIXME:
+-- The result of a dot product must always be an ordered field.
+-- This is true even when the Hilbert space is over a non-ordered field like the complex numbers.
+-- But the "OrdField" constraint currently prevents us from doing scalar multiplication on Complex Hilbert spaces.
+-- See <http://math.stackexchange.com/questions/49348/inner-product-spaces-over-finite-fields> and <http://math.stackexchange.com/questions/47916/banach-spaces-over-fields-other-than-mathbbc> for some technical details.
+class ( Banach v , TensorAlgebra v , Real (Scalar v), OrdField (Scalar v) ) => Hilbert v where
     infix 8 <>
     (<>) :: v -> v -> Scalar v
 
@@ -2868,7 +2880,7 @@ instance Semigroup a => Monoid (Maybe a) where
 
 ----------
 
-data Maybe' a = Nothing' | Just' !a
+data Maybe' a = Nothing' | Just' { fromJust' :: !a }
 
 type instance Scalar (Maybe' a) = Scalar a
 type instance Logic (Maybe' a) = Logic a
