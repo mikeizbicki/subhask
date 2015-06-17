@@ -55,7 +55,9 @@ instance Show a => Show (WithPreludeOrd a) where
 deriveHierarchyFiltered ''WithPreludeOrd [ ''Eq_, ''Enum, ''Boolean, ''Ring, ''Metric ] [ ''Show ]
 
 instance Eq a => P.Eq (WithPreludeOrd a) where
+    {-# INLINE (==) #-}
     a==b = a==b
 
 instance Ord a => P.Ord (WithPreludeOrd a) where
+    {-# INLINE (<=) #-}
     a<=b = a<=b

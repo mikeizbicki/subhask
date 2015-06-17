@@ -58,6 +58,8 @@ data Ball v = Ball
     , center :: !v
     }
 
+mkMutable [t| forall b. Ball b |]
+
 invar_Ball_radius :: (HasScalar v) => Ball v -> Logic (Scalar v)
 invar_Ball_radius b = radius b >= 0
 

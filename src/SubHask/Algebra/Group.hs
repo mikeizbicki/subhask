@@ -96,7 +96,9 @@ class Quotient a (b::k) where
 -- | The type of equivalence classes created by a mod b.
 newtype (/) (a :: *) (b :: k) = Mod a
 
-newtype instance Mutable m (a/b) = Mutable_Mod (Mutable m a)
+-- mkDefaultMutable [t| forall a b. a/b |]
+
+-- newtype instance Mutable m (a/b) = Mutable_Mod (Mutable m a)
 
 instance (Quotient a b, Arbitrary a) => Arbitrary (a/b) where
     arbitrary = liftM mkQuotient arbitrary
@@ -130,7 +132,6 @@ type instance ((a/b)><c) = (a><c)/b
 
 instance (Module a, Quotient a b) => Module (a/b) where
     (Mod a) .*  r       = mkQuotient $ a .*  r
-    (Mod a) .*. (Mod b) = mkQuotient $ a .*. b
 
 -- | The type of integers modulo n
 type Z (n::Nat) = Integer/n
@@ -174,7 +175,6 @@ deriveHierarchy ''Galois [''Eq_,''Ring]
 
 instance KnownNat (p^k) => Module  (Galois p k) where
     z  .*   i = Galois (Mod i) * z
-    z1 .*. z2 = z1 * z2
 
 instance (Prime p, KnownNat (p^k)) => Field (Galois p k) where
     reciprocal (Galois (Mod i)) = Galois $ mkQuotient $ t

@@ -62,9 +62,11 @@ forAllInScope :: Name -> (Cxt -> Q Type -> Q [Dec]) -> Q [Dec]
 forAllInScope preludename f = do
     info <- reify preludename
     case info of
-        ClassI _ xs -> Base.liftM concat $ Base.sequence $ map go xs
+        ClassI _ xs -> Base.liftM concat $ Base.sequence $ map mgo $ Base.filter fgo xs
             where
-                go (InstanceD ctx (AppT _ t) _) = f ctx (Base.return t)
+                mgo (InstanceD ctx (AppT _ t) _) = f ctx (Base.return t)
+
+                fgo (InstanceD _ (AppT _ t) _ ) = not elem '>' $ show t
 
 -- | This is an internal helper function.
 -- It prevents us from defining two instances for the same class/type pair.
@@ -180,7 +182,8 @@ mkPreludeMonad cxt qt = do
                 [ FunD ( mkName ">>" ) [ Clause [] (NormalB $ VarE $ mkName "Base.>>") [] ]
                 ]
             , InstanceD
-                ( ClassP ''Functor [ ConT ''Hask , t ] : cxt )
+--                 ( ClassP ''Functor [ ConT ''Hask , t ] : cxt )
+                ( AppT (AppT (ConT ''Functor) (ConT ''Hask)) t : cxt )
                 ( AppT
                     ( AppT
                         ( ConT $ mkName "Monad" )
@@ -199,12 +202,13 @@ mkPreludeMonad cxt qt = do
     where
         -- | This helper function "filters out" monads for which we can't automatically derive an implementation.
         -- This failure can be due to missing Functor instances or weird type errors.
-        cannotDeriveMonad t = elem (show t') badmonad
+        cannotDeriveMonad t = elem (show $ getName t) badmonad
             where
-                t' :: Name
-                t' = case t of
+                getName :: Type -> Name
+                getName t = case t of
                     (ConT t) -> t
                     ListT -> mkName "[]"
+                    (SigT t _) -> getName t
                     (AppT (ConT t) _) -> t
                     (AppT (AppT (ConT t) _) _) -> t
                     (AppT (AppT (AppT (ConT t) _) _) _) -> t

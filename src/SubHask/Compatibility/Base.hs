@@ -62,17 +62,13 @@ forAllInScope ''Base.Monad          mkPreludeMonad
 -- These instances are useful enough, however, that maybe we should have a template haskell generating function.
 -- Possibly also a new type class that is a proof of compatibility.
 
+mkMutable [t| forall a. IO a |]
+
 instance Semigroup a => Semigroup (IO a) where
     (+) = liftM2 (+)
 
-instance Cancellative a => Cancellative (IO a) where
-    (-) = liftM2 (-)
-
 instance Monoid a => Monoid (IO a) where
     zero = return zero
-
-instance Group a => Group (IO a) where
-    negate = fmap negate
 
 --------------------------------------------------------------------------------
 
@@ -93,6 +89,8 @@ instance Ord_ TypeRep where compare = Base.compare
 
 ---------
 
+mkMutable [t| forall a b. Either a b |]
+
 instance (Semigroup b) => Semigroup (Either a b) where
     (Left a) + _ = Left a
     _ + (Left a) = Left a
@@ -102,6 +100,11 @@ instance (Monoid b) => Monoid (Either a b) where
     zero = Right zero
 
 ---------
+
+instance Base.Functor Maybe' where
+    fmap = fmap
+
+instance Base.Applicative Maybe'
 
 instance Base.Monad Maybe' where
     return = Just'

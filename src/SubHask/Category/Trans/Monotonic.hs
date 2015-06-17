@@ -20,6 +20,8 @@ import SubHask.Category.Trans.Constrained
 data IncreasingT cat (a :: *) (b :: *) where
     IncreasingT :: (Ord_ a, Ord_ b) => cat a b -> IncreasingT cat a b
 
+mkMutable [t| forall cat a b. IncreasingT cat a b |]
+
 instance Category cat => Category (IncreasingT cat) where
     type ValidCategory (IncreasingT cat) a = (ValidCategory cat a, Ord_ a)
     id = IncreasingT id
@@ -47,6 +49,8 @@ instance Provable (IncreasingT Hask) where
 -------------------
 
 newtype instance ProofOf (IncreasingT cat) a = ProofOf { unProofOf :: ProofOf_ cat a }
+
+mkMutable [t| forall a cat. ProofOf (IncreasingT cat) a |]
 
 instance Semigroup (ProofOf_ cat a) => Semigroup (ProofOf (IncreasingT cat) a) where
     (ProofOf a1)+(ProofOf a2) = ProofOf (a1+a2)

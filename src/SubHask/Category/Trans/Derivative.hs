@@ -31,8 +31,8 @@ import qualified Prelude as P
 -- import qualified Numeric.AD as AD
 -- import qualified Numeric.AD.Mode.Reverse as AD
 
-import SubHask.Compatibility.Vector
-import SubHask.Compatibility.HMatrix
+-- import SubHask.Compatibility.Vector
+-- import SubHask.Compatibility.HMatrix
 
 
 --------------------------------------------------------------------------------
@@ -44,6 +44,8 @@ data AD a = AD
     , v' :: a
     }
 
+mkMutable [t| forall a. AD a |]
+
 instance (HasScalar a, Semigroup a) => Semigroup (AD a) where
     (AD a1 a1')+(AD a2 a2') = AD (a1+a2) (a1'+a2')
 
@@ -51,9 +53,6 @@ instance (HasScalar a, Semigroup a) => Semigroup (AD a) where
 -- proveC1_ f
 --     = Diffn (\a -> v  $ f $ AD a ones)
 --     $ Diff0 (\a -> v' $ f $ AD a ones)
-
-ones :: Vector Double
-ones = unsafeToModule [1,1,1,1,1]
 
 -- | This is essentially just a translation of the "Numeric.AD.Forward.Forward" type
 -- for use with the SubHask numeric hierarchy.
@@ -67,6 +66,8 @@ data Forward a = Forward
     , val' ::  a
     }
     deriving (Typeable,Show)
+
+mkMutable [t| forall a. Forward a |]
 
 instance Semigroup a => Semigroup (Forward a) where
     (Forward a1 a1')+(Forward a2 a2') = Forward (a1+a2) (a1'+a2')

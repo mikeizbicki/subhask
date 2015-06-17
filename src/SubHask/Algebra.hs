@@ -141,6 +141,8 @@ module SubHask.Algebra
     , defn_IxContainer_hasIndex
     , (!?)
 
+    , Sliceable (..)
+
     , IxConstructible (..)
     , law_IxConstructible_lookup
     , defn_IxConstructible_consAt
@@ -195,6 +197,7 @@ module SubHask.Algebra
     , Rng
     , defn_Ring_fromInteger
     , Ring(..)
+    , indicator
     , Integral(..)
     , law_Integral_divMod
     , law_Integral_quotRem
@@ -233,7 +236,17 @@ module SubHask.Algebra
     , type (><)
     , Cone (..)
     , Module (..)
+    , law_Module_multiplication
+    , law_Module_addition
+    , law_Module_action
+    , law_Module_unital
+    , defn_Module_dotstarequal
     , (*.)
+    , FreeModule (..)
+    , law_FreeModule_commutative
+    , law_FreeModule_associative
+    , law_FreeModule_id
+    , defn_FreeModule_dotstardotequal
     , FiniteModule (..)
     , VectorSpace (..)
     , Banach (..)
@@ -254,7 +267,8 @@ import qualified Math.Gamma as P
 import qualified Data.List as L
 
 import Prelude (Ordering (..))
-import Control.Monad
+import Control.Monad hiding (liftM)
+import Control.Monad.ST
 import Data.Ratio
 import Data.Typeable
 import Test.QuickCheck (Arbitrary (..), frequency)
@@ -278,7 +292,7 @@ import SubHask.SubType
 -- Helper functions
 
 -- | Creates a quickcheck property for a simple mutable operator defined using "immutable2mutable"
-simpleMutableDefn :: Eq_ a
+simpleMutableDefn :: (Eq_ a, IsMutable a)
     => (Mutable (ST s) a -> b -> ST s ()) -- ^ mutable function
     -> (a -> b -> a)              -- ^ create a mutable function using "immutable2mutable"
     -> (a -> b -> Logic a)        -- ^ the output property
@@ -316,8 +330,7 @@ type instance Logic () = ()
 type ValidLogic a = Complemented (Logic a)
 
 -- | Classical logic is implemented using the Prelude's Bool type.
-class Logic a ~ Bool => ClassicalLogic a
-instance Logic a ~ Bool => ClassicalLogic a
+type ClassicalLogic a = Logic a ~ Bool
 
 -- | Defines equivalence classes over the type.
 -- The values need not have identical representations in the machine to be equal.
@@ -344,24 +357,33 @@ law_Eq_symmetric a1 a2 = (a1==a2)==(a2==a1)
 law_Eq_transitive :: Eq a => a -> a -> a -> Logic a
 law_Eq_transitive a1 a2 a3 = (a1==a2&&a2==a3) ==> (a1==a3)
 
-instance Eq_ ()       where () == () = ()
+instance Eq_ () where
+    {-# INLINE (==) #-}
+    () == () = ()
 
-instance Eq_ Bool     where (==) = (P.==); (/=) = (P./=)
-instance Eq_ Char     where (==) = (P.==); (/=) = (P./=)
-instance Eq_ Int      where (==) = (P.==); (/=) = (P./=)
-instance Eq_ Integer  where (==) = (P.==); (/=) = (P./=)
-instance Eq_ Rational where (==) = (P.==); (/=) = (P./=)
-instance Eq_ Float    where (==) = (P.==); (/=) = (P./=)
-instance Eq_ Double   where (==) = (P.==); (/=) = (P./=)
+    {-# INLINE (/=) #-}
+    () /= () = ()
+
+instance Eq_ Bool     where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
+instance Eq_ Char     where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
+instance Eq_ Int      where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
+instance Eq_ Integer  where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
+instance Eq_ Rational where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
+instance Eq_ Float    where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
+instance Eq_ Double   where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
 
 instance Eq_ b => Eq_ (a -> b) where
+    {-# INLINE (==) #-}
     (f==g) a = f a == g a
 
-class (Eq_ a, Logic a ~ Bool) => Eq a
-instance (Eq_ a, Logic a ~ Bool) => Eq a
+type Eq a = (Eq_ a, Logic a~Bool)
+type ValidEq a = (Eq_ a, ValidLogic a)
 
-class (Eq_ a, ValidLogic a) => ValidEq a
-instance (Eq_ a, ValidLogic a) => ValidEq a
+-- class (Eq_ a, Logic a ~ Bool) => Eq a
+-- instance (Eq_ a, Logic a ~ Bool) => Eq a
+--
+-- class (Eq_ a, ValidLogic a) => ValidEq a
+-- instance (Eq_ a, ValidLogic a) => ValidEq a
 
 --------------------
 
@@ -376,11 +398,12 @@ class Eq_ b => POrd_ b where
 
     {-# INLINE (<) #-}
     infix 4 <
-    (<) :: Boolean (Logic b) => b -> b -> Logic b
+    (<) :: Complemented (Logic b) => b -> b -> Logic b
     b1 < b2 = inf b1 b2 == b1 && b1 /= b2
 
-class (Eq b, POrd_ b) => POrd b
-instance (Eq b, POrd_ b) => POrd b
+type POrd a = (Eq a, POrd_ a)
+-- class (Eq b, POrd_ b) => POrd b
+-- instance (Eq b, POrd_ b) => POrd b
 
 law_POrd_commutative :: (Eq b, POrd_ b) => b -> b -> Bool
 law_POrd_commutative b1 b2 = inf b1 b2 == inf b2 b1
@@ -391,16 +414,33 @@ law_POrd_associative b1 b2 b3 = inf (inf b1 b2) b3 == inf b1 (inf b2 b3)
 theorem_POrd_idempotent :: (Eq b, POrd_ b) => b -> Bool
 theorem_POrd_idempotent b = inf b b == b
 
-instance POrd_ ()         where inf () () = ()
-instance POrd_ Bool       where inf = (P.&&)
-instance POrd_ Char       where inf = P.min
-instance POrd_ Int        where inf = P.min
-instance POrd_ Integer    where inf = P.min
-instance POrd_ Float      where inf = P.min
-instance POrd_ Double     where inf = P.min
-instance POrd_ Rational   where inf = P.min
+#define mkPOrd_(x) \
+instance POrd_ x where \
+    inf = (P.min) ;\
+    (<=) = (P.<=) ;\
+    (<) = (P.<) ;\
+    {-# INLINE inf #-} ;\
+    {-# INLINE (<=) #-} ;\
+    {-# INLINE (<) #-}
+
+mkPOrd_(Bool)
+mkPOrd_(Char)
+mkPOrd_(Int)
+mkPOrd_(Integer)
+mkPOrd_(Float)
+mkPOrd_(Double)
+mkPOrd_(Rational)
+
+instance POrd_ () where
+    {-# INLINE inf #-}
+    inf () () = ()
+
 instance POrd_ b => POrd_ (a -> b) where
+    {-# INLINE inf #-}
     inf f g = \x -> inf (f x) (g x)
+
+    {-# INLINE (<) #-}
+    (f<=g) a = f a <= g a
 
 -------------------
 
@@ -411,26 +451,27 @@ instance POrd_ b => POrd_ (a -> b) where
 class POrd_ b => MinBound_ b where
     minBound :: b
 
-class (Eq b, MinBound_ b) => MinBound b
-instance (Eq b, MinBound_ b) => MinBound b
+type MinBound a = (Eq a, MinBound_ a)
+-- class (Eq b, MinBound_ b) => MinBound b
+-- instance (Eq b, MinBound_ b) => MinBound b
 
 law_MinBound_inf :: (Eq b, MinBound_ b) => b -> Bool
 law_MinBound_inf b = inf b minBound == minBound
 
 -- | "false" is an upper bound because `a && false = false` for all a.
+{-# INLINE false #-}
 false :: MinBound_ b => b
 false = minBound
 
-instance MinBound_ ()   where minBound = ()
-instance MinBound_ Bool where minBound = False
-instance MinBound_ Char where minBound = P.minBound
-instance MinBound_ Int where minBound = P.minBound
-instance MinBound_ Float where minBound = -1/0 -- FIXME: should be a primop for this
-instance MinBound_ Double where minBound = -1/0
+instance MinBound_ ()       where minBound = ()         ; {-# INLINE minBound #-}
+instance MinBound_ Bool     where minBound = False      ; {-# INLINE minBound #-}
+instance MinBound_ Char     where minBound = P.minBound ; {-# INLINE minBound #-}
+instance MinBound_ Int      where minBound = P.minBound ; {-# INLINE minBound #-}
+instance MinBound_ Float    where minBound = -1/0       ; {-# INLINE minBound #-}
+instance MinBound_ Double   where minBound = -1/0       ; {-# INLINE minBound #-}
+-- FIXME: should be a primop for this
 
-instance MinBound_ b => MinBound_ (a -> b) where minBound = \x -> minBound
--- instance Lattice a => MinBound_ [a] where minBound = []
-
+instance MinBound_ b => MinBound_ (a -> b) where minBound = \x -> minBound ; {-# INLINE minBound #-}
 
 -------------------
 
@@ -453,6 +494,7 @@ instance Arbitrary POrdering where
         ]
 
 instance Eq_ POrdering where
+    {-# INLINE (==) #-}
     PLT == PLT = True
     PGT == PGT = True
     PEQ == PEQ = True
@@ -462,6 +504,7 @@ instance Eq_ POrdering where
 -- | FIXME: there are many semigroups over POrdering;
 -- how should we represent the others? newtypes?
 instance Semigroup POrdering where
+    {-# INLINE (+) #-}
     PEQ + x = x
     PLT + _ = PLT
     PGT + _ = PGT
@@ -470,20 +513,24 @@ instance Semigroup POrdering where
 type instance Logic Ordering = Bool
 
 instance Eq_ Ordering where
+    {-# INLINE (==) #-}
     EQ == EQ = True
     LT == LT = True
     GT == GT = True
     _  == _  = False
 
 instance Semigroup Ordering where
+    {-# INLINE (+) #-}
     EQ + x = x
     LT + _ = LT
     GT + _ = GT
 
 instance Monoid POrdering where
+    {-# INLINE zero #-}
     zero = PEQ
 
 instance Monoid Ordering where
+    {-# INLINE zero #-}
     zero = EQ
 
 
@@ -518,8 +565,9 @@ class POrd_ b => Lattice_ b where
                 then PGT
                 else PNA
 
-class (Eq b, Lattice_ b) => Lattice b
-instance (Eq b, Lattice_ b) => Lattice b
+type Lattice a = (Eq a, Lattice_ a)
+-- class (Eq b, Lattice_ b) => Lattice b
+-- instance (Eq b, Lattice_ b) => Lattice b
 
 law_Lattice_commutative :: (Eq b, Lattice_ b) => b -> b -> Bool
 law_Lattice_commutative b1 b2 = sup b1 b2 == sup b2 b1
@@ -560,17 +608,33 @@ defn_Lattice_greaterthan a1 a2
     | a1 > a2 = a2 <= a1
     | otherwise = true
 
-instance Lattice_ ()         where sup () () = ()
+#define mkLattice_(x)\
+instance Lattice_ x where \
+    sup = (P.max) ;\
+    (>=) = (P.>=) ;\
+    (>) = (P.>) ;\
+    {-# INLINE sup #-} ;\
+    {-# INLINE (>=) #-} ;\
+    {-# INLINE (>) #-}
 
-instance Lattice_ Bool       where sup = (P.||)
-instance Lattice_ Char       where sup = P.max
-instance Lattice_ Int        where sup = P.max
-instance Lattice_ Integer    where sup = P.max
-instance Lattice_ Float      where sup = P.max
-instance Lattice_ Double     where sup = P.max
-instance Lattice_ Rational   where sup = P.max
+mkLattice_(Bool)
+mkLattice_(Char)
+mkLattice_(Int)
+mkLattice_(Integer)
+mkLattice_(Float)
+mkLattice_(Double)
+mkLattice_(Rational)
+
+instance Lattice_ () where
+    {-# INLINE sup #-}
+    sup () () = ()
+
 instance Lattice_ b => Lattice_ (a -> b) where
+    {-# INLINE sup #-}
     sup f g = \x -> sup (f x) (g x)
+
+    {-# INLINE (>=) #-}
+    (f>=g) a = f a >= g a
 
 {-# INLINE (&&) #-}
 infixr 3 &&
@@ -583,15 +647,17 @@ infixr 2 ||
 (||) = sup
 
 -- | A chain is a collection of elements all of which can be compared
+{-# INLINABLE isChain #-}
 isChain :: Lattice a => [a] -> Logic a
 isChain [] = true
 isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isChain xs
---
+
 -- | An antichain is a collection of elements none of which can be compared
 --
 -- See <http://en.wikipedia.org/wiki/Antichain wikipedia> for more details.
 --
 -- See also the article on <http://en.wikipedia.org/wiki/Dilworth%27s_theorem Dilward's Theorem>.
+{-# INLINABLE isAntichain #-}
 isAntichain :: Lattice a => [a] -> Logic a
 isAntichain [] = true
 isAntichain (x:xs) = all (==PNA) (map (pcompare x) xs) && isAntichain xs
@@ -614,26 +680,38 @@ law_Enum_toEnum :: (Lattice b, Enum b) => b -> Bool
 law_Enum_toEnum b = toEnum (fromEnum b) == b
 
 instance Enum Bool where
+    {-# INLINE succ #-}
     succ True = True
     succ False = True
 
+    {-# INLINE toEnum #-}
     toEnum 1 = True
     toEnum 0 = False
 
 instance Enum Int where
+    {-# INLINE succ #-}
     succ i = if i == maxBound
         then i
         else i+1
 
+    {-# INLINE toEnum #-}
     toEnum = id
 
 instance Enum Char where
+    {-# INLINE succ #-}
     succ = P.succ
+
+    {-# INLINE toEnum #-}
     toEnum i = if i < 0
         then P.toEnum 0
         else P.toEnum i
 
-instance Enum Integer where succ = P.succ; toEnum = P.toEnum
+instance Enum Integer where
+    {-# INLINE succ #-}
+    succ = P.succ
+
+    {-# INLINE toEnum #-}
+    toEnum = P.toEnum
 
 -- | An element of a graded poset has a unique predecessor.
 --
@@ -658,29 +736,44 @@ law_Graded_fromEnum b1 b2
     | otherwise = True
 
 instance Graded Bool where
+    {-# INLINE pred #-}
     pred True = False
     pred False = False
 
+    {-# INLINE fromEnum #-}
     fromEnum True = 1
     fromEnum False = 0
 
 instance Graded Int where
+    {-# INLINE pred #-}
     pred i = if i == minBound
         then i
         else i-1
 
+    {-# INLINE fromEnum #-}
     fromEnum = id
 
 instance Graded Char where
+    {-# INLINE pred #-}
     pred c = if c=='\NUL'
         then '\NUL'
         else P.pred c
-    fromEnum = P.fromEnum
-instance Graded Integer where pred = P.pred; fromEnum = P.fromEnum
 
+    {-# INLINE fromEnum #-}
+    fromEnum = P.fromEnum
+
+instance Graded Integer where
+    {-# INLINE pred #-}
+    pred = P.pred
+
+    {-# INLINE fromEnum #-}
+    fromEnum = P.fromEnum
+
+{-# INLINE (<.) #-}
 (<.) :: (Lattice b, Graded b) => b -> b -> Bool
 b1 <. b2 = b1 == pred b2
 
+{-# INLINE (>.) #-}
 (>.) :: (Lattice b, Enum b) => b -> b -> Bool
 b1 >. b2 = b1 == succ b2
 
@@ -716,17 +809,16 @@ min = inf
 max :: Ord_ a => a -> a -> a
 max = sup
 
-class (Eq a, Ord_ a) => Ord a
-instance (Eq a, Ord_ a) => Ord a
+type Ord a = (Eq a, Ord_ a)
 
-instance Ord_ ()        --where compare = P.compare
-instance Ord_ Char      where compare = P.compare
-instance Ord_ Int       where compare = P.compare
-instance Ord_ Integer   where compare = P.compare
-instance Ord_ Float     where compare = P.compare
-instance Ord_ Double    where compare = P.compare
-instance Ord_ Rational  where compare = P.compare
-instance Ord_ Bool      where compare = P.compare
+instance Ord_ ()
+instance Ord_ Char      where compare = P.compare ; {-# INLINE compare #-}
+instance Ord_ Int       where compare = P.compare ; {-# INLINE compare #-}
+instance Ord_ Integer   where compare = P.compare ; {-# INLINE compare #-}
+instance Ord_ Float     where compare = P.compare ; {-# INLINE compare #-}
+instance Ord_ Double    where compare = P.compare ; {-# INLINE compare #-}
+instance Ord_ Rational  where compare = P.compare ; {-# INLINE compare #-}
+instance Ord_ Bool      where compare = P.compare ; {-# INLINE compare #-}
 
 -------------------
 
@@ -739,16 +831,23 @@ law_Bounded_sup :: (Eq b, Bounded b) => b -> Bool
 law_Bounded_sup b = sup b maxBound == maxBound
 
 -- | "true" is an lower bound because `a && true = true` for all a.
+{-# INLINE true #-}
 true :: Bounded b => b
 true = maxBound
 
-instance Bounded ()     where maxBound = ()
-instance Bounded Bool   where maxBound = True
-instance Bounded Char   where maxBound = P.maxBound
-instance Bounded Int    where maxBound = P.maxBound
-instance Bounded Float  where maxBound = 1/0 -- FIXME: should be a primop for infinity
-instance Bounded Double where maxBound = 1/0
-instance Bounded b => Bounded (a -> b) where maxBound = \x -> maxBound
+instance Bounded ()     where maxBound = ()         ; {-# INLINE maxBound #-}
+instance Bounded Bool   where maxBound = True       ; {-# INLINE maxBound #-}
+instance Bounded Char   where maxBound = P.maxBound ; {-# INLINE maxBound #-}
+instance Bounded Int    where maxBound = P.maxBound ; {-# INLINE maxBound #-}
+instance Bounded Float  where maxBound = 1/0        ; {-# INLINE maxBound #-}
+instance Bounded Double where maxBound = 1/0        ; {-# INLINE maxBound #-}
+-- FIXME: should be a primop for infinity
+
+instance Bounded b => Bounded (a -> b) where
+    {-# INLINE maxBound #-}
+    maxBound = \x -> maxBound
+
+--------------------
 
 class Bounded b => Complemented b where
     not :: b -> b
@@ -757,9 +856,17 @@ law_Complemented_not :: (ValidLogic b, Complemented b) => b -> Logic b
 law_Complemented_not b = not (true  `asTypeOf` b) == false
                       && not (false `asTypeOf` b) == true
 
-instance Complemented ()   where not () = ()
-instance Complemented Bool where not = P.not
-instance Complemented b => Complemented (a -> b) where not f = \x -> not $ f x
+instance Complemented ()   where
+    {-# INLINE not #-}
+    not () = ()
+
+instance Complemented Bool where
+    {-# INLINE not #-}
+    not = P.not
+
+instance Complemented b => Complemented (a -> b) where
+    {-# INLINE not #-}
+    not f = \x -> not $ f x
 
 -- | Heyting algebras are lattices that support implication, but not necessarily the law of excluded middle.
 --
@@ -805,9 +912,17 @@ law_Heyting_distributive b1 b2 b3 = (b1 ==> (b2 && b3)) == ((b1 ==> b2) && (b1 =
 modusPonens :: Boolean b => b -> b -> b
 modusPonens b1 b2 = not b1 || b2
 
-instance Heyting ()   where () ==> () = ()
-instance Heyting Bool where (==>) = modusPonens
-instance Heyting b => Heyting (a -> b) where (f==>g) a = f a ==> g a
+instance Heyting ()   where
+    {-# INLINE (==>) #-}
+    () ==> () = ()
+
+instance Heyting Bool where
+    {-# INLINE (==>) #-}
+    (==>) = modusPonens
+
+instance Heyting b => Heyting (a -> b) where
+    {-# INLINE (==>) #-}
+    (f==>g) a = f a ==> g a
 
 -- | Generalizes Boolean variables.
 --
@@ -833,18 +948,23 @@ instance Boolean b => Boolean (a -> b)
 -------------------------------------------------------------------------------
 -- numeric classes
 
-class Semigroup g where
+class IsMutable g => Semigroup g where
+    {-# MINIMAL (+) | (+=) #-}
+
+    {-# INLINE (+) #-}
     infixl 6 +
     (+) :: g -> g -> g
+    (+) = mutable2immutable (+=)
 
+    {-# INLINE (+=) #-}
     infixr 5 +=
-    (+=) :: PrimMonad m => Mutable m g -> g -> m ()
+    (+=) :: (PrimBase m) => Mutable m g -> g -> m ()
     (+=) = immutable2mutable (+)
 
 law_Semigroup_associativity :: (Eq g, Semigroup g ) => g -> g -> g -> Logic g
 law_Semigroup_associativity g1 g2 g3 = g1 + (g2 + g3) == (g1 + g2) + g3
 
-defn_Semigroup_plusequal :: (Eq_ g, Semigroup g) => g -> g -> Logic g
+defn_Semigroup_plusequal :: (Eq_ g, Semigroup g, IsMutable g) => g -> g -> Logic g
 defn_Semigroup_plusequal = simpleMutableDefn (+=) (+)
 
 -- | Measures the degree to which a Semigroup obeys the associative law.
@@ -858,16 +978,19 @@ associator g1 g2 g3 = distance ((g1+g2)+g3) (g1+(g2+g3))
 cycle :: Semigroup m => m -> m
 cycle xs = xs' where xs' = xs + xs'
 
-instance Semigroup Int      where (+) = (P.+)
-instance Semigroup Integer  where (+) = (P.+)
-instance Semigroup Float    where (+) = (P.+)
-instance Semigroup Double   where (+) = (P.+)
-instance Semigroup Rational where (+) = (P.+)
+instance Semigroup Int      where (+) = (P.+) ; {-# INLINE (+) #-}
+instance Semigroup Integer  where (+) = (P.+) ; {-# INLINE (+) #-}
+instance Semigroup Float    where (+) = (P.+) ; {-# INLINE (+) #-}
+instance Semigroup Double   where (+) = (P.+) ; {-# INLINE (+) #-}
+instance Semigroup Rational where (+) = (P.+) ; {-# INLINE (+) #-}
 
 instance Semigroup () where
+    {-# INLINE (+) #-}
     ()+() = ()
 
-instance Semigroup   b => Semigroup   (a -> b) where f+g = \a -> f a + g a
+instance Semigroup   b => Semigroup   (a -> b) where
+    {-# INLINE (+) #-}
+    f+g = \a -> f a + g a
 
 ---------------------------------------
 
@@ -885,12 +1008,17 @@ type family Actor s
 -- FIXME: These types could probably use a more expressive name.
 --
 -- FIXME: We would like every Semigroup to act on itself, but this results in a class cycle.
-class Semigroup (Actor s) => Action s where
+class (IsMutable s, Semigroup (Actor s)) => Action s where
+    {-# MINIMAL (.+) | (.+=) #-}
+
+    {-# INLINE (.+) #-}
     infixl 6 .+
     (.+) :: s -> Actor s -> s
+    (.+) = mutable2immutable (.+=)
 
+    {-# INLINE (.+=) #-}
     infixr 5 .+=
-    (.+=) :: PrimMonad m => Mutable m s -> Actor s -> m ()
+    (.+=) :: (PrimBase m) => Mutable m s -> Actor s -> m ()
     (.+=) = immutable2mutable (.+)
 
 law_Action_compatibility :: (Eq_ s, Action s) => Actor s -> Actor s -> s -> Logic s
@@ -900,6 +1028,7 @@ defn_Action_dotplusequal :: (Eq_ s, Action s, Logic (Actor s)~Logic s) => s -> A
 defn_Action_dotplusequal = simpleMutableDefn (.+=) (.+)
 
 -- | > s .+ a = a +. s
+{-# INLINE (+.) #-}
 infixr 6 +.
 (+.) :: Action s => Actor s -> s -> s
 a +. s = s .+ a
@@ -912,14 +1041,16 @@ type instance Actor Rational = Rational
 type instance Actor ()       = ()
 type instance Actor (a->b)   = a->Actor b
 
-instance Action Int      where (.+) = (+)
-instance Action Integer  where (.+) = (+)
-instance Action Float    where (.+) = (+)
-instance Action Double   where (.+) = (+)
-instance Action Rational where (.+) = (+)
-instance Action ()       where (.+) = (+)
+instance Action Int      where (.+) = (+) ; {-# INLINE (.+) #-}
+instance Action Integer  where (.+) = (+) ; {-# INLINE (.+) #-}
+instance Action Float    where (.+) = (+) ; {-# INLINE (.+) #-}
+instance Action Double   where (.+) = (+) ; {-# INLINE (.+) #-}
+instance Action Rational where (.+) = (+) ; {-# INLINE (.+) #-}
+instance Action ()       where (.+) = (+) ; {-# INLINE (.+) #-}
 
-instance Action b => Action (a->b) where f.+g = \x -> f x.+g x
+instance Action b => Action (a->b) where
+    {-# INLINE (.+) #-}
+    f.+g = \x -> f x.+g x
 
 ---------------------------------------
 
@@ -946,16 +1077,19 @@ defn_Monoid_isZero g = (isZero $ zero `asTypeOf` g)
 
 ---------
 
-instance Monoid Int       where zero = 0
-instance Monoid Integer   where zero = 0
-instance Monoid Float     where zero = 0
-instance Monoid Double    where zero = 0
-instance Monoid Rational  where zero = 0
+instance Monoid Int       where zero = 0 ; {-# INLINE zero #-}
+instance Monoid Integer   where zero = 0 ; {-# INLINE zero #-}
+instance Monoid Float     where zero = 0 ; {-# INLINE zero #-}
+instance Monoid Double    where zero = 0 ; {-# INLINE zero #-}
+instance Monoid Rational  where zero = 0 ; {-# INLINE zero #-}
 
 instance Monoid () where
+    {-# INLINE zero #-}
     zero = ()
 
-instance Monoid      b => Monoid      (a -> b) where zero = \a -> zero
+instance Monoid b => Monoid (a -> b) where
+    {-# INLINE zero #-}
+    zero = \a -> zero
 
 ---------------------------------------
 
@@ -979,11 +1113,16 @@ instance Monoid      b => Monoid      (a -> b) where zero = \a -> zero
 --
 -- See <http://en.wikipedia.org/wiki/Cancellative_semigroup wikipedia> for more details.
 class Semigroup g => Cancellative g where
+    {-# MINIMAL (-) | (-=) #-}
+
+    {-# INLINE (-) #-}
     infixl 6 -
     (-) :: g -> g -> g
+    (-) = mutable2immutable (-=)
 
+    {-# INLINE (-=) #-}
     infixr 5 -=
-    (-=) :: PrimMonad m => Mutable m g -> g -> m ()
+    (-=) :: (PrimBase m) => Mutable m g -> g -> m ()
     (-=) = immutable2mutable (-)
 
 
@@ -996,16 +1135,18 @@ law_Cancellative_rightminus2 g1 g2 = g1 + (g2 - g2) == g1
 defn_Cancellative_plusequal :: (Eq_ g, Cancellative g) => g -> g -> Logic g
 defn_Cancellative_plusequal = simpleMutableDefn (-=) (-)
 
-instance Cancellative Int        where (-) = (P.-)
-instance Cancellative Integer    where (-) = (P.-)
-instance Cancellative Float      where (-) = (P.-)
-instance Cancellative Double     where (-) = (P.-)
-instance Cancellative Rational   where (-) = (P.-)
+instance Cancellative Int        where (-) = (P.-) ; {-# INLINE (-) #-}
+instance Cancellative Integer    where (-) = (P.-) ; {-# INLINE (-) #-}
+instance Cancellative Float      where (-) = (P.-) ; {-# INLINE (-) #-}
+instance Cancellative Double     where (-) = (P.-) ; {-# INLINE (-) #-}
+instance Cancellative Rational   where (-) = (P.-) ; {-# INLINE (-) #-}
 
 instance Cancellative () where
+    {-# INLINE (-) #-}
     ()-() = ()
 
 instance Cancellative b => Cancellative (a -> b) where
+    {-# INLINE (-) #-}
     f-g = \a -> f a - g a
 
 ---------------------------------------
@@ -1024,21 +1165,21 @@ law_Group_leftinverse g = negate g + g == zero
 law_Group_rightinverse :: (Eq g, Group g) => g -> Bool
 law_Group_rightinverse g = g + negate g == zero
 
-instance Group Int        where negate = P.negate
-instance Group Integer    where negate = P.negate
-instance Group Float      where negate = P.negate
-instance Group Double     where negate = P.negate
-instance Group Rational   where negate = P.negate
+instance Group Int        where negate = P.negate ; {-# INLINE negate #-}
+instance Group Integer    where negate = P.negate ; {-# INLINE negate #-}
+instance Group Float      where negate = P.negate ; {-# INLINE negate #-}
+instance Group Double     where negate = P.negate ; {-# INLINE negate #-}
+instance Group Rational   where negate = P.negate ; {-# INLINE negate #-}
 
 instance Group () where
+    {-# INLINE negate #-}
     negate () = ()
 
-instance Group b => Group (a -> b) where negate f = negate . f
+instance Group b => Group (a -> b) where
+    {-# INLINE negate #-}
+    negate f = negate . f
 
 ---------------------------------------
-
--- type AbelianGroup g = (Abelian g, Group g)
--- class AbelianGroup g
 
 class Semigroup m => Abelian m
 
@@ -1065,11 +1206,16 @@ instance Abelian b => Abelian (a -> b)
 -- See <http://math.stackexchange.com/questions/359437/name-for-a-semiring-minus-multiplicative-identity-requirement this stackexchange question> for a discussion on naming.
 --
 class (Abelian r, Monoid r) => Rg r where
+    {-# MINIMAL (*) | (*=) #-}
+
+    {-# INLINE (*) #-}
     infixl 7 *
     (*) :: r -> r -> r
+    (*) = mutable2immutable (*=)
 
+    {-# INLINE (*=) #-}
     infixr 5 *=
-    (*=) :: PrimMonad m => Mutable m r -> r -> m ()
+    (*=) :: (PrimBase m) => Mutable m r -> r -> m ()
     (*=) = immutable2mutable (*)
 
 law_Rg_multiplicativeAssociativity :: (Eq r, Rg r) => r -> r -> r -> Bool
@@ -1090,13 +1236,15 @@ theorem_Rg_distributivityRight r1 r2 r3 = (r2+r3)*r1 == r2*r1+r3*r1
 defn_Rg_timesequal :: (Eq_ g, Rg g) => g -> g -> Logic g
 defn_Rg_timesequal = simpleMutableDefn (*=) (*)
 
-instance Rg Int         where (*) = (P.*)
-instance Rg Integer     where (*) = (P.*)
-instance Rg Float       where (*) = (P.*)
-instance Rg Double      where (*) = (P.*)
-instance Rg Rational    where (*) = (P.*)
+instance Rg Int         where (*) = (P.*) ; {-# INLINE (*) #-}
+instance Rg Integer     where (*) = (P.*) ; {-# INLINE (*) #-}
+instance Rg Float       where (*) = (P.*) ; {-# INLINE (*) #-}
+instance Rg Double      where (*) = (P.*) ; {-# INLINE (*) #-}
+instance Rg Rational    where (*) = (P.*) ; {-# INLINE (*) #-}
 
-instance Rg b => Rg (a -> b) where f*g = \a -> f a * g a
+instance Rg b => Rg (a -> b) where
+    {-# INLINE (*) #-}
+    f*g = \a -> f a * g a
 
 ---------------------------------------
 
@@ -1121,20 +1269,20 @@ notOne = (/=one)
 law_Rig_multiplicativeId :: (Eq r, Rig r) => r -> Bool
 law_Rig_multiplicativeId r = r * one == r && one * r == r
 
-instance Rig Int         where one = 1
-instance Rig Integer     where one = 1
-instance Rig Float       where one = 1
-instance Rig Double      where one = 1
-instance Rig Rational    where one = 1
+instance Rig Int         where one = 1 ; {-# INLINE one #-}
+instance Rig Integer     where one = 1 ; {-# INLINE one #-}
+instance Rig Float       where one = 1 ; {-# INLINE one #-}
+instance Rig Double      where one = 1 ; {-# INLINE one #-}
+instance Rig Rational    where one = 1 ; {-# INLINE one #-}
 
-instance Rig b => Rig (a -> b) where one = \a -> one
+instance Rig b => Rig (a -> b) where
+    {-# INLINE one #-}
+    one = \a -> one
 
 ---------------------------------------
 
--- | FIXME: made into a class due to TH limitations
--- > type Rng r = (Rg r, Group r)
-class (Rg r, Group r) => Rng r
-instance (Rg r, Group r) => Rng r
+-- | A "Ring" without identity.
+type Rng r = (Rg r, Group r)
 
 -- |
 --
@@ -1145,6 +1293,12 @@ instance (Rg r, Group r) => Rng r
 -- See <https://en.wikipedia.org/wiki/Ring_%28mathematics%29 wikipedia>
 -- and <http://ncatlab.org/nlab/show/ring ncatlab>
 -- for more details.
+--
+-- FIXME:
+-- We can construct a "Module" from any ring by taking (*)=(.*.).
+-- Thus, "Module" should be a superclass of "Ring".
+-- Currently, however, this creates a class cycle, so we can't do it.
+-- A number of type signatures are therefore more complicated than they need to be.
 class (Rng r, Rig r) => Ring r where
     fromInteger :: Integer -> r
     fromInteger = slowFromInteger
@@ -1163,17 +1317,20 @@ slowFromInteger i = if i>0
     then          foldl' (+) zero $ P.map (const (one::r)) [1..        i]
     else negate $ foldl' (+) zero $ P.map (const (one::r)) [1.. negate i]
 
-instance Ring Int         where fromInteger = P.fromInteger
-instance Ring Integer     where fromInteger = P.fromInteger
-instance Ring Float       where fromInteger = P.fromInteger
-instance Ring Double      where fromInteger = P.fromInteger
-instance Ring Rational    where fromInteger = P.fromInteger
+instance Ring Int         where fromInteger = P.fromInteger ; {-# INLINE fromInteger #-}
+instance Ring Integer     where fromInteger = P.fromInteger ; {-# INLINE fromInteger #-}
+instance Ring Float       where fromInteger = P.fromInteger ; {-# INLINE fromInteger #-}
+instance Ring Double      where fromInteger = P.fromInteger ; {-# INLINE fromInteger #-}
+instance Ring Rational    where fromInteger = P.fromInteger ; {-# INLINE fromInteger #-}
 
-instance Ring b => Ring (a -> b) where fromInteger i = \a -> fromInteger i
+instance Ring b => Ring (a -> b) where
+    {-# INLINE fromInteger #-}
+    fromInteger i = \a -> fromInteger i
 
----------------------------------------
-
--- class FromInteger
+{-# INLINABLE indicator #-}
+indicator :: Ring r => Bool -> r
+indicator True = 1
+indicator False = 0
 
 ---------------------------------------
 
@@ -1192,9 +1349,11 @@ class Ring a => Integral a where
     infixl 7  `quot`, `rem`
 
     -- | truncates towards zero
+    {-# INLINE quot #-}
     quot :: a -> a -> a
     quot a1 a2 = fst (quotRem a1 a2)
 
+    {-# INLINE rem #-}
     rem :: a -> a -> a
     rem a1 a2 = snd (quotRem a1 a2)
 
@@ -1204,9 +1363,11 @@ class Ring a => Integral a where
     infixl 7 `div`, `mod`
 
     -- | truncates towards negative infinity
+    {-# INLINE div #-}
     div :: a -> a -> a
     div a1 a2 = fst (divMod a1 a2)
 
+    {-# INLINE mod #-}
     mod :: a -> a -> a
     mod a1 a2 = snd (divMod a1 a2)
 
@@ -1226,15 +1387,24 @@ law_Integral_quotRem a1 a2 = if a2 /= 0
 law_Integral_toFromInverse :: (Eq a, Integral a) => a -> Bool
 law_Integral_toFromInverse a = fromInteger (toInteger a) == a
 
-{-# NOINLINE [1] fromIntegral #-}
+{-# INLINE[1] fromIntegral #-}
 fromIntegral :: (Integral a, Ring b) => a -> b
 fromIntegral = fromInteger . toInteger
 
+-- FIXME:
+-- need more RULES; need tests
 {-# RULES
-"fromIntegral/Int->Int" fromIntegral = id :: Int -> Int
+"subhask/fromIntegral/Int->Int" fromIntegral = id :: Int -> Int
     #-}
 
 instance Integral Int where
+    {-# INLINE div #-}
+    {-# INLINE mod #-}
+    {-# INLINE divMod #-}
+    {-# INLINE quot #-}
+    {-# INLINE rem #-}
+    {-# INLINE quotRem #-}
+    {-# INLINE toInteger #-}
     div = P.div
     mod = P.mod
     divMod = P.divMod
@@ -1244,6 +1414,13 @@ instance Integral Int where
     toInteger = P.toInteger
 
 instance Integral Integer where
+    {-# INLINE div #-}
+    {-# INLINE mod #-}
+    {-# INLINE divMod #-}
+    {-# INLINE quot #-}
+    {-# INLINE rem #-}
+    {-# INLINE quotRem #-}
+    {-# INLINE toInteger #-}
     div = P.div
     mod = P.mod
     divMod = P.divMod
@@ -1253,6 +1430,13 @@ instance Integral Integer where
     toInteger = P.toInteger
 
 instance Integral b => Integral (a -> b) where
+    {-# INLINE div #-}
+    {-# INLINE mod #-}
+    {-# INLINE divMod #-}
+    {-# INLINE quot #-}
+    {-# INLINE rem #-}
+    {-# INLINE quotRem #-}
+    {-# INLINE toInteger #-}
     quot f1 f2 = \a -> quot (f1 a) (f2 a)
     rem f1 f2 = \a -> rem (f1 a) (f2 a)
     quotRem f1 f2 = (quot f1 f2, rem f1 f2)
@@ -1282,19 +1466,27 @@ class Ring r => Field r where
     n/d = n * reciprocal d
 
 --     infixr 5 /=
---     (/=) :: PrimMonad m => Mutable m g -> g -> m ()
+--     (/=) :: (PrimBase m) => Mutable m g -> g -> m ()
 --     (/=) = immutable2mutable (/)
 
     {-# INLINE fromRational #-}
     fromRational :: Rational -> r
     fromRational r = fromInteger (numerator r) / fromInteger (denominator r)
 
+#define mkField(x) \
+instance Field x where \
+    (/) = (P./) ;\
+    fromRational=P.fromRational ;\
+    {-# INLINE fromRational #-} ;\
+    {-# INLINE (/) #-}
 
-instance Field Float      where (/) = (P./); fromRational=P.fromRational
-instance Field Double     where (/) = (P./); fromRational=P.fromRational
-instance Field Rational   where (/) = (P./); fromRational=P.fromRational
+mkField(Float)
+mkField(Double)
+mkField(Rational)
 
-instance Field b => Field (a -> b) where reciprocal f = reciprocal . f
+instance Field b => Field (a -> b) where
+    {-# INLINE fromRational #-}
+    reciprocal f = reciprocal . f
 
 ----------------------------------------
 
@@ -1316,19 +1508,22 @@ instance OrdField Rational
 --
 -- See <https://en.wikipedia.org/wiki/Extended_real_number_line wikipedia> for more details.
 class (OrdField r, Bounded r) => BoundedField r where
+    {-# INLINE nan #-}
     nan :: r
     nan = 0/0
 
     isNaN :: r -> Bool
 
+{-# INLINE infinity #-}
 infinity :: BoundedField r => r
 infinity = maxBound
 
+{-# INLINE negInfinity #-}
 negInfinity :: BoundedField r => r
 negInfinity = minBound
 
-instance BoundedField Float  where isNaN = P.isNaN
-instance BoundedField Double where isNaN = P.isNaN
+instance BoundedField Float  where isNaN = P.isNaN ; {-# INLINE isNaN #-}
+instance BoundedField Double where isNaN = P.isNaN ; {-# INLINE isNaN #-}
 
 ----------------------------------------
 
@@ -1338,10 +1533,11 @@ instance BoundedField Double where isNaN = P.isNaN
 class Field r => RationalField r where
     toRational :: r -> Rational
 
-instance RationalField Float    where  toRational=P.toRational
-instance RationalField Double   where  toRational=P.toRational
-instance RationalField Rational where  toRational=P.toRational
+instance RationalField Float    where  toRational=P.toRational ; {-# INLINE toRational #-}
+instance RationalField Double   where  toRational=P.toRational ; {-# INLINE toRational #-}
+instance RationalField Rational where  toRational=P.toRational ; {-# INLINE toRational #-}
 
+{-# INLINE convertRationalField #-}
 convertRationalField :: (RationalField a, RationalField b) => a -> b
 convertRationalField = fromRational . toRational
 
@@ -1382,7 +1578,12 @@ instance QuotientField r s where \
     round    = P.round; \
     ceiling  = P.ceiling; \
     floor    = P.floor; \
-    (^^)     = (P.^^)
+    (^^)     = (P.^^); \
+    {-# INLINE truncate #-} ;\
+    {-# INLINE round #-} ;\
+    {-# INLINE ceiling #-} ;\
+    {-# INLINE floor #-} ;\
+    {-# INLINE (^^) #-} ;\
 
 mkQuotientField(Float,Int)
 mkQuotientField(Float,Integer)
@@ -1391,19 +1592,8 @@ mkQuotientField(Double,Integer)
 mkQuotientField(Rational,Int)
 mkQuotientField(Rational,Integer)
 
-instance QuotientField Int Int where
-    truncate = id
-    round = id
-    ceiling = id
-    floor = id
-    (^^) = (P.^)
-
-instance QuotientField Integer Integer where
-    truncate = id
-    round = id
-    ceiling = id
-    floor = id
-    (^^) = (P.^)
+-- mkQuotientField(Integer,Integer)
+-- mkQuotientField(Int,Int)
 
 instance QuotientField b1 b2 => QuotientField (a -> b1) (a -> b2) where
     truncate f = \a -> truncate $ f a
@@ -1438,11 +1628,17 @@ class Ring r => ExpRing r where
 (^) = (**)
 
 instance ExpRing Float where
+    {-# INLINE (**) #-}
     (**) = (P.**)
+
+    {-# INLINE logBase #-}
     logBase = P.logBase
 
 instance ExpRing Double where
+    {-# INLINE (**) #-}
     (**) = (P.**)
+
+    {-# INLINE logBase #-}
     logBase = P.logBase
 
 ---------------------------------------
@@ -1478,6 +1674,9 @@ instance ExpField Double where
 -- FIXME:
 -- Factor this out into a more appropriate class hierarchy.
 -- For example, some (all?) trig functions need to move to a separate class in order to support trig in finite fields (see <en.wikipedia.org/wiki/Trigonometry_in_Galois_fields wikipedia>).
+--
+-- FIXME:
+-- This class is misleading/incorrect for complex numbers.
 --
 -- FIXME:
 -- There's a lot more functions that need adding.
@@ -1557,13 +1756,11 @@ type instance Rational  >< Rational   = Rational
 type instance (a -> b)  >< c          = a -> (b><c)
 -- type instance c         >< (a -> b)   = a -> (c><b)
 
--- FIXME: made into classes due to TH limitations
-class (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r)) => IsScalar r
-instance (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r)) => IsScalar r
+-- | A synonym that covers everything we intuitively thing scalar variables should have.
+type IsScalar r = (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r))
 
--- FIXME: made into classes due to TH limitations
-class (IsScalar (Scalar a)) => HasScalar a
-instance (IsScalar (Scalar a)) => HasScalar a
+-- | A (sometimes) more convenient version of "IsScalar".
+type HasScalar a = IsScalar (Scalar a)
 
 type instance Scalar Int      = Int
 type instance Scalar Integer  = Integer
@@ -1634,69 +1831,154 @@ class
     ) => Module v
         where
 
+    {-# MINIMAL (.*) | (.*=) #-}
+
+    -- | Scalar multiplication.
+    {-# INLINE (.*) #-}
     infixl 7 .*
     (.*) :: v -> Scalar v -> v
+    (.*) = mutable2immutable (.*=)
 
-    infixl 7 .*.
-    (.*.) :: v -> v -> v
-
+    {-# INLINE (.*=) #-}
     infixr 5 .*=
-    (.*=) :: PrimMonad m => Mutable m v -> Scalar v -> m ()
+    (.*=) :: (PrimBase m) => Mutable m v -> Scalar v -> m ()
     (.*=) = immutable2mutable (.*)
 
-    infixr 5 .*.=
-    (.*.=) :: PrimMonad m => Mutable m v -> v -> m ()
-    (.*.=) = immutable2mutable (.*.)
+law_Module_multiplication :: (Eq_ m, Module m) => m -> m -> Scalar m -> Logic m
+law_Module_multiplication m1 m2 s = s *. (m1 + m2) == s*.m1 + s*.m2
+
+law_Module_addition :: (Eq_ m, Module m) => m -> Scalar m -> Scalar m -> Logic m
+law_Module_addition  m s1 s2 = (s1+s2)*.m == s1*.m + s2*.m
+
+law_Module_action :: (Eq_ m, Module m) => m -> Scalar m -> Scalar m -> Logic m
+law_Module_action m s1 s2 = s1*.(s2*.m) == (s1*s2)*.m
+
+law_Module_unital :: (Eq_ m, Module m) => m -> Logic m
+law_Module_unital m = 1 *. m == m
+
+defn_Module_dotstarequal :: (Eq_ m, Module m) => m -> Scalar m -> Logic m
+defn_Module_dotstarequal = simpleMutableDefn (.*=) (.*)
+
 
 {-# INLINE (*.) #-}
 infixl 7 *.
 (*.) :: Module v => Scalar v -> v -> v
 r *. v  = v .* r
 
-instance Module Int       where (.*) = (*); (.*.) = (*)
-instance Module Integer   where (.*) = (*); (.*.) = (*)
-instance Module Float     where (.*) = (*); (.*.) = (*)
-instance Module Double    where (.*) = (*); (.*.) = (*)
-instance Module Rational  where (.*) = (*); (.*.) = (*)
+instance Module Int       where (.*) = (*)
+instance Module Integer   where (.*) = (*)
+instance Module Float     where (.*) = (*)
+instance Module Double    where (.*) = (*)
+instance Module Rational  where (.*) = (*)
 
 instance
     ( Module b
     ) => Module (a -> b)
         where
     f .*  b = \a -> f a .*  b
+
+---------------------------------------
+
+-- | Free modules have a basis.
+-- This means it makes sense to perform operations elementwise on the basis coefficients.
+--
+-- See <https://en.wikipedia.org/wiki/Free_module wikipedia> for more detail.
+class (Module v) => FreeModule v where
+
+    {-# MINIMAL ones, ((.*.) | (.*.=)) #-}
+
+    -- | Multiplication of the components pointwise.
+    -- For matrices, this is commonly called Hadamard multiplication.
+    --
+    -- See <http://en.wikipedia.org/wiki/Hadamard_product_%28matrices%29 wikipedia> for more detail.
+    --
+    -- FIXME: This is only valid for modules with a basis.
+    {-# INLINE (.*.) #-}
+    infixl 7 .*.
+    (.*.) :: v -> v -> v
+    (.*.) = mutable2immutable (.*.=)
+
+    {-# INLINE (.*.=) #-}
+    infixr 5 .*.=
+    (.*.=) :: (PrimBase m) => Mutable m v -> v -> m ()
+    (.*.=) = immutable2mutable (.*.)
+
+    -- | The identity for Hadamard multiplication.
+    -- Intuitively, this object has the value "one" in every column.
+    ones :: v
+
+law_FreeModule_commutative :: (Eq_ m, FreeModule m) => m -> m -> Logic m
+law_FreeModule_commutative m1 m2 = m1.*.m2 == m2.*.m1
+
+law_FreeModule_associative :: (Eq_ m, FreeModule m) => m -> m -> m -> Logic m
+law_FreeModule_associative m1 m2 m3 = m1.*.(m2.*.m3) == (m1.*.m2).*.m3
+
+law_FreeModule_id :: (Eq_ m, FreeModule m) => m -> Logic m
+law_FreeModule_id m = m == m.*.ones
+
+defn_FreeModule_dotstardotequal :: (Eq_ m, FreeModule m) => m -> m -> Logic m
+defn_FreeModule_dotstardotequal = simpleMutableDefn (.*.=) (.*.)
+
+instance FreeModule Int       where (.*.) = (*); ones = one
+instance FreeModule Integer   where (.*.) = (*); ones = one
+instance FreeModule Float     where (.*.) = (*); ones = one
+instance FreeModule Double    where (.*.) = (*); ones = one
+instance FreeModule Rational  where (.*.) = (*); ones = one
+
+instance
+    ( FreeModule b
+    ) => FreeModule (a -> b)
+        where
     g .*. f = \a -> g a .*. f a
+    ones = \a -> ones
 
 ---------------------------------------
 
--- | If our "Module" has a finite basis, then we can index into the module and easily construct it.
+-- | If our "FreeModule" has a finite basis, then we can:
 --
--- FIXME:
--- Is there a more descriptive name for this class?
+-- * index into the modules basis coefficients
 --
--- We should add a function
---
--- > unsafeIxToModule :: [(Int,Scalar s)] -> s
---
--- for sparse representations.
-class (Module s, IxContainer s, Elem s~Scalar s, Index s~Int) => FiniteModule s where
-    unsafeToModule :: [Scalar s] -> s
+-- * provide a dense construction method that's a bit more convenient than "fromIxList".
+class (FreeModule v, IxContainer v, Elem v~Scalar v, Index v~Int) => FiniteModule v where
+    -- | Returns the dimension of the object.
+    -- For some objects, this may be known statically, and so the parameter will not be "seq"ed.
+    -- But for others, this may not be known statically, and so the parameter will be "seq"ed.
+    dim :: v -> Int
 
-instance FiniteModule Int       where  unsafeToModule [x] = x
-instance FiniteModule Integer   where  unsafeToModule [x] = x
-instance FiniteModule Float     where  unsafeToModule [x] = x
-instance FiniteModule Double    where  unsafeToModule [x] = x
-instance FiniteModule Rational  where  unsafeToModule [x] = x
+    unsafeToModule :: [Scalar v] -> v
+
+instance FiniteModule Int       where dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Integer   where dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Float     where dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Double    where dim _ = 1; unsafeToModule [x] = x
+instance FiniteModule Rational  where dim _ = 1; unsafeToModule [x] = x
 
 ---------------------------------------
 
-class (Module v, Field (Scalar v)) => VectorSpace v where
+class (FreeModule v, Field (Scalar v)) => VectorSpace v where
+
+    {-# MINIMAL (./.) | (./.=) #-}
+
     {-# INLINE (./) #-}
     infixl 7 ./
     (./) :: v -> Scalar v -> v
     v ./ r = v .* reciprocal r
 
+    {-# INLINE (./.) #-}
     infixl 7 ./.
     (./.) :: v -> v -> v
+    (./.) = mutable2immutable (./.=)
+
+    {-# INLINE (./=) #-}
+    infixr 5 ./=
+    (./=) :: (PrimBase m) => Mutable m v -> Scalar v -> m ()
+    (./=) = immutable2mutable (./)
+
+    {-# INLINE (./.=) #-}
+    infixr 5 ./.=
+    (./.=) :: (PrimBase m) => Mutable m v -> v -> m ()
+    (./.=) = immutable2mutable (./.)
+
 
 instance VectorSpace Float     where (./) = (/); (./.) = (/)
 instance VectorSpace Double    where (./) = (/); (./.) = (/)
@@ -1706,11 +1988,21 @@ instance VectorSpace b => VectorSpace (a -> b) where g ./. f = \a -> g a ./. f a
 
 ---------------------------------------
 
+-- | A Reisz space is a vector space obeying nice partial ordering laws.
+--
+-- See <http://en.wikipedia.org/wiki/Riesz_space wikipedia> for more details.
+class (VectorSpace v, Lattice_ v) => Reisz v where
+    --
+    -- | An element of a reisz space can always be split into positive and negative components.
+    reiszSplit :: v -> (v,v)
+
+---------------------------------------
+
 -- | A Banach space is a Vector Space equipped with a compatible Norm and Metric.
 --
 -- See <http://en.wikipedia.org/wiki/Banach_space wikipedia> for more details.
 class (VectorSpace v, Normed v, Metric v) => Banach v where
-    {-# INLINABLE normalize #-}
+    {-# INLINE normalize #-}
     normalize :: v -> v
     normalize v = v ./ size v
 
@@ -1731,13 +2023,13 @@ instance Banach Rational
 -- | Hilbert spaces are a natural generalization of Euclidean space that allows for infinite dimension.
 --
 -- See <http://en.wikipedia.org/wiki/Hilbert_space wikipedia> for more details.
-class
-    ( Banach v
-    , TensorAlgebra v
-    , ExpField (Scalar v)
-    ) => Hilbert v
-        where
-
+--
+-- FIXME:
+-- The result of a dot product must always be an ordered field.
+-- This is true even when the Hilbert space is over a non-ordered field like the complex numbers.
+-- But the "OrdField" constraint currently prevents us from doing scalar multiplication on Complex Hilbert spaces.
+-- See <http://math.stackexchange.com/questions/49348/inner-product-spaces-over-finite-fields> and <http://math.stackexchange.com/questions/47916/banach-spaces-over-fields-other-than-mathbbc> for some technical details.
+class ( Banach v , TensorAlgebra v , Real (Scalar v), OrdField (Scalar v) ) => Hilbert v where
     infix 8 <>
     (<>) :: v -> v -> Scalar v
 
@@ -1750,15 +2042,15 @@ squaredInnerProductNorm v = v<>v
 
 {-# INLINE innerProductNorm #-}
 innerProductNorm :: Hilbert v => v -> Scalar v
-innerProductNorm = sqrt . squaredInnerProductNorm
+innerProductNorm = undefined -- sqrt . squaredInnerProductNorm
 
 {-# INLINE innerProductDistance #-}
 innerProductDistance :: Hilbert v => v -> v -> Scalar v
-innerProductDistance v1 v2 = innerProductNorm $ v1-v2
+innerProductDistance v1 v2 = undefined --innerProductNorm $ v1-v2
 
 ---------------------------------------
 
--- |
+-- | Tensor algebras generalize the outer product of vectors to construct a matrix.
 --
 -- See <https://en.wikipedia.org/wiki/Tensor_algebra wikipedia> for details.
 --
@@ -1768,6 +2060,7 @@ class
     ( VectorSpace v
     , VectorSpace (v><v)
     , Scalar (v><v) ~ Scalar v
+    , Normed (v><v)     -- the size represents the determinant
     , Field (v><v)
     ) => TensorAlgebra v
         where
@@ -1818,7 +2111,7 @@ law_Bregman_triangle ::
 
 -- | Metric spaces give us the most intuitive notion of distance between objects.
 --
--- FIXME: There are many other notions of distance and we should make a while hierarchy.
+-- FIXME: There are many other notions of distance and we should make a whole hierarchy.
 class
     ( HasScalar v
     , Eq_ v
@@ -1832,17 +2125,17 @@ class
     -- | If the distance between two datapoints is less than or equal to the upper bound,
     -- then this function will return the distance.
     -- Otherwise, it will return some number greater than the upper bound.
-    {-# INLINABLE distanceUB #-}
+    {-# INLINE distanceUB #-}
     distanceUB :: v -> v -> Scalar v -> Scalar v
     distanceUB v1 v2 _ = {-# SCC distanceUB #-} distance v1 v2
 
 -- | Calling this function will be faster on some 'Metric's than manually checking if distance is greater than the bound.
-{-# INLINABLE isFartherThan #-}
+{-# INLINE isFartherThan #-}
 isFartherThan :: Metric v => v -> v -> Scalar v -> Logic v
 isFartherThan s1 s2 b = {-# SCC isFartherThan #-} distanceUB s1 s2 b > b
 
 -- | This function constructs an efficient default implementation for 'distanceUB' given a function that lower bounds the distance metric.
-{-# INLINABLE lb2distanceUB #-}
+{-# INLINE lb2distanceUB #-}
 lb2distanceUB ::
     ( Metric a
     , ClassicalLogic a
@@ -2366,7 +2659,10 @@ class (ValidLogic s, Monoid s) => IxContainer s where
         Just _ -> true
 
     -- | FIXME: should the functions below be moved to other classes?
-    imap :: (Index s -> Elem s -> b) -> s -> SetElem s b
+    type ValidElem s e :: Constraint
+    type ValidElem s e = ()
+
+    imap :: (ValidElem s (Elem s), ValidElem s b) => (Index s -> Elem s -> b) -> s -> SetElem s b
 
     toIxList :: s -> [(Index s, Elem s)]
 
@@ -2428,6 +2724,10 @@ mkIxContainer(Integer)
 mkIxContainer(Float)
 mkIxContainer(Double)
 mkIxContainer(Rational)
+
+-- | Sliceable containers generalize the notion of a substring to any IxContainer.
+class (IxContainer s, Enum (Index s)) => Sliceable s where
+    slice :: Index s -> Int -> s -> s
 
 -- | Some containers that use indices are not typically constructed with those indices (e.g. Arrays).
 class IxContainer s => IxConstructible s where
@@ -2580,7 +2880,7 @@ instance Semigroup a => Monoid (Maybe a) where
 
 ----------
 
-data Maybe' a = Nothing' | Just' !a
+data Maybe' a = Nothing' | Just' { fromJust' :: !a }
 
 type instance Scalar (Maybe' a) = Scalar a
 type instance Logic (Maybe' a) = Logic a
@@ -2711,4 +3011,14 @@ instance Metric x => Metric (Labeled' x y) where
 instance Normed x => Normed (Labeled' x y) where
     size (Labeled' x _) = size x
 
+
+--------------------------------------------------------------------------------
+
+mkMutable [t| POrdering |]
+mkMutable [t| Ordering |]
+mkMutable [t| forall a. Endo a |]
+mkMutable [t| forall a. DualSG a |]
+mkMutable [t| forall a. Maybe a |]
+mkMutable [t| forall a. Maybe' a |]
+mkMutable [t| forall a b. Labeled' a b |]
 

@@ -20,6 +20,8 @@ type instance Scalar Int64 = Int64
 
 newtype HyperLogLog p a = H (H.HyperLogLog p)
 
+mkMutable [t| forall p a. HyperLogLog p a |]
+
 type instance Scalar (HyperLogLog p a) = Integer -- FIXME: make Int64
 type instance Logic (HyperLogLog p a) = Bool
 type instance Elem (HyperLogLog p a) = a

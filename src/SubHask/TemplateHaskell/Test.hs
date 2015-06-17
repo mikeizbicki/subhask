@@ -24,6 +24,7 @@ testMap = Map.fromList
     , ( "Lattice",[])
     , ( "Ord",[])
     , ( "POrd",[])
+    , ( "IsMutable", [])
 
     -- comparison
 
@@ -126,6 +127,26 @@ testMap = Map.fromList
         , "law_Integral_toFromInverse"
         ])
 
+    , ("Module",
+        [ "law_Module_multiplication"
+        , "law_Module_addition"
+        , "law_Module_action"
+        , "law_Module_unital"
+        , "defn_Module_dotstarequal"
+        ]
+        )
+    , ("FreeModule",
+        [ "law_FreeModule_commutative"
+        , "law_FreeModule_associative"
+        , "law_FreeModule_id"
+        , "defn_FreeModule_dotstardotequal"
+        ]
+        )
+
+    , ("VectorSpace",
+        []
+        )
+
     -- sizes
 
     , ( "HasScalar", [] )
@@ -159,10 +180,10 @@ testMap = Map.fromList
         , "defn_Foldable_foldr'"
         , "defn_Foldable_foldl"
         , "defn_Foldable_foldl'"
-        , "defn_Foldable_foldr1"
-        , "defn_Foldable_foldr1'"
-        , "defn_Foldable_foldl1"
-        , "defn_Foldable_foldl1'"
+--         , "defn_Foldable_foldr1"
+--         , "defn_Foldable_foldr1'"
+--         , "defn_Foldable_foldl1"
+--         , "defn_Foldable_foldl1'"
         ] )
     , ( "Partitionable",
         [ "law_Partitionable_length"
