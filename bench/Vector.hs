@@ -12,6 +12,16 @@ import SubHask.Monad
 
 --------------------------------------------------------------------------------
 
+{-# RULES
+
+"subhask/distance_l2_m128_UVector_Dynamic"     distance   = distance_l2_m128_UVector_Dynamic
+"subhask/distance_l2_m128_SVector_Dynamic"     distance   = distance_l2_m128_SVector_Dynamic
+
+"subhask/distanceUB_l2_m128_UVector_Dynamic"   distanceUB = distanceUB_l2_m128_UVector_Dynamic
+"subhask/distanceUB_l2_m128_SVector_Dynamic"   distanceUB = distanceUB_l2_m128_SVector_Dynamic
+
+  #-}
+
 main = do
 
     -----------------------------------
@@ -31,7 +41,8 @@ main = do
         u1 = unsafeToModule (xs1+xs2) :: UVector "dynamic" Float
         u2 = unsafeToModule (xs1+xs3) `asTypeOf` u1
 
-    let ub = distance s1 s2 * 3/4
+    let ub14 = distance s1 s2 * 1/4
+        ub34 = distance s1 s2 * 3/4
 
     deepseq s1 $ deepseq s2 $ return ()
 
@@ -55,10 +66,15 @@ main = do
             , bench "dynamic" $ nf (distance d1) d2
             , bench "unboxed" $ nf (distance u1) u2
             ]
+        , bgroup "distanceUB - bound (1/4)"
+            [ bench "static"  $ nf (distanceUB s1 s2) ub14
+            , bench "dynamic" $ nf (distanceUB d1 d2) ub14
+            , bench "unboxed" $ nf (distanceUB u1 u2) ub14
+            ]
         , bgroup "distanceUB - bound (3/4)"
-            [ bench "static"  $ nf (distanceUB s1 s2) ub
-            , bench "dynamic" $ nf (distanceUB d1 d2) ub
-            , bench "unboxed" $ nf (distanceUB u1 u2) ub
+            [ bench "static"  $ nf (distanceUB s1 s2) ub34
+            , bench "dynamic" $ nf (distanceUB d1 d2) ub34
+            , bench "unboxed" $ nf (distanceUB u1 u2) ub34
             ]
         , bgroup "distanceUB - bound infinity"
             [ bench "static"  $ nf (distanceUB s1 s2) infinity

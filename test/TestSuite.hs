@@ -34,7 +34,6 @@ main = defaultMain --WithOpts
             , $( mkSpecializedClassTests [t| Rational |] [''Ord,''Ring, ''Lattice, ''Metric] )
             , $( mkSpecializedClassTests [t| Float    |] [''Bounded] )
             , $( mkSpecializedClassTests [t| Double   |] [''Bounded] )
---             , $( mkSpecializedClassTests [t| Uncompensated Int |] [ ''Ring ] )
             , testGroup "transformers"
                 [ $( mkSpecializedClassTests [t| NonNegative Int  |] [''Enum,''Rig, ''Bounded, ''Metric] )
                 , $( mkSpecializedClassTests [t| Z 57             |] [''Ring] )

@@ -126,7 +126,7 @@ library
         deepseq                     == 1.4.1.1,
         primitive                   == 0.6,
         monad-primitive             == 0.1,
-        QuickCheck                  == 2.7,
+        QuickCheck                  == 2.8.1,
 
         -- math
         erf                         == 2.0.0.0,
@@ -164,8 +164,8 @@ Test-Suite TestSuite
 
     build-depends:
         subhask,
-        test-framework-quickcheck2  == 0.3.0,
-        test-framework              == 0.8.0.3
+        test-framework-quickcheck2  >= 0.3.0,
+        test-framework              >= 0.8.0
 
     ghc-options:
         -O
