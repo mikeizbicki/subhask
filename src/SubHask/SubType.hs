@@ -17,8 +17,6 @@ module SubHask.SubType
 --     , Embed2 (..)
 
     -- * Template Haskell
---     , s
-    , subhask
     , mkSubtype
     , mkSubtypeInstance
     )
@@ -27,7 +25,7 @@ module SubHask.SubType
 import Control.Monad
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
-import Language.Haskell.Meta
+-- import Language.Haskell.Meta
 
 import SubHask.Internal.Prelude
 import Prelude
@@ -218,70 +216,3 @@ mkSup t1 t2 t3 =
     [ InstanceD [] (AppT (AppT (AppT (ConT $ mkName "Sup") t1) t2) t3) []
     , InstanceD [] (AppT (AppT (AppT (ConT $ mkName "Sup") t2) t1) t3) []
     ]
-
----------------------------------------
--- quasiquoting
-
-s=subhask
-
--- | defines the modified syntax that simplifies use of the subhask library
-subhask = QuasiQuoter
-    { quoteExp = go parseExp subcatExp
-    , quoteDec = go parseDecs (map subcatDec)
-    }
-    where
-        go parse eval = \str -> case parse str of
-            Left err -> error $ "parse error: "++err
-            Right th -> return $ eval th
-
--- | This is a not-quite quasiquoter for using subtypes.
--- It requires the TemplateHaskell extension, but not the QuasiQuoter extension.
--- Use it like:
---
--- > var = $(sub_[| 1+2*4 |])
---
-exp_ :: Q Exp -> Q Exp
-exp_ qe = do
-    e <- qe
-    let ret = subcatExp e
---     trace ("\nsubtype substitution\n  orig="++show e++"\n  ret="++show ret) $ return ()
-    return ret
-
-dec_ :: Q [Dec] -> Q [Dec]
-dec_ qd = do
-    d <- qd
-    let ret = map subcatDec d
-    return ret
-
-subcatDec :: Dec -> Dec
-subcatDec (SigD n t) = SigD n t
-subcatDec (ValD p (NormalB e) xs) = ValD p (NormalB $ subcatExp e) $ map subcatDec xs
-subcatDec x = error $ "subcatDec.undef; x="++show x
-
--- | This is a helper for "parseSubExp" that substitutes every function application with a call to "embedType2";
--- This lets us use objects in any subcategory of hask like normal functions.
-subcatExp :: Exp -> Exp
-subcatExp (InfixE (Just a1) f (Just a2)) = subcatExp $ AppE (AppE f a1) a2
-subcatExp (InfixE (Just a1) f Nothing) = subcatExp $ AppE f a1
--- FIXME: the code below assumes commutativity of `f`
--- fixing this will require digging into the underlying categories
-subcatExp (InfixE Nothing f (Just a2)) = subcatExp $ AppE (AppE (VarE $ mkName "flip") f) a2
-subcatExp (InfixE Nothing f Nothing) = subcatExp f
-subcatExp (UInfixE a1 f a2) = subcatExp $ AppE (AppE f a1) a2
-subcatExp (AppE f a) = AppE (AppE (VarE $ mkName "embedType2") (subcatExp f)) (subcatExp a)
-subcatExp (VarE e) = VarE e
-subcatExp (ConE c) = ConE c
-subcatExp (LitE l) = LitE l
-subcatExp (SigE e t) = SigE (subcatExp e) t
-subcatExp x = error $ "subcatExp.undef; x="++show x
-
--- | This is a helper for "sub" that performs the actual substitution.
---
--- FIXME: There's lots of missing cases right now!
---
-subExp :: Exp -> Exp
-subExp (InfixE (Just a1) f (Just a2)) = subExp $ AppE (AppE f a1) a2
-subExp (UInfixE a1 f a2) = subExp $ AppE (AppE f a1) a2
-subExp (AppE (AppE f a1) a2) = AppE (AppE (AppE (VarE $ mkName "apEmbedType2") f) a1) a2
--- subExp (AppE f a1) = AppE (AppE (VarE $ mkName "$") f) a1
-subExp xs = xs

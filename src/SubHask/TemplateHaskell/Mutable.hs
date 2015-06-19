@@ -22,6 +22,9 @@ showtype t = map go (show t)
         go '(' = '_'
         go ')' = '_'
         go '/' = '_'
+        go '+' = '_'
+        go '>' = '_'
+        go '<' = '_'
         go x   = x
 
 type2name :: Type -> Name

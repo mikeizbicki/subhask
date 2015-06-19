@@ -17,7 +17,9 @@ mkMutable [t| forall n a. BloomFilter n a |]
 
 type instance Scalar (BloomFilter n a) = Int
 type instance Logic (BloomFilter n a) = Bool
+
 type instance Elem (BloomFilter n a) = a
+type instance SetElem (BloomFilter n a) b = BloomFilter n b
 
 hash = undefined
 

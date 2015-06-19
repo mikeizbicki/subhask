@@ -47,6 +47,8 @@
 module SubHask.Category
     (
     Category (..)
+    , (<<<)
+    , (>>>)
 
     -- * Hask
     , Hask
@@ -110,6 +112,14 @@ class Category (cat :: k -> k -> *) where
 
     infixr 9 .
     (.) :: cat b c -> cat a b -> cat a c
+
+-- | An alternative form of function composition taken from "Control.Arrow"
+(>>>) :: Category cat => cat a b -> cat b c -> cat a c
+a >>> b = b.a
+
+-- | An alternative form of function composition taken from "Control.Arrow"
+(<<<) :: Category cat => cat b c -> cat a b -> cat a c
+a <<< b = a.b
 
 -- | The category with Haskell types as objects, and functions as arrows.
 --
@@ -201,6 +211,11 @@ type Concrete cat = cat <: (->)
 -- we can evaluate the polynomial at the number 5 by
 --
 -- > f $ 5
+--
+-- NOTE:
+-- Base's implementation of '$' has special compiler support that let's it work with the RankNTypes extension.
+-- This version does not.
+-- See <http://stackoverflow.com/questions/8343239/type-error-with-rank-2-types-and-function-composition this stackoverflow question> for more detail.
 
 infixr 0 $
 ($) :: Concrete subcat => subcat a b -> a -> b
@@ -404,7 +419,7 @@ class Closed cat => Compact cat where
 -- More details avalable at <https://en.wikipedia.org/wiki/Dagger_category wikipedia>
 -- and <http://ncatlab.org/nlab/show/dagger-category ncatlab>
 class Category cat => Dagger cat where
-    dagger :: cat a b -> cat b a
+    trans :: cat a b -> cat b a
 
 --------------------------------------------------------------------------------
 

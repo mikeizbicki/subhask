@@ -27,6 +27,7 @@ mkMutable [t| forall l a. ByteString l a |]
 type instance Scalar (ByteString a b) = Int
 type instance Logic (ByteString a b) = Bool
 type instance Elem (ByteString a b) = b
+type instance SetElem (ByteString a b) c = ByteString a c
 
 ----------------------------------------
 

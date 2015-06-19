@@ -1883,7 +1883,7 @@ instance
 -- This means it makes sense to perform operations elementwise on the basis coefficients.
 --
 -- See <https://en.wikipedia.org/wiki/Free_module wikipedia> for more detail.
-class (Module v) => FreeModule v where
+class Module v => FreeModule v where
 
     {-# MINIMAL ones, ((.*.) | (.*.=)) #-}
 
@@ -1939,13 +1939,44 @@ instance
 -- * index into the modules basis coefficients
 --
 -- * provide a dense construction method that's a bit more convenient than "fromIxList".
-class (FreeModule v, IxContainer v, Elem v~Scalar v, Index v~Int) => FiniteModule v where
+class
+    ( FreeModule v
+    , IxContainer v
+    , Elem v~Scalar v
+    , Index v~Int
+    , v ~ SetElem v (Elem v)
+    ) => FiniteModule v
+        where
     -- | Returns the dimension of the object.
     -- For some objects, this may be known statically, and so the parameter will not be "seq"ed.
     -- But for others, this may not be known statically, and so the parameter will be "seq"ed.
     dim :: v -> Int
 
     unsafeToModule :: [Scalar v] -> v
+
+type instance Elem Int      = Int
+type instance Elem Integer  = Integer
+type instance Elem Float    = Float
+type instance Elem Double   = Double
+type instance Elem Rational = Rational
+
+type instance SetElem Int      a = Int
+type instance SetElem Integer  a = Integer
+type instance SetElem Float    a = Float
+type instance SetElem Double   a = Double
+type instance SetElem Rational a = Rational
+
+type instance Index Int      = Int
+type instance Index Integer  = Int
+type instance Index Float    = Int
+type instance Index Double   = Int
+type instance Index Rational = Int
+
+type instance SetIndex Int      a = Int
+type instance SetIndex Integer  a = Int
+type instance SetIndex Float    a = Int
+type instance SetIndex Double   a = Int
+type instance SetIndex Rational a = Int
 
 instance FiniteModule Int       where dim _ = 1; unsafeToModule [x] = x
 instance FiniteModule Integer   where dim _ = 1; unsafeToModule [x] = x
@@ -2222,6 +2253,8 @@ type Item s = Elem s
 type family Elem s
 type family SetElem s t
 
+type ValidSetElem s = SetElem s (Elem s) ~ s
+
 -- | Two sets are disjoint if their infimum is the empty set.
 -- This function generalizes the notion of disjointness for any lower bounded lattice.
 -- FIXME: add other notions of disjoint
@@ -2301,7 +2334,7 @@ fromListN i (x:xs) = fromList1N i x xs
 
 -- | This is a generalization of a "set".
 -- We do not require a container to be a boolean algebra, just a semigroup.
-class (ValidLogic s, Constructible s) => Container s where
+class (ValidLogic s, Constructible s, ValidSetElem s) => Container s where
     elem :: Elem s -> s -> Logic s
 
     notElem :: Elem s -> s -> Logic s
@@ -2629,6 +2662,8 @@ class (Boolean (Logic s), Boolean s, Container s) => Topology s where
 type family Index s
 type family SetIndex s a
 
+type ValidSetIndex s = SetIndex s (Index s) ~ s
+
 -- | An indexed constructible container associates an 'Index' with each 'Elem'.
 -- This class generalizes the map abstract data type.
 --
@@ -2637,7 +2672,7 @@ type family SetIndex s a
 --   2. Many regular containers are indexed containers, but not the other way around.
 --      So the class hierarchy is in a different order.
 --
-class (ValidLogic s, Monoid s) => IxContainer s where
+class (ValidLogic s, Monoid s, ValidSetElem s{-, ValidSetIndex s-}) => IxContainer s where
     lookup :: Index s -> s -> Maybe (Elem s)
 
     {-# INLINABLE (!) #-}

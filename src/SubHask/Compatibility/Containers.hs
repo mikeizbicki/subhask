@@ -35,6 +35,7 @@ mkMutable [t| forall a. Seq a |]
 type instance Scalar (Seq a) = Int
 type instance Logic (Seq a) = Bool
 type instance Elem (Seq a) = a
+type instance SetElem (Seq a) b = Seq b
 
 instance (Eq a, Arbitrary a) => Arbitrary (Seq a) where
     arbitrary = P.fmap fromList arbitrary
@@ -443,6 +444,7 @@ instance (Ord a, Arbitrary a) => Arbitrary (Set a) where
 type instance Scalar (Set a) = Int
 type instance Logic (Set a) = Logic a
 type instance Elem (Set a) = a
+type instance SetElem (Set a) b = Set b
 
 instance Normed (Set a) where
     {-# INLINE size #-}
@@ -517,6 +519,7 @@ mkMutable [t| forall a. LexSet a |]
 type instance Scalar (LexSet a) = Int
 type instance Logic (LexSet a) = Bool
 type instance Elem (LexSet a) = a
+type instance SetElem (LexSet a) b = LexSet b
 
 instance Show a => Show (LexSet a) where
     show (LexSet s) = "LexSet "++show (toList s)

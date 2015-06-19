@@ -1,16 +1,28 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 
--- | Efficient vectors and linear algebra operations.
--- FIXME:
--- shouldn't expose the constructors
+-- | Dense vectors and linear algebra operations.
+--
+-- NOTE:
+-- This module is a prototype for what a more fully featured linear algebra module might look like.
+-- There are a number of efficiency related features that are missing.
+-- In particular, matrices will get copied more often than they need to, and only the most naive dense matrix format is currently supported.
+-- These limitations are due to using "hmatrix" as a backend (all operations should be at least as fast as in hmatrix).
+-- Future iterations will use something like "hblas" to get finer lever control.
+--
 --
 -- FIXME:
--- "UVector" is implemented in terms of "Data.Vector.Unboxed.Vector";
--- we can probably make things a bit faster with our own implementation.
+-- Shouldn't expose the constructors, but they're needed for the "SubHask.Algebra.Array" types.
+--
+-- FIXME:
+-- We shouldn't need to call out to the FFI in order to get SIMD instructions.
 module SubHask.Algebra.Vector
     ( SVector (..)
     , UVector (..)
     , Unbox
+    , type (+>)
+    , Matrix
+    , mkMatrix
+    , unsafeMkMatrix
 
     -- * FFI
     , distance_l2_m128
@@ -42,17 +54,43 @@ import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Generic.Mutable as VGM
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Unboxed.Mutable as VUM
+import qualified Data.Vector.Storable as VS
+import qualified Data.Packed.Matrix as HM
+import qualified Numeric.LinearAlgebra as HM
 
 import qualified Prelude as P
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Internal.Prelude
 import SubHask.Compatibility.Base
+import SubHask.Internal.Prelude
+import SubHask.SubType
 
 import Data.Csv (FromRecord,FromField,parseRecord)
 
 import System.IO.Unsafe
 import Unsafe.Coerce
+
+
+--------------------------------------------------------------------------------
+-- rewrite rules for faster static parameters
+--
+-- FIXME: Find a better home for this.
+--
+-- FIXME: Expand to many more naturals.
+
+{-# INLINE[2] nat2int #-}
+nat2int :: KnownNat n => Proxy n -> Int
+nat2int = fromIntegral . natVal
+
+{-# INLINE[1] nat200 #-}
+nat200 :: Proxy 200 -> Int
+nat200 _ = 200
+
+{-# RULES
+
+"subhask/nat2int_200" nat2int = nat200
+
+  #-}
 
 --------------------------------------------------------------------------------
 
@@ -375,6 +413,9 @@ instance (Monoid r, ValidLogic r, Prim r, IsScalar r) => IxContainer (UVector (n
             go (-1) xs = xs
             go i xs = go (i-1) (indexByteArray arr (off+i) : xs)
 
+--     imap f v = unsafeToModule $ imap f $ values v
+
+
 instance (FreeModule r, ValidLogic r, Prim r, IsScalar r) => FiniteModule (UVector (n::Symbol) r) where
 
     {-# INLINE dim #-}
@@ -548,7 +589,21 @@ data family SVector (n::k) r
 
 type instance Scalar (SVector n r) = Scalar r
 type instance Logic (SVector n r) = Logic r
-type instance SVector n r >< a = SVector n (r><a)
+
+-- type instance SVector m a >< b = VectorOuterProduct (SVector m a) b
+-- type family VectorOuterProduct a b where
+-- --     VectorOuterProduct (SVector m a) (SVector n a) = SVector m a
+-- --     VectorOuterProduct (SVector m a) (SVector n a) = Matrix a m n
+--     VectorOuterProduct (SVector m a) a = SVector m a -- (a><b)
+
+-- type instance SVector n r >< a = SVector n (r><a)
+
+type instance SVector m a >< b = Tensor_SVector (SVector m a) b
+type family Tensor_SVector a b where
+    Tensor_SVector (SVector n r1) (SVector m r2) = SVector n r1 +> SVector m r2
+    Tensor_SVector (SVector n r1) r1 = SVector n r1 -- (r1><r2)
+
+type ValidSVector n r = ( (SVector n r><Scalar r)~SVector n r, Storable r)
 
 type instance Index (SVector n r) = Int
 type instance Elem (SVector n r) = Scalar r
@@ -561,7 +616,7 @@ data instance SVector (n::Symbol) r = SVector_Dynamic
     {-#UNPACK#-}!Int -- ^ offset
     {-#UNPACK#-}!Int -- ^ length
 
-instance (Show r, Monoid r, Storable r) => Show (SVector (n::Symbol) r) where
+instance (Show r, Monoid r, ValidSVector n r) => Show (SVector (n::Symbol) r) where
     show (SVector_Dynamic fp off n) = if isNull fp
         then "zero"
         else show $ unsafeInlineIO $ go (n-1) []
@@ -571,16 +626,16 @@ instance (Show r, Monoid r, Storable r) => Show (SVector (n::Symbol) r) where
                 x <- peekElemOff p (off+i)
                 go (i-1) (x:xs)
 
-instance (Arbitrary r, Storable r, FreeModule r, IsScalar r) => Arbitrary (SVector (n::Symbol) r) where
+instance (Arbitrary r, ValidSVector n r, FreeModule r, IsScalar r) => Arbitrary (SVector (n::Symbol) r) where
     arbitrary = frequency
         [ (1,return zero)
         , (9,fmap unsafeToModule $ replicateM 27 arbitrary)
         ]
 
-instance (NFData r, Storable r) => NFData (SVector (n::Symbol) r) where
+instance (NFData r, ValidSVector n r) => NFData (SVector (n::Symbol) r) where
     rnf (SVector_Dynamic fp off n) = seq fp ()
 
-instance (FromField r, Storable r, IsScalar r, FreeModule r) => FromRecord (SVector (n::Symbol) r) where
+instance (FromField r, ValidSVector n r, IsScalar r, FreeModule r) => FromRecord (SVector (n::Symbol) r) where
     parseRecord r = do
         rs :: [r] <- parseRecord r
         return $ unsafeToModule rs
@@ -590,7 +645,7 @@ instance (FromField r, Storable r, IsScalar r, FreeModule r) => FromRecord (SVec
 
 newtype instance Mutable m (SVector (n::Symbol) r) = Mutable_SVector (PrimRef m (SVector (n::Symbol) r))
 
-instance (Storable r) => IsMutable (SVector (n::Symbol) r) where
+instance (ValidSVector n r) => IsMutable (SVector (n::Symbol) r) where
     freeze mv = copy mv >>= unsafeFreeze
     thaw v = unsafeThaw v >>= copy
 
@@ -750,36 +805,36 @@ monopDynM f (Mutable_SVector ref) = do
 
 -------------------
 
-instance (Monoid r, Storable r) => Semigroup (SVector (n::Symbol) r) where
+instance (Monoid r, ValidSVector n r) => Semigroup (SVector (n::Symbol) r) where
     {-# INLINE (+)  #-} ; (+)  = binopDyn  (+)
     {-# INLINE (+=) #-} ; (+=) = binopDynM (+)
 
-instance (Monoid r, Cancellative r, Storable r) => Cancellative (SVector (n::Symbol) r) where
+instance (Monoid r, Cancellative r, ValidSVector n r) => Cancellative (SVector (n::Symbol) r) where
     {-# INLINE (-)  #-} ; (-)  = binopDyn  (-)
     {-# INLINE (-=) #-} ; (-=) = binopDynM (-)
 
-instance (Monoid r, Storable r) => Monoid (SVector (n::Symbol) r) where
+instance (Monoid r, ValidSVector n r) => Monoid (SVector (n::Symbol) r) where
     {-# INLINE zero #-}
     zero = SVector_Dynamic (unsafeInlineIO $ newForeignPtr_ nullPtr) 0 0
 
-instance (Group r, Storable r) => Group (SVector (n::Symbol) r) where
+instance (Group r, ValidSVector n r) => Group (SVector (n::Symbol) r) where
     {-# INLINE negate #-}
     negate v = unsafeInlineIO $ do
         mv <- thaw v
         monopDynM negate mv
         unsafeFreeze mv
 
-instance (Monoid r, Abelian r, Storable r) => Abelian (SVector (n::Symbol) r)
+instance (Monoid r, Abelian r, ValidSVector n r) => Abelian (SVector (n::Symbol) r)
 
-instance (Module r, Storable r) => Module (SVector (n::Symbol) r) where
+instance (Module r, ValidSVector n r, IsScalar r) => Module (SVector (n::Symbol) r) where
     {-# INLINE (.*)   #-} ;  (.*)  v r = monopDyn  (.*r) v
     {-# INLINE (.*=)  #-} ;  (.*=) v r = monopDynM (.*r) v
 
-instance (FreeModule r, Storable r) => FreeModule (SVector (n::Symbol) r) where
+instance (FreeModule r, ValidSVector n r, IsScalar r) => FreeModule (SVector (n::Symbol) r) where
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopDyn  (.*.)
     {-# INLINE (.*.=) #-} ;  (.*.=)    = binopDynM (.*.)
 
-instance (VectorSpace r, Storable r) => VectorSpace (SVector (n::Symbol) r) where
+instance (VectorSpace r, ValidSVector n r, IsScalar r) => VectorSpace (SVector (n::Symbol) r) where
     {-# INLINE (./)   #-} ;  (./)  v r = monopDyn  (./r) v
     {-# INLINE (./=)  #-} ;  (./=) v r = monopDynM (./r) v
 
@@ -789,13 +844,30 @@ instance (VectorSpace r, Storable r) => VectorSpace (SVector (n::Symbol) r) wher
 ----------------------------------------
 -- container
 
-instance (Monoid r, ValidLogic r, Storable r, IsScalar r) => IxContainer (SVector (n::Symbol) r) where
+instance
+    ( Monoid r
+    , ValidLogic r
+    , ValidSVector n r
+    , IsScalar r
+    , FreeModule r
+    ) => IxContainer (SVector (n::Symbol) r)
+        where
 
     {-# INLINE (!) #-}
     (!) (SVector_Dynamic fp off n) i = unsafeInlineIO $ withForeignPtr fp $ \p -> peekElemOff p (off+i)
 
+    {-# INLINABLE toIxList #-}
+    toIxList v = P.zip [0..] $ go (dim v-1) []
+        where
+            go (-1) xs = xs
+            go    i xs = go (i-1) (v!i : xs)
 
-instance (FreeModule r, ValidLogic r, Storable r, IsScalar r) => FiniteModule (SVector (n::Symbol) r) where
+    {-# INLINABLE imap #-}
+    imap f v = unsafeToModule $ imap f $ values v
+
+    type ValidElem (SVector n r) e = (ClassicalLogic e, IsScalar e, FiniteModule e, ValidSVector n e)
+
+instance (FreeModule r, ValidLogic r, ValidSVector n r, IsScalar r) => FiniteModule (SVector (n::Symbol) r) where
 
     {-# INLINE dim #-}
     dim (SVector_Dynamic _ _ n) = n
@@ -817,7 +889,7 @@ instance (FreeModule r, ValidLogic r, Storable r, IsScalar r) => FiniteModule (S
 ----------------------------------------
 -- comparison
 
-instance (Eq r, Monoid r, Storable r) => Eq_ (SVector (n::Symbol) r) where
+instance (Eq r, Monoid r, ValidSVector n r) => Eq_ (SVector (n::Symbol) r) where
     {-# INLINE (==) #-}
     (SVector_Dynamic fp1 off1 n1)==(SVector_Dynamic fp2 off2 n2) = unsafeInlineIO $ if
         | isNull fp1 && isNull fp2 -> return true
@@ -846,35 +918,11 @@ instance (Eq r, Monoid r, Storable r) => Eq_ (SVector (n::Symbol) r) where
                         next <- go (i-1)
                         return $ v1==v2 && next
 
-{-
-
-
-{-# INLINE innerp #-}
--- innerp :: SVector 200 Float -> SVector 200 Float -> Float
-innerp v1 v2 = go 0 (n-1)
-
-    where
-        n = 200
---         n = nat2int (Proxy::Proxy n)
-
-        go !tot !i =  if i<4
-            then goEach tot i
-            else
-                go (tot+(v1!(i  ) * v2!(i  ))
-                       +(v1!(i-1) * v2!(i-1))
-                       +(v1!(i-2) * v2!(i-2))
-                       +(v1!(i-3) * v2!(i-3))
-                   ) (i-4)
-
-        goEach !tot !i = if i<0
-            then tot
-            else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
-
 ----------------------------------------
 -- distances
--}
+
 instance
-    ( Storable r
+    ( ValidSVector n r
     , ExpField r
     , Normed r
     , Ord_ r
@@ -924,7 +972,7 @@ instance
                 then tot
                 else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
 
-instance (VectorSpace r, Storable r, IsScalar r, ExpField r) => Normed (SVector (n::Symbol) r) where
+instance (VectorSpace r, ValidSVector n r, IsScalar r, ExpField r) => Normed (SVector (n::Symbol) r) where
     {-# INLINE size #-}
     size v@(SVector_Dynamic fp _ n) = if isNull fp
         then 0
@@ -942,12 +990,47 @@ instance (VectorSpace r, Storable r, IsScalar r, ExpField r) => Normed (SVector 
                 then tot
                 else goEach (tot+v!i*v!i) (i-1)
 
+instance
+    ( VectorSpace r
+    , ValidSVector n r
+    , IsScalar r
+    , ExpField r
+    , Real r
+    ) => Banach (SVector (n::Symbol) r)
+
+instance
+    ( VectorSpace r
+    , ValidSVector n r
+    , IsScalar r
+    , ExpField r
+    , Real r
+    , OrdField r
+    , MatrixField r
+    ) => Hilbert (SVector (n::Symbol) r)
+        where
+
+    {-# INLINE (<>) #-}
+    v1<>v2@(SVector_Dynamic _ _ n) = go 0 (n-1)
+        where
+            go !tot !i =  if i<4
+                then goEach tot i
+                else
+                    go (tot+(v1!(i  ) * v2!(i  ))
+                           +(v1!(i-1) * v2!(i-1))
+                           +(v1!(i-2) * v2!(i-2))
+                           +(v1!(i-3) * v2!(i-3))
+                       ) (i-4)
+
+            goEach !tot !i = if i<0
+                then tot
+                else goEach (tot+(v1!i * v2!i)) (i-1)
+
 
 --------------------------------------------------------------------------------
 
 newtype instance SVector (n::Nat) r = SVector_Nat (ForeignPtr r)
 
-instance (Show r, Storable r, KnownNat n) => Show (SVector n  r) where
+instance (Show r, ValidSVector n r, KnownNat n) => Show (SVector n  r) where
     show v = show (vec2list v)
         where
             n = nat2int (Proxy::Proxy n)
@@ -962,7 +1045,7 @@ instance (Show r, Storable r, KnownNat n) => Show (SVector n  r) where
 instance
     ( KnownNat n
     , Arbitrary r
-    , Storable r
+    , ValidSVector n r
     , FreeModule r
     , IsScalar r
     ) => Arbitrary (SVector (n::Nat) r)
@@ -973,7 +1056,7 @@ instance
         where
             n = nat2int (Proxy::Proxy n)
 
-instance (NFData r, Storable r) => NFData (SVector (n::Nat) r) where
+instance (NFData r, ValidSVector n r) => NFData (SVector (n::Nat) r) where
     rnf (SVector_Nat fp) = seq fp ()
 
 static2dynamic :: forall n m r. KnownNat n => SVector (n::Nat) r -> SVector (m::Symbol) r
@@ -983,7 +1066,7 @@ static2dynamic (SVector_Nat fp) = SVector_Dynamic fp 0 $ nat2int (Proxy::Proxy n
 
 newtype instance Mutable m (SVector (n::Nat) r) = Mutable_SVector_Nat (ForeignPtr r)
 
-instance (KnownNat n, Storable r) => IsMutable (SVector (n::Nat) r) where
+instance (KnownNat n, ValidSVector n r) => IsMutable (SVector (n::Nat) r) where
     freeze mv = copy mv >>= unsafeFreeze
     thaw v = unsafeThaw v >>= copy
 
@@ -1113,15 +1196,15 @@ monopStaticM f (Mutable_SVector_Nat fp1)  = unsafePrimToPrim $
 
 -------------------
 
-instance (KnownNat n, Semigroup r, Storable r) => Semigroup (SVector (n::Nat) r) where
+instance (KnownNat n, Semigroup r, ValidSVector n r) => Semigroup (SVector (n::Nat) r) where
     {-# INLINE (+)  #-} ; (+)  = binopStatic  (+)
     {-# INLINE (+=) #-} ; (+=) = binopStaticM (+)
 
-instance (KnownNat n, Cancellative r, Storable r) => Cancellative (SVector (n::Nat) r) where
+instance (KnownNat n, Cancellative r, ValidSVector n r) => Cancellative (SVector (n::Nat) r) where
     {-# INLINE (-)  #-} ; (-)  = binopStatic  (-)
     {-# INLINE (-=) #-} ; (-=) = binopStaticM (-)
 
-instance (KnownNat n, Monoid r, Storable r) => Monoid (SVector (n::Nat) r) where
+instance (KnownNat n, Monoid r, ValidSVector n r) => Monoid (SVector (n::Nat) r) where
     {-# INLINE zero #-}
     zero = unsafeInlineIO $ do
         mv <- fmap (\fp -> Mutable_SVector_Nat fp) $ mallocForeignPtrArray n
@@ -1130,24 +1213,24 @@ instance (KnownNat n, Monoid r, Storable r) => Monoid (SVector (n::Nat) r) where
         where
             n = nat2int (Proxy::Proxy n)
 
-instance (KnownNat n, Group r, Storable r) => Group (SVector (n::Nat) r) where
+instance (KnownNat n, Group r, ValidSVector n r) => Group (SVector (n::Nat) r) where
     {-# INLINE negate #-}
     negate v = unsafeInlineIO $ do
         mv <- thaw v
         monopStaticM negate mv
         unsafeFreeze mv
 
-instance (KnownNat n, Abelian r, Storable r) => Abelian (SVector (n::Nat) r)
+instance (KnownNat n, Abelian r, ValidSVector n r) => Abelian (SVector (n::Nat) r)
 
-instance (KnownNat n, Module r, Storable r) => Module (SVector (n::Nat) r) where
+instance (KnownNat n, Module r, ValidSVector n r, IsScalar r) => Module (SVector (n::Nat) r) where
     {-# INLINE (.*)   #-} ;  (.*)  v r = monopStatic  (.*r) v
     {-# INLINE (.*=)  #-} ;  (.*=) v r = monopStaticM (.*r) v
 
-instance (KnownNat n, FreeModule r, Storable r) => FreeModule (SVector (n::Nat) r) where
+instance (KnownNat n, FreeModule r, ValidSVector n r, IsScalar r) => FreeModule (SVector (n::Nat) r) where
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopStatic  (.*.)
     {-# INLINE (.*.=) #-} ;  (.*.=)    = binopStaticM (.*.)
 
-instance (KnownNat n, VectorSpace r, Storable r) => VectorSpace (SVector (n::Nat) r) where
+instance (KnownNat n, VectorSpace r, ValidSVector n r, IsScalar r) => VectorSpace (SVector (n::Nat) r) where
     {-# INLINE (./)   #-} ;  (./)  v r = monopStatic  (./r) v
     {-# INLINE (./=)  #-} ;  (./=) v r = monopStaticM (./r) v
 
@@ -1161,20 +1244,31 @@ instance
     ( KnownNat n
     , Monoid r
     , ValidLogic r
-    , Storable r
+    , ValidSVector n r
     , IsScalar r
+    , FreeModule r
     ) => IxContainer (SVector (n::Nat) r)
         where
 
     {-# INLINE (!) #-}
     (!) (SVector_Nat fp) i = unsafeInlineIO $ withForeignPtr fp $ \p -> peekElemOff p i
 
+    {-# INLINABLE toIxList #-}
+    toIxList v = P.zip [0..] $ go (dim v-1) []
+        where
+            go (-1) xs = xs
+            go    i xs = go (i-1) (v!i : xs)
+
+    {-# INLINABLE imap #-}
+    imap f v = unsafeToModule $ imap f $ values v
+
+    type ValidElem (SVector n r) e = (ClassicalLogic e, IsScalar e, FiniteModule e, ValidSVector n e)
 
 instance
     ( KnownNat n
     , FreeModule r
     , ValidLogic r
-    , Storable r
+    , ValidSVector n r
     , IsScalar r
     ) => FiniteModule (SVector (n::Nat) r)
         where
@@ -1202,7 +1296,7 @@ instance
 ----------------------------------------
 -- comparison
 
-instance (KnownNat n, Eq_ r, ValidLogic r, Storable r) => Eq_ (SVector (n::Nat) r) where
+instance (KnownNat n, Eq_ r, ValidLogic r, ValidSVector n r) => Eq_ (SVector (n::Nat) r) where
     {-# INLINE (==) #-}
     (SVector_Nat fp1)==(SVector_Nat fp2) = unsafeInlineIO $
         withForeignPtr fp1 $ \p1 ->
@@ -1220,45 +1314,25 @@ instance (KnownNat n, Eq_ r, ValidLogic r, Storable r) => Eq_ (SVector (n::Nat) 
                         next <- go (i-1)
                         return $ v1==v2 && next
 
-{-# INLINE innerp #-}
--- innerp :: SVector 200 Float -> SVector 200 Float -> Float
-innerp v1 v2 = go 0 (n-1)
-
-    where
-        n = 200
---         n = nat2int (Proxy::Proxy n)
-
-        go !tot !i =  if i<4
-            then goEach tot i
-            else
-                go (tot+(v1!(i  ) * v2!(i  ))
-                       +(v1!(i-1) * v2!(i-1))
-                       +(v1!(i-2) * v2!(i-2))
-                       +(v1!(i-3) * v2!(i-3))
-                   ) (i-4)
-
-        goEach !tot !i = if i<0
-            then tot
-            else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
-
 ----------------------------------------
 -- distances
 
 instance
     ( KnownNat n
-    , Storable r
+    , ValidSVector n r
     , ExpField r
     , Normed r
     , Ord_ r
     , Logic r~Bool
     , IsScalar r
     , VectorSpace r
+    , ValidSVector "dyn" r
     ) => Metric (SVector (n::Nat) r)
         where
 
     -- For some reason, using the dynamic vector is a little faster than a straight implementation
     {-# INLINE[2] distance #-}
-    distance v1 v2 = distance (static2dynamic v1) (static2dynamic v2)
+    distance v1 v2 = distance (static2dynamic v1) (static2dynamic v2 :: SVector "dyn" r)
 --     distance v1 v2 = sqrt $ go 0 (n-1)
 --         where
 --             n = nat2int (Proxy::Proxy n)
@@ -1298,7 +1372,7 @@ instance
 instance
     ( KnownNat n
     , VectorSpace r
-    , Storable r
+    , ValidSVector n r
     , IsScalar r
     , ExpField r
     ) => Normed (SVector (n::Nat) r)
@@ -1320,24 +1394,423 @@ instance
                 then tot
                 else goEach (tot+v!i*v!i) (i-1)
 
+instance
+    ( KnownNat n
+    , VectorSpace r
+    , ValidSVector n r
+    , IsScalar r
+    , ExpField r
+    , Real r
+    , ValidSVector n r
+    , ValidSVector "dyn" r
+    ) => Banach (SVector (n::Nat) r)
+
+instance
+    ( KnownNat n
+    , VectorSpace r
+    , ValidSVector n r
+    , IsScalar r
+    , ExpField r
+    , Real r
+    , OrdField r
+    , MatrixField r
+    , ValidSVector n r
+    , ValidSVector "dyn" r
+    ) => Hilbert (SVector (n::Nat) r)
+        where
+
+    {-# INLINE (<>) #-}
+    v1<>v2 = go 0 (n-1)
+        where
+            n = nat2int (Proxy::Proxy n)
+
+            go !tot !i =  if i<4
+                then goEach tot i
+                else
+                    go (tot+(v1!(i  ) * v2!(i  ))
+                           +(v1!(i-1) * v2!(i-1))
+                           +(v1!(i-2) * v2!(i-2))
+                           +(v1!(i-3) * v2!(i-3))
+                       ) (i-4)
+
+            goEach !tot !i = if i<0
+                then tot
+                else goEach (tot+(v1!i * v2!i)) (i-1)
+
 --------------------------------------------------------------------------------
--- rewrite rules for faster static parameters
+
+type MatrixField r =
+    ( IsScalar r
+    , VectorSpace r
+    , Field r
+    , HM.Field r
+    , HM.Container HM.Vector r
+    , HM.Product r
+    )
+
+{-
+data Matrix r (m::k1) (n::k2) where
+    Zero  ::                                Matrix r m n
+    Id    :: {-#UNPACK#-}!r              -> Matrix r m m
+    Diag  :: {-#UNPACK#-}!(SVector m r)  -> Matrix r m m
+    Mat   :: {-#UNPACK#-}!(HM.Matrix r)  -> Matrix r m n
+
+type instance Scalar (Matrix r m n) = Scalar r
+type instance (Matrix r m n)><r = Matrix r m n
+
+mkMutable [t| forall a b c. Matrix a b c |]
+
+mkMatrix :: MatrixField r => Int -> Int -> [r] -> Matrix r m n
+mkMatrix m n rs = Mat $ (m HM.>< n) rs
+
+--------------------------------------------------------------------------------
+-- class instances
+
+deriving instance
+    ( MatrixField r
+    , Show (SVector n r)
+    , Show r
+    ) => Show (Matrix r m n)
+
+----------------------------------------
+-- misc
+
+instance (Storable r, NFData r) => NFData (Matrix r m n) where
+    rnf (Id  r) = ()
+    rnf (Mat m) = rnf m
+
+----------------------------------------
+-- category
+
+instance MatrixField r => Category (Matrix r) where
+    type ValidCategory (Matrix r) a = ()
+
+    id = Id 1
+
+    (Id  r1).(Id  r2) = Id (r1*r2)
+    (Id  r ).(Mat m ) = Mat $ HM.scale r m
+    (Mat m ).(Id  r ) = Mat $ HM.scale r m
+    (Mat m1).(Mat m2) = Mat $ m2 HM.<> m1
+
+instance MatrixField r => Matrix r (m::Symbol) (n::Symbol) <: (SVector m r -> SVector n r) where
+    embedType_ = Embed0 $ embedType go
+        where
+            go :: Matrix r m n -> SVector m r -> SVector n r
+            go (Id  r) (SVector_Dynamic fp off n) = (SVector_Dynamic fp off n).*r
+            go (Mat m) (SVector_Dynamic fp off n) = SVector_Dynamic fp' off' n'
+                where
+                    (fp',off',n') = VS.unsafeToForeignPtr $ m HM.<> VS.unsafeFromForeignPtr fp off n
+
+type family ToHask (cat :: ka -> kb -> *) (a :: ka) (b :: kb) :: * where
+    ToHask (Matrix r) a b = SVector r a -> SVector r b
+
+infixr 0 $$$
+-- ($$$) :: (Matrix r a b <: (SVector a r -> SVector b r)) => Matrix r a b -> SVector a r -> SVector b r
+($$$) :: (Matrix r a b <: ToHask (Matrix r) a b) => Matrix r a b -> ToHask (Matrix r) a b
+($$$) = embedType
+
+instance MatrixField r => Dagger (Matrix r) where
+    dagger (Id  r) = Id r
+    dagger (Mat m) = Mat $ HM.trans m
+
+----------------------------------------
+-- size
+
+instance MatrixField r => Normed (Matrix r m n) where
+    size (Id r) = r
+    size (Mat m) = HM.det m
+
+----------------------------------------
+-- algebra
+
+instance MatrixField r => Semigroup (Matrix r m n) where
+    (Id  r1)+(Id  r2) = Id (r1+r2)
+    (Id  r )+(Mat m ) = Mat $ HM.scale r (HM.ident (HM.rows m)) `HM.add` m
+    (Mat m )+(Id  r ) = Mat $ m `HM.add` HM.scale r (HM.ident (HM.rows m))
+    (Mat m1)+(Mat m2) = Mat $ m1 `HM.add` m2
+
+instance MatrixField r => Monoid (Matrix r m n) where
+    zero = Zero
+
+instance MatrixField r => Cancellative (Matrix r m n) where
+    (Id  r1)-(Id  r2) = Id (r1-r2)
+    (Id  r )-(Mat m ) = Mat $ HM.scale r (HM.ident (HM.rows m)) `HM.sub` m
+    (Mat m )-(Id  r ) = Mat $ m `HM.sub` HM.scale r (HM.ident (HM.rows m))
+    (Mat m1)-(Mat m2) = Mat $ m1 `HM.sub` m2
+
+instance MatrixField r => Group (Matrix r m n) where
+    negate (Id r) = Id $ negate r
+    negate (Mat m) = Mat $ HM.scale (-1) m
+
+instance MatrixField r => Abelian (Matrix r m n)
+
+-------------------
+-- modules
+
+instance MatrixField r => Module (Matrix r m n) where
+    (Id r1) .* r2 = Id $ r1*r2
+    (Mat m) .* r2 = Mat $ HM.scale r2 m
+
+instance MatrixField r => FreeModule (Matrix r m n) where
+    (Id  r1) .*. (Id  r2) = Id $ r1*r2
+    (Id  r ) .*. (Mat m ) = Mat $ HM.scale r (HM.ident (HM.rows m)) `HM.mul` m
+    (Mat m ) .*. (Id  r ) = Mat $ m `HM.mul` HM.scale r (HM.ident (HM.rows m))
+    (Mat m1) .*. (Mat m2) = Mat $ m1 `HM.mul` m2
+
+instance MatrixField r => VectorSpace (Matrix r m n) where
+    (Id  r1) ./. (Id  r2) = Id $ r1/r2
+    (Id  r ) ./. (Mat m ) = Mat $ HM.scale r (HM.ident (HM.rows m)) `HM.divide` m
+    (Mat m ) ./. (Id  r ) = Mat $ m `HM.divide` HM.scale r (HM.ident (HM.rows m))
+    (Mat m1) ./. (Mat m2) = Mat $ m1 `HM.divide` m2
+
+-------------------
+-- rings
 --
--- FIXME: Find a better home for this.
+-- NOTE: matrices are only a ring when their dimensions are equal
+
+instance MatrixField r => Rg (Matrix r m m) where
+    (*) = (>>>)
+
+instance MatrixField r => Rig (Matrix r m m) where
+    one = id
+
+instance MatrixField r => Ring (Matrix r m m) where
+    fromInteger i = Id $ fromInteger i
+
+instance MatrixField r => Field (Matrix r m m) where
+    fromRational r = Id $ fromRational r
+
+    reciprocal (Id r ) = Id $ reciprocal r
+    reciprocal (Mat m) = Mat $ HM.inv m
+
+----------------------------------------
+
+instance
+    ( FiniteModule (SVector n r)
+    , VectorSpace (SVector n r)
+    , MatrixField r
+    ) => TensorAlgebra (SVector n r)
+        where
+    v1><v2 = mkMatrix (dim v1) (dim v2) [ v1!i * v2!j | i <- [0..dim v1-1], j <- [0..dim v2-1] ]
+
+-}
+--------------------------------------------------------------------------------
+
+class ToFromVector a where
+    toVector   :: a -> VS.Vector (Scalar a)
+    fromVector :: VS.Vector (Scalar a) -> a
+
+instance ToFromVector Double where
+    toVector x = VS.fromList [x]
+    fromVector v = VS.head v
+
+instance MatrixField r => ToFromVector (SVector (n::Symbol) r) where
+    toVector (SVector_Dynamic fp off n) = VS.unsafeFromForeignPtr fp off n
+    fromVector v = SVector_Dynamic fp off n
+        where
+            (fp,off,n) = VS.unsafeToForeignPtr v
+
+instance (KnownNat n, MatrixField r) => ToFromVector (SVector (n::Nat) r) where
+    toVector (SVector_Nat fp) = VS.unsafeFromForeignPtr fp 0 n
+        where
+            n = nat2int (Proxy::Proxy n)
+    fromVector v = SVector_Nat fp
+        where
+            (fp,off,n) = VS.unsafeToForeignPtr v
+
+---------
+
+apMat_ ::
+    ( Scalar a~Scalar b
+    , MatrixField (Scalar a)
+    , ToFromVector a
+    , ToFromVector b
+    ) => HM.Matrix (Scalar a) -> a -> b
+apMat_ m a = fromVector $ m HM.<> toVector a
+
+---------------------------------------
+
+data a +> b where
+    Zero ::
+        ( Module a
+        , Module b
+        ) => a +> b
+
+    Id_ ::
+        ( VectorSpace b
+        ) => {-#UNPACK#-}!(Scalar b) -> b +> b
+
+    Mat_ ::
+        ( MatrixField (Scalar b)
+        , Scalar a~Scalar b
+        , VectorSpace a
+        , VectorSpace b
+        , ToFromVector a
+        , ToFromVector b
+        ) => {-#UNPACK#-}!(HM.Matrix (Scalar b)) -> a +> b
+
+type instance Scalar (a +> b) = Scalar b
+type instance Logic (a +> b) = Bool
+
+type instance (a +> b) >< c = Tensor_Linear (a +> b) c
+type family Tensor_Linear a b where
+--     Tensor_SVector (SVector n r1) (SVector m r2) = SVector n r1 +> SVector m r2
+--     Tensor_Linear (a +> b) (c +> d) = (a +> b) +> (c +> d)
+    Tensor_Linear (a +> b) c = a +> b
+
+mkMutable [t| forall a b. a +> b |]
+
+mkMatrix ::
+    ( MatrixField r
+    , ValidSVector m r
+    , ValidSVector n r
+    )  => Int -> Int -> [r] -> SVector (m::Symbol) r +> SVector (n::Symbol) r
+mkMatrix  = unsafeMkMatrix
+
+unsafeMkMatrix ::
+    ( VectorSpace (SVector m r)
+    , VectorSpace (SVector n r)
+    , ToFromVector (SVector m r)
+    , ToFromVector (SVector n r)
+    , MatrixField r
+    ) => Int -> Int -> [r] -> SVector m r +> SVector n r
+unsafeMkMatrix m n rs = Mat_ $ (m HM.>< n) rs
+
+type Matrix r m n = SVector m r +> SVector n r
+
+--------------------------------------------------------------------------------
+-- instances
+
+deriving instance ( MatrixField (Scalar b), Show (Scalar b) ) => Show (a +> b)
+
+----------------------------------------
+-- category
+
+instance Category (+>) where
+    type ValidCategory (+>) a = MatrixField a
+
+    id = Id_ 1
+
+    Zero      . Zero      = Zero
+    Zero      . (Id_  _ ) = Zero
+    Zero      . (Mat_ _ ) = Zero
+
+    (Id_  r ) . Zero      = Zero
+    (Id_  r1) . (Id_  r2) = Id_ (r1*r2)
+    (Id_  r ) . (Mat_ m ) = Mat_ $ HM.scale r m
+
+    (Mat_ m1) . Zero      = Zero
+    (Mat_ m ) . (Id_  r ) = Mat_ $ HM.scale r m
+    (Mat_ m1) . (Mat_ m2) = Mat_ $ m2 HM.<> m1
+
+instance Sup (+>) (->) (->)
+instance Sup (->) (+>) (->)
+
+instance (+>) <: (->) where
+    embedType_ = Embed2 (embedType2 go)
+        where
+            go :: a +> b -> a -> b
+            go Zero     = zero
+            go (Id_  r) = (r*.)
+            go (Mat_ m) = apMat_ m
+
+instance Dagger (+>) where
+    trans Zero     = Zero
+    trans (Id_  r) = Id_ r
+    trans (Mat_ m) = Mat_ $ HM.trans m
+
+instance Groupoid (+>) where
+    inverse (Id_  r) = Id_  $ reciprocal r
+    inverse (Mat_ m) = Mat_ $ HM.inv m
+
+----------------------------------------
+-- size
+
+-- FIXME: what's the norm of a tensor?
+instance MatrixField r => Normed (SVector m r +> SVector n r) where
+    size (Id_ r) = r
+    size (Mat_ m) = HM.det m
+
+----------------------------------------
+-- algebra
+
+instance Semigroup (a +> b) where
+    Zero      + a         = a
+    a         + Zero      = a
+    (Id_  r1) + (Id_  r2) = Id_ (r1+r2)
+    (Id_  r ) + (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) `HM.add` m
+    (Mat_ m ) + (Id_  r ) = Mat_ $ m `HM.add` HM.scale r (HM.ident (HM.rows m))
+    (Mat_ m1) + (Mat_ m2) = Mat_ $ m1 `HM.add` m2
+
+instance (VectorSpace a, VectorSpace b) => Monoid (a +> b) where
+    zero = Zero
+
+instance (VectorSpace a, VectorSpace b) => Cancellative (a +> b) where
+    a         - Zero      = a
+    Zero      - a         = negate a
+    (Id_  r1) - (Id_  r2) = Id_ (r1-r2)
+    (Id_  r ) - (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) `HM.sub` m
+    (Mat_ m ) - (Id_  r ) = Mat_ $ m `HM.sub` HM.scale r (HM.ident (HM.rows m))
+    (Mat_ m1) - (Mat_ m2) = Mat_ $ m1 `HM.sub` m2
+
+instance (VectorSpace a, VectorSpace b) => Group (a +> b) where
+    negate Zero     = Zero
+    negate (Id_  r) = Id_ $ negate r
+    negate (Mat_ m) = Mat_ $ HM.scale (-1) m
+
+instance Abelian (a +> b)
+
+-------------------
+-- modules
+
+instance (VectorSpace a, VectorSpace b) => Module (a +> b) where
+    Zero     .* _  = Zero
+    (Id_ r1) .* r2 = Id_ $ r1*r2
+    (Mat_ m) .* r2 = Mat_ $ HM.scale r2 m
+
+instance (VectorSpace a, VectorSpace b) => FreeModule (a +> b) where
+    Zero      .*. _         = Zero
+    _         .*. Zero      = Zero
+    (Id_  r1) .*. (Id_  r2) = Id_ $ r1*r2
+    (Id_  r ) .*. (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) `HM.mul` m
+    (Mat_ m ) .*. (Id_  r ) = Mat_ $ m `HM.mul` HM.scale r (HM.ident (HM.rows m))
+    (Mat_ m1) .*. (Mat_ m2) = Mat_ $ m1 `HM.mul` m2
+
+instance (VectorSpace a, VectorSpace b) => VectorSpace (a +> b) where
+    Zero      ./. _         = Zero
+    (Id_  r1) ./. (Id_  r2) = Id_ $ r1/r2
+    (Id_  r ) ./. (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) `HM.divide` m
+    (Mat_ m ) ./. (Id_  r ) = Mat_ $ m `HM.divide` HM.scale r (HM.ident (HM.rows m))
+    (Mat_ m1) ./. (Mat_ m2) = Mat_ $ m1 `HM.divide` m2
+
+-------------------
+-- rings
 --
--- FIXME: Expand to many more naturals.
+-- NOTE: matrices are only a ring when their dimensions are equal
 
-{-# INLINE[2] nat2int #-}
-nat2int :: KnownNat n => Proxy n -> Int
-nat2int = fromIntegral . natVal
+instance VectorSpace a => Rg (a +> a) where
+    (*) = (>>>)
 
-{-# INLINE[1] nat200 #-}
-nat200 :: Proxy 200 -> Int
-nat200 _ = 200
+instance VectorSpace a => Rig (a +> a) where
+    one = Id_ one
 
-{-# RULES
+instance VectorSpace a => Ring (a +> a) where
+    fromInteger i = Id_ $ fromInteger i
 
-"subhask/nat2int_200" nat2int = nat200
+instance VectorSpace a => Field (a +> a) where
+    fromRational r = Id_ $ fromRational r
 
-  #-}
+    reciprocal (Id_ r ) = Id_ $ reciprocal r
+    reciprocal (Mat_ m) = Mat_ $ HM.inv m
 
+instance
+    ( FiniteModule (SVector n r)
+    , VectorSpace (SVector n r)
+    , MatrixField r
+    , ToFromVector (SVector n r)
+    ) => TensorAlgebra (SVector n r)
+        where
+    v1><v2 = unsafeMkMatrix (dim v1) (dim v2) [ v1!i * v2!j | i <- [0..dim v1-1], j <- [0..dim v2-1] ]
+
+    mXv m v = m $ v
+    vXm v m = trans m $ v

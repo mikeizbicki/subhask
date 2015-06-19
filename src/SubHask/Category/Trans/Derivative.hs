@@ -20,39 +20,15 @@
 module SubHask.Category.Trans.Derivative
     where
 
-import qualified Data.Vector.Generic as VG
-
 import SubHask.Algebra
+import SubHask.Algebra.Vector
 import SubHask.Category
 import SubHask.SubType
 import SubHask.Internal.Prelude
 
 import qualified Prelude as P
--- import qualified Numeric.AD as AD
--- import qualified Numeric.AD.Mode.Reverse as AD
-
--- import SubHask.Compatibility.Vector
--- import SubHask.Compatibility.HMatrix
-
 
 --------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
-
-data AD a = AD
-    { v  :: Scalar a
-    , v' :: a
-    }
-
-mkMutable [t| forall a. AD a |]
-
-instance (HasScalar a, Semigroup a) => Semigroup (AD a) where
-    (AD a1 a1')+(AD a2 a2') = AD (a1+a2) (a1'+a2')
-
--- proveC1_ :: (a~Vector Double) => (AD a -> AD a) -> C1 (a -> Scalar a)
--- proveC1_ f
---     = Diffn (\a -> v  $ f $ AD a ones)
---     $ Diff0 (\a -> v' $ f $ AD a ones)
 
 -- | This is essentially just a translation of the "Numeric.AD.Forward.Forward" type
 -- for use with the SubHask numeric hierarchy.
@@ -172,6 +148,10 @@ unsafeProveC2
     -> C2 (a -> b)
 unsafeProveC2 f f' f'' = Diffn f $ unsafeProveC1 f' f''
 
+type C0 a = C0_ a
+type family C0_ (f :: *) :: * where
+    C0_ (a -> b) = Diff 0 a b
+
 type C1 a = C1_ a
 type family C1_ (f :: *) :: * where
     C1_ (a -> b) = Diff 1 a b
@@ -179,3 +159,13 @@ type family C1_ (f :: *) :: * where
 type C2 a = C2_ a
 type family C2_ (f :: *) :: * where
     C2_ (a -> b) = Diff 2 a b
+
+--------------------------------------------------------------------------------
+-- test
+
+-- v = unsafeToModule [1,2,3,4,5] :: SVector 5 Double
+--
+-- sphere :: Hilbert v => C0 (v -> Scalar v)
+-- sphere = unsafeProveC0 f
+--     where
+--         f v = v<>v

@@ -50,7 +50,6 @@ library
         SubHask.Compatibility.ByteString
         SubHask.Compatibility.Cassava
         SubHask.Compatibility.Containers
---         SubHask.Compatibility.HMatrix
         SubHask.Compatibility.HyperLogLog
 
         SubHask.Monad
@@ -119,7 +118,6 @@ library
         base                        >= 4.8 && <4.9,
         ghc-prim                    == 0.4.0.0,
         template-haskell            == 2.10.0.0,
-        haskell-src-meta            == 0.6.0.9,
 
         -- special functionality
         parallel                    == 3.2.0.6,
