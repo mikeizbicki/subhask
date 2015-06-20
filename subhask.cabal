@@ -16,6 +16,10 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+source-repository head
+    type: git
+    location: http://github.com/mikeizbicki/subhask
+
 --------------------------------------------------------------------------------
 
 library
@@ -98,12 +102,13 @@ library
         cbits/Lebesgue.c
 
     cc-options:
-        -O3
+--         -O3
         -ffast-math
         -msse3
 
     ghc-options:
-        -O2
+--         -O2
+--         -O
         -funbox-strict-fields
 
     build-depends:
