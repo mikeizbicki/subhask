@@ -976,7 +976,7 @@ instance (VectorSpace r, ValidSVector n r, IsScalar r, ExpField r) => Normed (SV
     {-# INLINE size #-}
     size v@(SVector_Dynamic fp _ n) = if isNull fp
         then 0
-        else  sqrt $ go 0 (n-1)
+        else sqrt $ go 0 (n-1)
         where
             go !tot !i =  if i<4
                 then goEach tot i
@@ -1010,7 +1010,9 @@ instance
         where
 
     {-# INLINE (<>) #-}
-    v1<>v2@(SVector_Dynamic _ _ n) = go 0 (n-1)
+    v1@(SVector_Dynamic fp1 _ _)<>v2@(SVector_Dynamic fp2 _ n) = if isNull fp1 || isNull fp2
+        then 0
+        else go 0 (n-1)
         where
             go !tot !i =  if i<4
                 then goEach tot i

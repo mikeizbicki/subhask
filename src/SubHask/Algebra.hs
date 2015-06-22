@@ -1786,6 +1786,11 @@ class
     ) => Normed g where
     size :: g -> Scalar g
 
+    sizeSquared :: g -> Scalar g
+    sizeSquared g = s*s
+        where
+            s = size g
+
 abs :: IsScalar g => g -> g
 abs = size
 

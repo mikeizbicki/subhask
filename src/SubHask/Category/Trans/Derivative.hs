@@ -160,6 +160,29 @@ type C2 a = C2_ a
 type family C2_ (f :: *) :: * where
     C2_ (a -> b) = Diff 2 a b
 
+---------------------------------------
+-- algebra
+
+mkMutable [t| forall n a b. Diff n a b |]
+
+instance Semigroup b => Semigroup (Diff 0 a b) where
+    (Diff0 f1    )+(Diff0 f2    ) = Diff0 (f1+f2)
+
+instance (Semigroup b, Semigroup (a><b)) => Semigroup (Diff 1 a b) where
+    (Diffn f1 f1')+(Diffn f2 f2') = Diffn (f1+f2) (f1'+f2')
+
+instance (Semigroup b, Semigroup (a><b), Semigroup (a><a><b)) => Semigroup (Diff 2 a b) where
+    (Diffn f1 f1')+(Diffn f2 f2') = Diffn (f1+f2) (f1'+f2')
+
+instance Monoid b => Monoid (Diff 0 a b) where
+    zero = Diff0 zero
+
+instance (Monoid b, Monoid (a><b)) => Monoid (Diff 1 a b) where
+    zero = Diffn zero zero
+
+instance (Monoid b, Monoid (a><b), Monoid (a><a><b)) => Monoid (Diff 2 a b) where
+    zero = Diffn zero zero
+
 --------------------------------------------------------------------------------
 -- test
 
