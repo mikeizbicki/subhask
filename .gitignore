@@ -10,3 +10,8 @@ cabal-dev
 .cabal-sandbox/
 cabal.sandbox.config
 cabal.config
+
+# latex files
+*.aux
+*.log
+*.pdf

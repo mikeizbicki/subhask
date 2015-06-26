@@ -1,3 +1,6 @@
+-- |
+--
+-- FIXME: Add compatibility for "Text"
 module SubHask.Compatibility.ByteString
     where
 
@@ -10,61 +13,55 @@ import qualified Prelude as P
 
 --------------------------------------------------------------------------------
 
--- | Promoted type for differentiating lazy and strict byte strings
-data Strictness
-    = Lazy
-    | Strict
-
--- |
+-- | The type of lazy byte strings.
 --
 -- FIXME:
--- Add all the other ByteStrings.
--- Add all the BS. functions into the Foldable/Unfoldable classes
-data family ByteString (lazy::Strictness) elem
+-- Add strict byte strings as type "ByteString'"
+data family ByteString elem
 
-mkMutable [t| forall l a. ByteString l a |]
+mkMutable [t| forall a. ByteString a |]
 
-type instance Scalar (ByteString a b) = Int
-type instance Logic (ByteString a b) = Bool
-type instance Elem (ByteString a b) = b
-type instance SetElem (ByteString a b) c = ByteString a c
+type instance Scalar (ByteString b) = Int
+type instance Logic (ByteString b) = Bool
+type instance Elem (ByteString b) = b
+type instance SetElem (ByteString b) c = ByteString c
 
 ----------------------------------------
 
-newtype instance ByteString Lazy Char = BSLC { unBSLC :: BS.ByteString }
+newtype instance ByteString Char = BSLC { unBSLC :: BS.ByteString }
     deriving (NFData,Read,Show)
 
-instance Arbitrary (ByteString Lazy Char) where
+instance Arbitrary (ByteString Char) where
     arbitrary = fmap fromList arbitrary
 
-instance Eq_ (ByteString Lazy Char) where
+instance Eq_ (ByteString Char) where
     (BSLC b1)==(BSLC b2) = b1 P.== b2
 
-instance POrd_ (ByteString Lazy Char) where
+instance POrd_ (ByteString Char) where
     inf (BSLC b1) (BSLC b2) = fromList $ map fst $ P.takeWhile (\(a,b) -> a==b) $ BS.zip b1 b2
     (BSLC b1) < (BSLC b2) = BS.isPrefixOf b1 b2
 
-instance MinBound_ (ByteString Lazy Char) where
+instance MinBound_ (ByteString Char) where
     minBound = zero
 
-instance Semigroup (ByteString Lazy Char) where
+instance Semigroup (ByteString Char) where
     (BSLC b1)+(BSLC b2) = BSLC $ BS.append b1 b2
 
-instance Monoid (ByteString Lazy Char) where
+instance Monoid (ByteString Char) where
     zero = BSLC BS.empty
 
-instance Container (ByteString Lazy Char) where
+instance Container (ByteString Char) where
     elem x (BSLC xs) = BS.elem x xs
     notElem x (BSLC xs) = BS.notElem x xs
 
-instance Constructible (ByteString Lazy Char) where
+instance Constructible (ByteString Char) where
     fromList1 x xs = BSLC $ BS.pack (x:xs)
     singleton = BSLC . BS.singleton
 
-instance Normed (ByteString Lazy Char) where
+instance Normed (ByteString Char) where
     size (BSLC xs) = fromIntegral $ P.toInteger $ BS.length xs
 
-instance Foldable (ByteString Lazy Char) where
+instance Foldable (ByteString Char) where
     uncons (BSLC xs) = case BS.uncons xs of
         Nothing -> Nothing
         Just (x,xs) -> Just (x,BSLC xs)
@@ -81,7 +78,7 @@ instance Foldable (ByteString Lazy Char) where
     foldl1  f   (BSLC xs) = BS.foldl1  f   xs
     foldl1' f   (BSLC xs) = BS.foldl1' f   xs
 
-instance Partitionable (ByteString Lazy Char) where
+instance Partitionable (ByteString Char) where
     partition n (BSLC xs) = go xs
         where
             go xs = if BS.null xs
@@ -101,7 +98,7 @@ instance Partitionable (ByteString Lazy Char) where
 --
 -- FIXME:
 -- Make generic method "readFile" probably using cereal/binary
-readFileByteString :: FilePath -> IO (ByteString Lazy Char)
+readFileByteString :: FilePath -> IO (ByteString Char)
 readFileByteString = fmap BSLC . BS.readFile
 
 --------------------------------------------------------------------------------
@@ -113,7 +110,7 @@ newtype PartitionOnNewline a = PartitionOnNewline a
 
 deriveHierarchy ''PartitionOnNewline [''Monoid,''Boolean,''Foldable]
 
-instance (a~ByteString Lazy Char, Partitionable a) => Partitionable (PartitionOnNewline a) where
+instance (a~ByteString Char, Partitionable a) => Partitionable (PartitionOnNewline a) where
     partition n (PartitionOnNewline xs) = map PartitionOnNewline $ go $ partition n xs
         where
             go []  = []

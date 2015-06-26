@@ -1,0 +1,96 @@
+\input{hierarchy.tex.inc}
+
+\node[num] {Semigroup}
+    child { node[num] (Abelian){Abelian} }
+    child { node[num] (Monoid){Monoid}
+        child { node[num] (Rg){Rg}
+            child { node[num] (Rig){Rig}
+                child { node[num] (Ring){Ring}
+                    child { node[num] {SubRational}
+                        child {node[num] {Integral} }
+                    }
+                    child { node[num] (ExpRing){ExpRing}
+                    }
+                    child { node[num] (Field){Field}
+                        child { node[num] (ExpField){ExpField}
+                            child {node[num] (Real){Real} }
+                        }
+                    }
+                }
+            }
+        }
+        child { node[num] (Group){Group}
+        }
+    }
+    child { node[num] (Cancellative){Cancellative}
+        child[hidden] {}
+        child[grow=north,level distance=0.8in] { node[vec] (Cone){Cone}
+            child[grow=east,level distance=1.1in] { node[vec] (Module){Module}
+                child { node[vec] (FreeModule){FreeModule}
+                    child { node[vec] (FinitModule){FiniteModule}
+                        child
+                            [ edge from parent/.style={-latex}
+                            , grow=160
+                            , level distance=1.175in
+                            , latex-
+                            ]
+                            { node[cont] {IxContainer}
+                            }
+                        child { node[vec] (Vector){Vector}
+                            child { node[vec] {Reisz}
+                                child
+                                    [ edge from parent/.style={-latex}
+                                    , level distance=1.12in
+                                    , latex-
+                                    , grow=190
+                                    ]
+                                    { node[comp] {POrd\_}
+                                    }
+                            }
+                            child { node[vec] (Banach){Banach}
+                                child[grow=east] { node[vec] (Hilbert){Hilbert} }
+                                child
+                                    [ edge from parent/.style={-latex}
+                                    , grow=170
+                                    , level distance=1.12in
+                                    , latex-
+                                    ]
+                                    { node[comp] {Normed}
+                                    }
+                                child
+                                    [ edge from parent/.style={-latex}
+                                    , grow=152
+                                    , level distance=1.25in
+                                    , latex-
+                                    ]
+                                    { node[comp] {Metric}
+                                    }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ;
+
+%OrdField
+%BoundedField
+%QuotientField
+%Normed
+%Reisz
+
+\draw (Cancellative) -- (Group);
+\draw (Abelian) -- (Rg);
+\draw (Monoid) [out=0,in=166] to (Rig);
+\draw (Group) [out=0,in=158] to (Ring);
+\draw (ExpRing) -- (ExpField);
+\draw (ExpField) -- (Real);
+\draw (Group) -- (Module);
+
+%\draw[dotted] (Ring) [out=135,in=315] to (Module);
+%\draw[dotted] (Field) [out=160,in=200] to (Vector);
+
+\end{tikzpicture}
+\end{document}
+

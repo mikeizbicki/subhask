@@ -1,7 +1,11 @@
 module SubHask.Category.Trans.Monotonic
---     ( MonT
---     , Mon
+--     ( Mon (..)
 --     , unsafeProveMon
+--
+--     -- * The MonT transformer
+--     , MonT (..)
+--     , unsafeProveMonT
+--
 --     )
     where
 
@@ -83,6 +87,7 @@ unsafeProveIncreasing = IncreasingT
 
 -------------------------------------------------------------------------------
 
+-- | A convenient specialization of "MonT" and "Hask"
 type Mon = MonT Hask
 
 -- type family ValidMon a :: Constraint where
@@ -94,12 +99,11 @@ type ValidMon a = Ord a
 data MonT cat (a :: *) (b :: *) where
     MonT :: (ValidMon a, ValidMon b) => cat a b -> MonT cat a b
 
-unsafeProveMon :: (ValidMon a, ValidMon b) => cat a b -> MonT cat a b
--- unsafeProveMon :: (Ord_ a, Ord_ b) => cat a b -> MonT cat a b
-unsafeProveMon = MonT
+unsafeProveMonT :: (ValidMon a, ValidMon b) => cat a b -> MonT cat a b
+unsafeProveMonT = MonT
 
-class Category cat => Monotonic cat
-instance Category cat => Monotonic (MonT cat)
+unsafeProveMon :: (ValidMon a, ValidMon b) => cat a b -> MonT cat a b
+unsafeProveMon = MonT
 
 -------------------
 

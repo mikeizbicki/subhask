@@ -26,7 +26,7 @@ import Test.Framework.Runners.Options
 
 --------------------------------------------------------------------------------
 
-main = defaultMain --WithOpts
+main = defaultMainWithOpts
     [ testGroup "simple"
         [ testGroup "numeric"
             [ $( mkSpecializedClassTests [t| Int      |] [''Enum,''Ring, ''Bounded, ''Metric] )
@@ -73,7 +73,7 @@ main = defaultMain --WithOpts
         , $( mkSpecializedClassTests [t| Map' Int Int |] [ ''MinBound, ''IxContainer ] )
         , $( mkSpecializedClassTests [t| IntMap  Int |] [ ''MinBound, ''IxContainer ] )
         , $( mkSpecializedClassTests [t| IntMap' Int |] [ ''MinBound, ''IxContainer ] )
-        , $( mkSpecializedClassTests [t| ByteString Lazy Char |] [ ''Foldable,''MinBound,''Partitionable ] )
+        , $( mkSpecializedClassTests [t| ByteString Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , testGroup "transformers"
             [ $( mkSpecializedClassTests [t| Lexical        [Char] |] [''Ord,''MinBound] )
             , $( mkSpecializedClassTests [t| ComponentWise  [Char] |] [''Lattice,''MinBound] )
@@ -88,16 +88,16 @@ main = defaultMain --WithOpts
             ]
         ]
     ]
---     $ RunnerOptions
---         { ropt_threads          = Nothing
---         , ropt_test_options     = Nothing
---         , ropt_test_patterns    = Nothing
---         , ropt_xml_output       = Nothing
---         , ropt_xml_nested       = Nothing
---         , ropt_color_mode       = Just ColorAlways
---         , ropt_hide_successes   = Just False
---         , ropt_list_only        = Just True
---         }
+    $ RunnerOptions
+        { ropt_threads          = Nothing
+        , ropt_test_options     = Nothing
+        , ropt_test_patterns    = Nothing
+        , ropt_xml_output       = Nothing
+        , ropt_xml_nested       = Nothing
+        , ropt_color_mode       = Just ColorAlways
+        , ropt_hide_successes   = Just True
+        , ropt_list_only        = Just True
+        }
 
 --------------------------------------------------------------------------------
 -- orphan instances needed for compilation

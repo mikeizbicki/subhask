@@ -1,3 +1,5 @@
+-- | This module reexports the modules that every program using SubHask will need.
+-- You should import it instead of Prelude.
 module SubHask
     ( module SubHask.Algebra
     , module SubHask.Category

@@ -1,12 +1,14 @@
 module SubHask.Category.Trans.Constrained
---     ( ConstrainedT
---     , constrain
---     , proveConstrained
---
---     -- ** Common type synonyms
---     , EqHask
---     , OrdHask
---     )
+    ( ConstrainedT(..)
+    , proveConstrained
+
+    -- ** Common type synonyms
+    , EqHask
+    , proveEqHask
+
+    , OrdHask
+    , proveOrdHask
+    )
     where
 
 import GHC.Prim
@@ -41,6 +43,12 @@ proveConstrained ::
     , ValidCategory (ConstrainedT xs cat) b
     ) => cat a b -> ConstrainedT xs cat a b
 proveConstrained = ConstrainedT
+
+proveEqHask :: (Eq a, Eq b) => (a -> b) -> (a `EqHask` b)
+proveEqHask = proveConstrained
+
+proveOrdHask :: (Ord a, Ord b) => (a -> b) -> (a `OrdHask` b)
+proveOrdHask = proveConstrained
 
 ---------
 

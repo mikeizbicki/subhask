@@ -1,0 +1,21 @@
+\input{hierarchy.tex.inc}
+
+\node[cat]{Category}
+    child { node[cat]{Concrete} }
+    child { node[cat]{Dagger} }
+    child { node[cat]{Groupoid} }
+    child { node[cat]{Monoidal}
+        child { node[cat]{Braided}
+            child { node[cat]{Symmetric}
+                child { node[cat]{Compact} }
+                child { node[cat]{Cartesian}
+                    child { node[cat]{Closed}
+                        }
+                    }
+                }
+            }
+        }
+    ;
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,41 @@
+\input{hierarchy.tex.inc}
+
+\node[num](Semigroup){Semigroup}
+    child { node[cont]{\footnotesize Constructible}
+        child { node[cont]{Container}
+        }
+        child { node[cont]{Foldable}
+            child
+                [ edge from parent/.style={-latex}
+                , grow=170
+                , level distance=1.12in
+                , latex-
+                ]
+                { node[comp] (Normed){Normed}
+                }
+            child
+                [ edge from parent/.style={-latex}
+                , grow=152
+                , level distance=1.25in
+                , latex-
+                ]
+                { node[num] (Monoid){Monoid}
+                    child[grow=east,level distance=1.1in, hidden] { node[cont](IxContainer){IxContainer}
+                        child { node[cont](Sliceable){Sliceable} }
+                        child { node[cont](IxConstructible){\footnotesize IxConstructible} }
+                    }
+                }
+            child[grow=east] { node[cont]{Paritionable} }
+        }
+    }
+    ;
+
+\draw (Semigroup) to[in=180,out=90] (Monoid);
+%\draw (Normed) to (IxContainer);
+
+\draw (Monoid) -- (IxContainer);
+\draw (IxContainer) -- (IxConstructible);
+\draw (IxContainer) -- (Sliceable);
+\end{tikzpicture}
+\end{document}
+

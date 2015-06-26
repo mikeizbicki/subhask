@@ -20,9 +20,8 @@ module SubHask.Algebra.Vector
     , UVector (..)
     , Unbox
     , type (+>)
-    , Matrix
-    , mkMatrix
-    , unsafeMkMatrix
+    , SMatrix
+    , unsafeMkSMatrix
 
     -- * FFI
     , distance_l2_m128
@@ -155,8 +154,8 @@ type instance SetElem (UVector n r) b = UVector n b
 
 data instance UVector (n::Symbol) r = UVector_Dynamic
     {-#UNPACK#-}!ByteArray
-    {-#UNPACK#-}!Int -- ^ offset
-    {-#UNPACK#-}!Int -- ^ length
+    {-#UNPACK#-}!Int -- offset
+    {-#UNPACK#-}!Int -- length
 
 instance (Show r, Monoid r, Prim r) => Show (UVector (n::Symbol) r) where
     show (UVector_Dynamic arr off n) = if isZero n
@@ -613,8 +612,8 @@ type instance SetElem (SVector n r) b = SVector n b
 
 data instance SVector (n::Symbol) r = SVector_Dynamic
     {-#UNPACK#-}!(ForeignPtr r)
-    {-#UNPACK#-}!Int -- ^ offset
-    {-#UNPACK#-}!Int -- ^ length
+    {-#UNPACK#-}!Int -- offset
+    {-#UNPACK#-}!Int -- length
 
 instance (Show r, Monoid r, ValidSVector n r) => Show (SVector (n::Symbol) r) where
     show (SVector_Dynamic fp off n) = if isNull fp
@@ -1662,23 +1661,18 @@ type family Tensor_Linear a b where
 
 mkMutable [t| forall a b. a +> b |]
 
-mkMatrix ::
-    ( MatrixField r
-    , ValidSVector m r
-    , ValidSVector n r
-    )  => Int -> Int -> [r] -> SVector (m::Symbol) r +> SVector (n::Symbol) r
-mkMatrix  = unsafeMkMatrix
+-- | A slightly more convenient type for linear functions between "SVector"s
+type SMatrix r m n = SVector m r +> SVector n r
 
-unsafeMkMatrix ::
+-- | Construct an "SMatrix"
+unsafeMkSMatrix ::
     ( VectorSpace (SVector m r)
     , VectorSpace (SVector n r)
     , ToFromVector (SVector m r)
     , ToFromVector (SVector n r)
     , MatrixField r
-    ) => Int -> Int -> [r] -> SVector m r +> SVector n r
-unsafeMkMatrix m n rs = Mat_ $ (m HM.>< n) rs
-
-type Matrix r m n = SVector m r +> SVector n r
+    ) => Int -> Int -> [r] -> SMatrix r m n
+unsafeMkSMatrix m n rs = Mat_ $ (m HM.>< n) rs
 
 --------------------------------------------------------------------------------
 -- instances
@@ -1812,7 +1806,7 @@ instance
     , ToFromVector (SVector n r)
     ) => TensorAlgebra (SVector n r)
         where
-    v1><v2 = unsafeMkMatrix (dim v1) (dim v2) [ v1!i * v2!j | i <- [0..dim v1-1], j <- [0..dim v2-1] ]
+    v1><v2 = unsafeMkSMatrix (dim v1) (dim v2) [ v1!i * v2!j | i <- [0..dim v1-1], j <- [0..dim v2-1] ]
 
     mXv m v = m $ v
     vXm v m = trans m $ v

@@ -1,0 +1,19 @@
+\input{hierarchy.tex.inc}
+
+\node[cat]at (1.1in,-0.8in) (Category){Category}
+    ;
+
+\node[monad] (Functor){Functor}
+    child { node[monad] (Applicative){Applicative} }
+    child { node[monad] {Then}
+        child { node[monad] (Monad){Monad}
+        }
+    }
+    ;
+
+\draw[dotted] (Category) to[in=270,out=180] (Functor);
+\draw[dotted](Category) to(Applicative);
+\draw[dotted](Category) to[in=270,out=0] (Monad);
+
+\end{tikzpicture}
+\end{document}

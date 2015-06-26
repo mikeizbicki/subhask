@@ -327,6 +327,10 @@ type instance Logic Double = Bool
 type instance Logic (a->b) = a -> Logic b
 type instance Logic () = ()
 
+-- FIXME:
+-- This type is only needed to due an apparent ghc bug.
+-- See [#10592](https://ghc.haskell.org/trac/ghc/ticket/10592).
+-- But there seems to be a workaround now.
 type ValidLogic a = Complemented (Logic a)
 
 -- | Classical logic is implemented using the Prelude's Bool type.
@@ -356,6 +360,9 @@ law_Eq_symmetric a1 a2 = (a1==a2)==(a2==a1)
 
 law_Eq_transitive :: Eq a => a -> a -> a -> Logic a
 law_Eq_transitive a1 a2 a3 = (a1==a2&&a2==a3) ==> (a1==a3)
+
+defn_Eq_noteq :: (Complemented (Logic a), Eq a) => a -> a -> Logic a
+defn_Eq_noteq a1 a2 = (a1/=a2) == (not $ a1==a2)
 
 instance Eq_ () where
     {-# INLINE (==) #-}
@@ -2378,7 +2385,7 @@ instance Monoid (Endo a) where
 --
 -- FIXME:
 -- should this class be broken up into smaller pieces?
-class (Constructible s, Monoid s, Normed s) => Foldable s where
+class (Constructible s, Monoid s, Normed s, Scalar s~Int) => Foldable s where
 
     {-# MINIMAL foldMap | foldr #-}
 

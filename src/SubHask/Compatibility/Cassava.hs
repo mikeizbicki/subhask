@@ -36,7 +36,7 @@ instance (Constructible (UArray a), Monoid (UArray a), FromField a) => FromRecor
 decode_ ::
     ( FromRecord a
     ) => HasHeader
-      -> PartitionOnNewline (ByteString Lazy Char)
+      -> PartitionOnNewline (ByteString Char)
       -> Either String (BArray a)
 decode_ h (PartitionOnNewline (BSLC bs)) = case C.decode h bs of
     Right r -> Right $ BArray r
@@ -48,6 +48,6 @@ decode ::
     , FromRecord a
     , ValidEq a
     ) => HasHeader
-      -> ByteString Lazy Char
+      -> ByteString Char
       -> Either String (BArray a)
 decode h = parallel (decode_ h) . PartitionOnNewline

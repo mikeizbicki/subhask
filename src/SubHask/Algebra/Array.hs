@@ -408,9 +408,9 @@ instance
 
 data instance VU.Vector (UVector (n::Symbol) elem) = UArray_UVector
     {-#UNPACK#-}!ByteArray
-    {-#UNPACK#-}!Int -- ^ offset
-    {-#UNPACK#-}!Int -- ^ length of container
-    {-#UNPACK#-}!Int -- ^ length of element vectors
+    {-#UNPACK#-}!Int -- offset
+    {-#UNPACK#-}!Int -- length of container
+    {-#UNPACK#-}!Int -- length of element vectors
 
 instance
     ( IsScalar elem
@@ -446,9 +446,9 @@ instance
 
 data instance VUM.MVector s (UVector (n::Symbol) elem) = UArray_MUVector
     {-#UNPACK#-}!(MutableByteArray s)
-    {-#UNPACK#-}!Int -- ^ offset in number of elem
-    {-#UNPACK#-}!Int -- ^ length of container
-    {-#UNPACK#-}!Int -- ^ length of element vectors
+    {-#UNPACK#-}!Int -- offset in number of elem
+    {-#UNPACK#-}!Int -- length of container
+    {-#UNPACK#-}!Int -- length of element vectors
 
 instance
     ( ClassicalLogic elem
@@ -515,13 +515,11 @@ instance
 
 ---------------------------------------
 
--- newtype instance VUM.MVector s (Labeled' x y) = UMV_Labeled' (VUM.MVector s (x,y))
-
 data instance VUM.MVector s (Labeled' (UVector (n::Symbol) elem) y) = UArray_Labeled'_MUVector
     {-#UNPACK#-}!(MutableByteArray s)
-    {-#UNPACK#-}!Int -- ^ offset in number of elem
-    {-#UNPACK#-}!Int -- ^ length of container
-    {-#UNPACK#-}!Int -- ^ length of element vectors
+    {-#UNPACK#-}!Int -- offset in number of elem
+    {-#UNPACK#-}!Int -- length of container
+    {-#UNPACK#-}!Int -- length of element vectors
 
 instance
     ( ClassicalLogic elem
@@ -600,9 +598,9 @@ instance
 
 data instance VU.Vector (Labeled' (UVector (n::Symbol) elem) y) = UArray_Labeled'_UVector
     {-#UNPACK#-}!ByteArray
-    {-#UNPACK#-}!Int -- ^ offset
-    {-#UNPACK#-}!Int -- ^ length of container
-    {-#UNPACK#-}!Int -- ^ length of element vectors
+    {-#UNPACK#-}!Int -- offset
+    {-#UNPACK#-}!Int -- length of container
+    {-#UNPACK#-}!Int -- length of element vectors
 
 instance
     ( IsScalar elem

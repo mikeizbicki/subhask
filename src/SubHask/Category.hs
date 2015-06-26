@@ -407,7 +407,7 @@ class Category cat => Groupoid cat where
 --
 -- More details available at <http://en.wikipedia.org/wiki/Compact_closed_category wikipedia>
 -- and <http://ncatlab.org/nlab/show/dagger-compact+category ncatlab>.
-class Closed cat => Compact cat where
+class Symmetric cat => Compact cat where
     type Dual cat x
     unit :: cat x (Tensor cat x (Dual cat x))
     counit :: cat (Tensor cat (Dual cat x) x) x

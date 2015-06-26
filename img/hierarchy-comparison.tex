@@ -1,0 +1,28 @@
+\input{hierarchy.tex.inc}
+
+\node[comp]{Eq\_}
+    child { node[comp] {Normed} }
+    child { node[comp] {Metric} }
+    child { node[comp] {POrd\_}
+        child { node[comp]{Lattice\_}
+            child { node[comp]{Graded}
+                child { node[comp](Enum){Enum} }
+                }
+            child { node[comp](Ord){Ord\_} }
+            child { node[comp](Bounded){Bounded}
+                child { node[comp](Complemented){Complemented} }
+                child { node[comp]{Heyting}
+                    child { node[comp](Boolean){Boolean} }
+                    }
+                }
+            }
+        child { node[comp](MinBound){MinBound} }
+        }
+    ;
+
+\draw (Ord) -- (Enum);
+\draw (MinBound) -- (Bounded);
+\draw (Complemented) -- (Boolean);
+
+\end{tikzpicture}
+\end{document}

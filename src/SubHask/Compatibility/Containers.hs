@@ -592,28 +592,4 @@ instance Monad Mon LexSet where
 instance Then LexSet where
     (LexSet a)>>(LexSet b) = LexSet b
 
-dup :: (Ord a, Ring a) => Mon a (LexSet a)
-dup = unsafeProveMon $ \a -> fromList [a,2*a,3*a]
-
-pud ::  OrdHask Int (LexSet Int)
-pud = proveConstrained go
-    where
-        go i = if i `mod` 2 == 0
-            then fromList [1,2,3]
-            else fromList [2,4]
-
-qwe :: (Ord a, Ring a, a~Int) => LexSet a -> LexSet a
--- qwe s = s >>= dup >>= dup >>= (pud ) >>= dup
-qwe s = s >>= unsafeProveMon (\x -> (dup $ x) >>= dup >> (pud $ x) >>= dup)
-
-proveOrd :: (Ord a, Ord b) => (a -> b) -> OrdHask a b
-proveOrd = proveConstrained
-
-test = fromList [1,10,100] :: LexSet Int
-
-pp :: [(Int,Int)]
-pp = do
-    a <- [1,2]
-    b <- [10,11]
-    return (a,b)
 
