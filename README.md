@@ -34,7 +34,7 @@ This README is intended to be a "quick start guide" to get you familiar with the
 * [Examples](/examples)
     * [The category of polynomials](examples/example0001-polynomials.lhs)
     * [Sets are monads in the category `OrdHask` and `Mon`](examples/example0002-monad-instances-for-set.lhs)
-    * [The category `(+>)` and linear algebra](examples/example0003-liner-algebra.lhs)
+    * [The category `(+>)` and linear algebra](examples/example0003-linear-algebra.lhs)
 * [New class hierarchies](#new-class-hierarchies)
     * [The category hierarchy](#category-hierarchy)
     * [The functor hierarchy](#functor-hierarchy)
