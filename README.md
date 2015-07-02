@@ -128,7 +128,7 @@ but it will probably be added at a future point as SubHask matures.
 ### Functor hierarchy
 
 In the standard Prelude, the `Functor` type class corresponds to "endofunctors on the category Hask".
-SubHask generalizes this definition to endofunctors on any category:
+SubHask generalizes this definition to enfofunctors on any category:
 
 ```
 class Category cat => Functor cat f where
@@ -189,7 +189,7 @@ Important points:
 1.  A type in SubHask can be compared using non-classical logics.
     Consider the type of equality comparison:
     ```
-    (==) :: Eq a => a -> b -> Logic b
+    (==) :: Eq_ a => a -> a -> Logic a
     ```
     The return value is given by the type family `Logic a`, which specifies the logical system used on the type `a`.
 
@@ -200,9 +200,9 @@ Important points:
     Classical equality over functions is uncomputable.
     But in SubHask, we define:
     ```
-    type instance Logic (a -> b) = Logic b
+    type instance Logic (a -> b) = a -> Logic b
 
-    class Eq b => Eq (a -> b) where
+    class Eq_ b => Eq_ (a -> b) where
         (f==g) a = f a == g a
     ```
     This non-classical logic simplifies many situations.
@@ -211,6 +211,9 @@ Important points:
     ghci> filter ( (>='c') && (<'f') || (=='q') ) ['a'..'z']
     "cdeq"
     ```
+
+    I have a hunch this will make for a nice probabalistic programming interface,
+    but I could turn out completely wrong.
 
 * The `Eq` type class corresponds to the idea of [equivalence classes](https://en.wikipedia.org/wiki/Equivalence_class) in algebra.
 There are much more general notions of equality that are well studied, e.g. [tolerance classes](https://en.wikipedia.org/wiki/Near_sets#Tolerance_classes_and_preclasses).
@@ -387,7 +390,7 @@ There are roughly three causes of SubHask's limitations:
 1. A lot of the type signatures within SubHask are messier than they need to be due to limitations with GHC's type system.
 In particular:
 
-    * I wish I could use the `forall` keyword within constraints (see [#2893](https://ghc.haskell.org/trac/ghc/ticket/2893) and [#5927](https://ghc.haskell.org/trac/ghc/ticket/5927)).
+    * I with I could use the `forall` keyword within constraints (see [#2893](https://ghc.haskell.org/trac/ghc/ticket/2893) and [#5927](https://ghc.haskell.org/trac/ghc/ticket/5927)).
 
     * SubHask uses a lot of type families, some of which are injective.
     We can't currently take advantage of injectivity, but adding support to GHC is being actively worked on (see [#6018](https://ghc.haskell.org/trac/ghc/ticket/6018)).
