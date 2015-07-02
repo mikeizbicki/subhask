@@ -128,7 +128,7 @@ but it will probably be added at a future point as SubHask matures.
 ### Functor hierarchy
 
 In the standard Prelude, the `Functor` type class corresponds to "endofunctors on the category Hask".
-SubHask generalizes this definition to enfofunctors on any category:
+SubHask generalizes this definition to endofunctors on any category:
 
 ```
 class Category cat => Functor cat f where
