@@ -189,7 +189,7 @@ Important points:
 1.  A type in SubHask can be compared using non-classical logics.
     Consider the type of equality comparison:
     ```
-    (==) :: Eq a => a -> a -> Logic a
+    (==) :: Eq a => a -> b -> Logic b
     ```
     The return value is given by the type family `Logic a`, which specifies the logical system used on the type `a`.
 
@@ -208,7 +208,7 @@ Important points:
     This non-classical logic simplifies many situations.
     For example, we can use the `(&&)` and `(||)` operators on functions:
     ```
-    ghci> filter ( (>='c') && (<'f') || (/='q') ) ['a'..'z']
+    ghci> filter ( (>='c') && (<'f') || (=='q') ) ['a'..'z']
     "cdeq"
     ```
 
