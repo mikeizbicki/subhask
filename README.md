@@ -128,7 +128,7 @@ but it will probably be added at a future point as SubHask matures.
 ### Functor hierarchy
 
 In the standard Prelude, the `Functor` type class corresponds to "endofunctors on the category Hask".
-SubHask generalizes this definition to enfofunctors on any category:
+SubHask generalizes this definition to endofunctors on any category:
 
 ```
 class Category cat => Functor cat f where
@@ -390,7 +390,7 @@ There are roughly three causes of SubHask's limitations:
 1. A lot of the type signatures within SubHask are messier than they need to be due to limitations with GHC's type system.
 In particular:
 
-    * I with I could use the `forall` keyword within constraints (see [#2893](https://ghc.haskell.org/trac/ghc/ticket/2893) and [#5927](https://ghc.haskell.org/trac/ghc/ticket/5927)).
+    * I wish I could use the `forall` keyword within constraints (see [#2893](https://ghc.haskell.org/trac/ghc/ticket/2893) and [#5927](https://ghc.haskell.org/trac/ghc/ticket/5927)).
 
     * SubHask uses a lot of type families, some of which are injective.
     We can't currently take advantage of injectivity, but adding support to GHC is being actively worked on (see [#6018](https://ghc.haskell.org/trac/ghc/ticket/6018)).
