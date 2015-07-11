@@ -1,5 +1,3 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
-
 -- | Dense vectors and linear algebra operations.
 --
 -- NOTE:
@@ -22,15 +20,6 @@ module SubHask.Algebra.Vector
     , type (+>)
     , SMatrix
     , unsafeMkSMatrix
-
-    -- * FFI
-    , distance_l2_m128
-    , distance_l2_m128_SVector_Dynamic
-    , distance_l2_m128_UVector_Dynamic
-
-    , distanceUB_l2_m128
-    , distanceUB_l2_m128_SVector_Dynamic
-    , distanceUB_l2_m128_UVector_Dynamic
 
     -- * Debug
     , safeNewByteArray
@@ -69,7 +58,6 @@ import Data.Csv (FromRecord,FromField,parseRecord)
 import System.IO.Unsafe
 import Unsafe.Coerce
 
-
 --------------------------------------------------------------------------------
 -- rewrite rules for faster static parameters
 --
@@ -93,53 +81,11 @@ nat200 _ = 200
 
 --------------------------------------------------------------------------------
 
-foreign import ccall unsafe "distance_l2_m128" distance_l2_m128
-    :: Ptr Float -> Ptr Float -> Int -> IO Float
-
-foreign import ccall unsafe "distanceUB_l2_m128" distanceUB_l2_m128
-    :: Ptr Float -> Ptr Float -> Int -> Float -> IO Float
-
-{-# INLINE sizeOfFloat #-}
-sizeOfFloat :: Int
-sizeOfFloat = sizeOf (undefined::Float)
-
-{-# INLINE distance_l2_m128_UVector_Dynamic #-}
-distance_l2_m128_UVector_Dynamic :: UVector (s::Symbol) Float -> UVector (s::Symbol) Float -> Float
-distance_l2_m128_UVector_Dynamic (UVector_Dynamic arr1 off1 n) (UVector_Dynamic arr2 off2 _)
-    = unsafeInlineIO $ distance_l2_m128 p1 p2 n
-    where
-        p1 = plusPtr (unsafeCoerce $ byteArrayContents arr1) (off1*sizeOfFloat)
-        p2 = plusPtr (unsafeCoerce $ byteArrayContents arr2) (off2*sizeOfFloat)
-
-{-# INLINE distanceUB_l2_m128_UVector_Dynamic #-}
-distanceUB_l2_m128_UVector_Dynamic :: UVector (s::Symbol) Float -> UVector (s::Symbol) Float -> Float -> Float
-distanceUB_l2_m128_UVector_Dynamic (UVector_Dynamic arr1 off1 n) (UVector_Dynamic arr2 off2 _) ub
-    = unsafeInlineIO $ distanceUB_l2_m128 p1 p2 n ub
-    where
-        p1 = plusPtr (unsafeCoerce $ byteArrayContents arr1) (off1*sizeOfFloat)
-        p2 = plusPtr (unsafeCoerce $ byteArrayContents arr2) (off2*sizeOfFloat)
-
-distance_l2_m128_SVector_Dynamic :: SVector (s::Symbol) Float -> SVector (s::Symbol) Float -> Float
-distance_l2_m128_SVector_Dynamic (SVector_Dynamic fp1 off1 n) (SVector_Dynamic fp2 off2 _)
-    = unsafeInlineIO $
-        withForeignPtr fp1 $ \p1 ->
-        withForeignPtr fp2 $ \p2 ->
-            distance_l2_m128 (plusPtr p1 $ off1*sizeOfFloat) (plusPtr p2 $ off2*sizeOfFloat) n
-
-distanceUB_l2_m128_SVector_Dynamic :: SVector (s::Symbol) Float -> SVector (s::Symbol) Float -> Float -> Float
-distanceUB_l2_m128_SVector_Dynamic (SVector_Dynamic fp1 off1 n) (SVector_Dynamic fp2 off2 _) ub
-    = unsafeInlineIO $
-        withForeignPtr fp1 $ \p1 ->
-        withForeignPtr fp2 $ \p2 ->
-            distanceUB_l2_m128 (plusPtr p1 $ off1*sizeOfFloat) (plusPtr p2 $ off2*sizeOfFloat) n ub
-
---------------------------------------------------------------------------------
-
 type Unbox = VU.Unbox
 
 --------------------------------------------------------------------------------
 
--- | The type of dynamic or statically sized vectors implemented using the FFI.
+-- | The type of dynamic or statically sized unboxed vectors.
 data family UVector (n::k) r
 
 type instance Scalar (UVector n r) = Scalar r
@@ -160,7 +106,7 @@ data instance UVector (n::Symbol) r = UVector_Dynamic
 instance (Show r, Monoid r, Prim r) => Show (UVector (n::Symbol) r) where
     show (UVector_Dynamic arr off n) = if isZero n
         then "zero"
-        else show $ go (n-1) []
+        else show $ go (extendDimensions n-1) []
         where
             go (-1) xs = xs
             go i    xs = go (i-1) (x:xs)
@@ -172,6 +118,9 @@ instance (Arbitrary r, Prim r, FreeModule r, IsScalar r) => Arbitrary (UVector (
         [ (1,return zero)
         , (9,fmap unsafeToModule $ replicateM 27 arbitrary)
         ]
+
+instance (Show r, Monoid r, Prim r) => CoArbitrary (UVector (n::Symbol) r) where
+    coarbitrary = coarbitraryShow
 
 instance (NFData r, Prim r) => NFData (UVector (n::Symbol) r) where
     rnf (UVector_Dynamic arr off n) = seq arr ()
@@ -238,16 +187,31 @@ instance Prim r => IsMutable (UVector (n::Symbol) r) where
 -- algebra
 
 extendDimensions :: Int -> Int
-extendDimensions i = i+i`rem`4
+extendDimensions = roundUpToNearest 4 -- i+4-i`rem`4
+
+-- extendDimensions :: Int -> Int
+-- extendDimensions x = x+r
+--     where
+--         m = 4
+--         s = x`rem`m
+--         r = if s==0 then 0 else m-s
 
 safeNewByteArray :: PrimMonad m => Int -> Int -> m (MutableByteArray (PrimState m))
 safeNewByteArray b 16 = do
-    let n=extendDimensions $ b`rem`4
+    let n=extendDimensions $ b`quot`4
     marr <- newAlignedPinnedByteArray b 16
-    writeByteArray marr (n-0) (0::Float)
-    writeByteArray marr (n-1) (0::Float)
-    writeByteArray marr (n-2) (0::Float)
-    writeByteArray marr (n-3) (0::Float)
+--     writeByteArray marr (n-0) (0::Float)
+--     writeByteArray marr (n-1) (0::Float)
+--     writeByteArray marr (n-2) (0::Float)
+--     writeByteArray marr (n-3) (0::Float)
+    setByteArray marr 0 n (0::Float)
+
+--     trace ("n="++show n) $ return ()
+--     a <- forM [0..n-1] $ \i -> do
+--         v :: Float <- readByteArray marr i
+--         return $ unsafeInlineIO $ P.putStrLn $ "marr!"+show i+" = "+show v
+--     deepseq a $ return marr
+
     return marr
 
 {-# INLINE binopDynUV #-}

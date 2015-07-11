@@ -63,10 +63,14 @@ main = defaultMainWithOpts
     , testGroup "objects"
         [ $( mkSpecializedClassTests [t| Labeled' Int Int |] [ ''Action,''Ord,''Metric ] )
         ]
+    , testGroup "arrays"
+        [ $( mkSpecializedClassTests [t| BArray        Char |] [ ''Foldable,''MinBound,''IxContainer ] )
+        , $( mkSpecializedClassTests [t| UArray        Char |] [ ''Foldable,''MinBound,''IxContainer ] )
+        , $( mkSpecializedClassTests [t| UArray (UVector "dyn" Float) |] [ ''Foldable,''IxContainer ] )
+        , $( mkSpecializedClassTests [t| UArray (Labeled' (UVector "dyn" Float) Int) |] [ ''Foldable,''IxContainer ] )
+        ]
     , testGroup "containers"
         [ $( mkSpecializedClassTests [t| []            Char |] [ ''Foldable,''MinBound,''Partitionable ] )
-        , $( mkSpecializedClassTests [t| BArray        Char |] [ ''Foldable,''MinBound ] ) --''Foldable,''MinBound,''Partitionable ] )
-        , $( mkSpecializedClassTests [t| UArray        Char |] [ ''Foldable,''MinBound ] ) --''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Set           Char |] [ ''Foldable,''MinBound ] )
         , $( mkSpecializedClassTests [t| Seq           Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Map  Int Int |] [ ''MinBound, ''IxConstructible ] )

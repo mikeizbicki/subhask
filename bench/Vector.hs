@@ -8,31 +8,22 @@ import System.IO
 
 import SubHask
 import SubHask.Algebra.Vector
+import SubHask.Algebra.Vector.FFI
 import SubHask.Monad
 
 --------------------------------------------------------------------------------
-
-{-# RULES
-
-"subhask/distance_l2_m128_UVector_Dynamic"     distance   = distance_l2_m128_UVector_Dynamic
-"subhask/distance_l2_m128_SVector_Dynamic"     distance   = distance_l2_m128_SVector_Dynamic
-
-"subhask/distanceUB_l2_m128_UVector_Dynamic"   distanceUB = distanceUB_l2_m128_UVector_Dynamic
-"subhask/distanceUB_l2_m128_SVector_Dynamic"   distanceUB = distanceUB_l2_m128_SVector_Dynamic
-
-  #-}
 
 main = do
 
     -----------------------------------
     putStrLn "initializing variables"
 
-    let veclen = 100
+    let veclen = 1000
     xs1 <- P.fmap (P.take veclen) getRandoms
     xs2 <- P.fmap (P.take veclen) getRandoms
     xs3 <- P.fmap (P.take veclen) getRandoms
 
-    let s1 = unsafeToModule (xs1+xs2) :: SVector 200 Float
+    let s1 = unsafeToModule (xs1+xs2) :: SVector 2000 Float
         s2 = unsafeToModule (xs1+xs3) `asTypeOf` s1
 
         d1 = unsafeToModule (xs1+xs2) :: SVector "dynamic" Float
@@ -46,16 +37,26 @@ main = do
 
     deepseq s1 $ deepseq s2 $ return ()
 
+    putStrLn $ "distance s1 s2 = " + show (distance s1 s2)
+    putStrLn $ "distance d1 d2 = " + show (distance d1 d2)
+    putStrLn $ "distance u1 u2 = " + show (distance u1 u2)
+    putStrLn ""
+    putStrLn $ "distanceUB s1 s2 1 = " + show (distanceUB s1 s2 1)
+    putStrLn $ "distanceUB d1 d2 1 = " + show (distanceUB d1 d2 1)
+    putStrLn $ "distanceUB u1 u2 1 = " + show (distanceUB u1 u2 1)
+    putStrLn ""
+
     -----------------------------------
     putStrLn "launching criterion"
 
-    defaultMainWith
-        ( defaultConfig
-            { verbosity = Normal
-            -- when run using `cabal bench`, this will put our results in the right location
-            , csvFile = Just "bench/Vector.csv"
-            }
-        )
+--     defaultMainWith
+--         ( defaultConfig
+--             { verbosity = Normal
+--             -- when run using `cabal bench`, this will put our results in the right location
+--             , csvFile = Just "bench/Vector.csv"
+--             }
+--         )
+    defaultMain
 --         [ bgroup "+"
 --             [ bench "static"  $ nf (s1+) s2
 --             , bench "dynamic" $ nf (d1+) d2

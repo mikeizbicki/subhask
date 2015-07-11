@@ -38,8 +38,9 @@ library
         SubHask.Algebra.Metric
         SubHask.Algebra.Ord
         SubHask.Algebra.Parallel
---         SubHask.Algebra.Trans.Kernel
+        SubHask.Algebra.Ring
         SubHask.Algebra.Vector
+        SubHask.Algebra.Vector.FFI
 
         SubHask.Category
         SubHask.Category.Finite
@@ -47,10 +48,8 @@ library
         SubHask.Category.Polynomial
         SubHask.Category.Slice
         SubHask.Category.Trans.Bijective
---         SubHask.Category.Trans.Continuous
         SubHask.Category.Trans.Constrained
         SubHask.Category.Trans.Derivative
---         SubHask.Category.Trans.Linear
         SubHask.Category.Trans.Monotonic
 
         SubHask.Compatibility.Base
@@ -96,6 +95,7 @@ library
         MultiWayIf,
 
         AutoDeriveTypeable,
+        DeriveGeneric,
         RebindableSyntax
 --         OverloadedLists
 
@@ -179,7 +179,7 @@ Test-Suite TestSuite-Unoptimized
 
 -- FIXME:
 -- The test below takes a long time to compile.
--- The slow builds are cosing travis tests to fail.
+-- The slow builds are causing travis tests to fail.
 --
 -- Test-Suite TestSuite-Optimized
 --     type:               exitcode-stdio-1.0
