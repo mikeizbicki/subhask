@@ -8,3 +8,12 @@ distance/unboxed,2.750774639445848e-7,2.7482214566337627e-7,2.7545332145310505e-
 "distanceUB - bound infinity/static",3.1873102939903137e-7,3.168708265789177e-7,3.2210571324910697e-7,8.11675609242407e-9,4.8638899110693246e-9,1.2188119103879152e-8
 "distanceUB - bound infinity/dynamic",3.680843338132063e-7,3.6768810761762667e-7,3.685514241337646e-7,1.4373166903733408e-9,1.1859208469163907e-9,1.7324540869470153e-9
 "distanceUB - bound infinity/unboxed",3.59526986294633e-7,3.5918690942445275e-7,3.599406541333231e-7,1.19671875155912e-9,9.258389436661026e-10,1.6301152633092406e-9
+Name,Mean,MeanLB,MeanUB,Stddev,StddevLB,StddevUB
+Name,Mean,MeanLB,MeanUB,Stddev,StddevLB,StddevUB
+Name,Mean,MeanLB,MeanUB,Stddev,StddevLB,StddevUB
+Name,Mean,MeanLB,MeanUB,Stddev,StddevLB,StddevUB
+Name,Mean,MeanLB,MeanUB,Stddev,StddevLB,StddevUB
+Name,Mean,MeanLB,MeanUB,Stddev,StddevLB,StddevUB
+Name,Mean,MeanLB,MeanUB,Stddev,StddevLB,StddevUB
+Name,Mean,MeanLB,MeanUB,Stddev,StddevLB,StddevUB
+Name,Mean,MeanLB,MeanUB,Stddev,StddevLB,StddevUB

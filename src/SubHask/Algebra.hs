@@ -96,6 +96,7 @@ module SubHask.Algebra
     , law_Container_preservation
 
     , Constructible (..)
+    , Constructible0
     , law_Constructible_singleton
     , defn_Constructible_cons
     , defn_Constructible_snoc
@@ -105,6 +106,7 @@ module SubHask.Algebra
     , fromString
     , fromList
     , fromListN
+    , generate
     , insert
     , empty
     , isEmpty
@@ -150,9 +152,10 @@ module SubHask.Algebra
     , defn_IxConstructible_fromIxList
     , insertAt
 
-    -- * Maybe
+    -- * Types
     , CanError (..)
     , Maybe' (..)
+    , justs'
     , Labeled' (..)
 
     -- * Number-like
@@ -202,6 +205,8 @@ module SubHask.Algebra
     , law_Integral_divMod
     , law_Integral_quotRem
     , law_Integral_toFromInverse
+    , roundUpToNearest
+--     , roundUpToNearestBase2
     , fromIntegral
     , Field(..)
     , OrdField(..)
@@ -255,6 +260,10 @@ module SubHask.Algebra
     , innerProductNorm
     , TensorAlgebra (..)
 
+    -- * Spatial programming
+    , Any (..)
+    , All
+
     -- * Helper functions
     , simpleMutableDefn
     , module SubHask.Mutable
@@ -278,7 +287,7 @@ import Control.Parallel
 import Control.Parallel.Strategies
 import System.IO.Unsafe -- used in the parallel function
 
-import GHC.Prim
+import GHC.Prim hiding (Any)
 import GHC.Types
 import GHC.Magic
 
@@ -1398,6 +1407,24 @@ law_Integral_toFromInverse a = fromInteger (toInteger a) == a
 fromIntegral :: (Integral a, Ring b) => a -> b
 fromIntegral = fromInteger . toInteger
 
+-- | FIXME:
+-- This should be moved into the class hierarchy and generalized.
+--
+-- FIXME:
+-- There are more efficient implementations available if you restrict m to powers of 2.
+-- Is GHC smart enough to convert `rem` into bit shifts?
+-- See for more possibilities:
+-- http://stackoverflow.com/questions/3407012/c-rounding-up-to-the-nearest-multiple-of-a-number
+{-# INLINE roundUpToNearest #-}
+roundUpToNearest :: Int -> Int -> Int
+roundUpToNearest m x = x + m - 1 - (x-1)`rem`m
+-- roundUpToNearest m x = if s==0
+--     then
+--     else x+r
+--     where
+--         s = x`rem`m
+--         r = if s==0 then 0 else m-s
+
 -- FIXME:
 -- need more RULES; need tests
 {-# RULES
@@ -2276,6 +2303,8 @@ infDisjoint s1 s2 = isEmpty $ inf s1 s2
 sizeDisjoint :: (Normed s, Constructible s) => s -> s -> Logic (Scalar s)
 sizeDisjoint s1 s2 = size s1 + size s2 == size (s1+s2)
 
+type Constructible0 x = (Monoid x, Constructible x)
+
 -- | This is the class for any type that gets "constructed" from smaller types.
 -- It is a massive generalization of the notion of a constructable set in topology.
 --
@@ -2336,13 +2365,21 @@ fromString :: (Monoid s, Constructible s, Elem s ~ Char) => String -> s
 fromString = fromList
 
 -- | FIXME: if -XOverloadedLists is enabled, this causes an infinite loop for some reason
+{-# INLINABLE fromList #-}
 fromList :: (Monoid s, Constructible s) => [Elem s] -> s
 fromList [] = zero
 fromList (x:xs) = fromList1 x xs
 
+{-# INLINABLE fromListN #-}
 fromListN :: (Monoid s, Constructible s) => Int -> [Elem s] -> s
 fromListN 0 [] = zero
 fromListN i (x:xs) = fromList1N i x xs
+
+{-# INLINABLE generate #-}
+generate :: (Monoid v, Constructible v) => Int -> (Int -> Elem v) -> v
+generate n f = if n <= 0
+    then zero
+    else fromList1N n (f 0) (map f [1..n-1])
 
 -- | This is a generalization of a "set".
 -- We do not require a container to be a boolean algebra, just a semigroup.
@@ -2929,6 +2966,11 @@ instance Semigroup a => Monoid (Maybe a) where
 
 data Maybe' a = Nothing' | Just' { fromJust' :: !a }
 
+justs' :: [Maybe' a] -> [a]
+justs' [] = []
+justs' (Nothing':xs) = justs' xs
+justs' (Just' x:xs) = x:justs' xs
+
 type instance Scalar (Maybe' a) = Scalar a
 type instance Logic (Maybe' a) = Logic a
 
@@ -3018,6 +3060,9 @@ instance (Arbitrary x, Arbitrary y) => Arbitrary (Labeled' x y) where
         y <- arbitrary
         return $ Labeled' x y
 
+instance (CoArbitrary x, CoArbitrary y) => CoArbitrary (Labeled' x y) where
+    coarbitrary (Labeled' x  y) = coarbitrary (x,y)
+
 type instance Scalar (Labeled' x y) = Scalar x
 type instance Actor (Labeled' x y) = x
 type instance Logic (Labeled' x y) = Logic x
@@ -3058,6 +3103,42 @@ instance Metric x => Metric (Labeled' x y) where
 instance Normed x => Normed (Labeled' x y) where
     size (Labeled' x _) = size x
 
+
+--------------------------------------------------------------------------------
+-- spatial programming
+--
+-- FIXME:
+-- This is broken, partly due to type system limits.
+-- It's being exported just for basic testing.
+
+-- | The type of all containers satisfying the @cxt@ constraint with elements of type @x@.
+type All cxt x = forall xs. (cxt xs, Elem xs~x) => xs
+
+data Any cxt x where
+    Any :: forall cxt x xs. (cxt xs, Elem xs~x) => xs -> Any cxt x
+--     Any :: All cxt x -> Any cxt x
+
+instance Show x => Show (Any Foldable x) where
+    show (Any xs) = show $ toList xs
+
+type instance Elem (Any cxt x) = x
+type instance Scalar (Any cxt x) = Int
+
+instance Semigroup (Any Foldable x) where
+    (Any x1)+(Any x2)=Any (x1+(fromList.toList)x2)
+
+instance Constructible (Any Foldable x) where
+
+instance Normed (Any Foldable x) where
+    size (Any xs) = size xs
+
+instance Monoid (Any Foldable x) where
+    zero = Any []
+
+instance Foldable (Any Foldable x) where
+    toList (Any xs) = toList xs
+
+mkMutable [t| forall cxt x. Any cxt x |]
 
 --------------------------------------------------------------------------------
 

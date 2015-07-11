@@ -45,13 +45,19 @@ module SubHask.Internal.Prelude
     , ifThenElse
 
     -- * Modules
+    , module Control.DeepSeq
     , module Data.Proxy
     , module Data.Typeable
     , module GHC.TypeLits
-    , module Control.DeepSeq
 
-    -- * Non-base types
+    -- * Non-Prelude types
+
+    -- ** QuickCheck
     , Arbitrary (..)
+    , CoArbitrary (..)
+    , coarbitraryShow
+
+    -- * Extensions
     , Constraint
     )
     where

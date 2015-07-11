@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 module SubHask.Algebra.Array
     ( BArray (..)
-    , UArray
+    , UArray (..)
     , Unboxable
     )
     where
@@ -148,7 +148,9 @@ instance ValidLogic e => Partitionable (BArray e) where
 -------------------------------------------------------------------------------
 -- unboxed arrays
 
-newtype UArray e = UArray (VU.Vector e)
+data UArray e
+    = UArray {-#UNPACK#-}!(VU.Vector e)
+--     | UArray_Zero
 
 type instance Index (UArray e) = Int
 type instance Logic (UArray e) = Logic e
@@ -167,20 +169,28 @@ mkMutable [t| forall e. UArray e |]
 instance (Unboxable e, Arbitrary e) => Arbitrary (UArray e) where
     arbitrary = fmap fromList arbitrary
 
-instance (Unbox e, NFData e) => NFData (UArray e) where
+instance (NFData e) => NFData (UArray e) where
     rnf (UArray v) = rnf v
+--     rnf UArray_Zero = ()
 
-instance (Unbox e, Show e) => Show (UArray e) where
-    show (UArray v) = "UArray " ++ show (VG.toList v)
+instance (Unboxable e, Show e) => Show (UArray e) where
+    show arr = "UArray " ++ show (toList arr)
 
 ----------------------------------------
 -- algebra
 
 instance Unboxable e => Semigroup (UArray e) where
-    (UArray v1)+(UArray v2) = fromList $ VG.toList v1 ++ VG.toList v2
+--     UArray_Zero + a           = a
+--     a           + UArray_Zero = a
+    (UArray v1) + (UArray v2) = fromList $ VG.toList v1 ++ VG.toList v2
+
+instance Unboxable e => Monoid (UArray e) where
+    zero = UArray VG.empty
+--     zero = UArray_Zero
 
 instance Unbox e => Normed (UArray e) where
     size (UArray v) = VG.length v
+--     size UArray_Zero = 0
 
 ----------------------------------------
 -- comparison
@@ -197,25 +207,17 @@ instance (Unboxable e, POrd_ e) => MinBound_ (UArray e) where
 ----------------------------------------
 -- container
 
-type Unboxable e = (Monoid (UArray e), Constructible (UArray e), ClassicalLogic e, Eq_ e, Unbox e)
+type Unboxable e = (Constructible (UArray e), Eq e, Unbox e)
 
 #define mkConstructible(e) \
 instance Constructible (UArray e) where\
-    { fromList1 x xs = UArray $ VG.fromList (x:xs) } ; \
-instance Monoid (UArray e) where \
-    zero = UArray $ P.mempty
+    { fromList1 x xs = UArray $ VG.fromList (x:xs) } ;
 
 mkConstructible(Int)
+mkConstructible(Float)
+mkConstructible(Double)
 mkConstructible(Char)
 mkConstructible(Bool)
-
-{-
-instance (Unboxable x, Unboxable y) => Constructible (UArray (Labeled' x y)) where
-    fromList1 x xs = UArray $ UMV_Labeled' $ VG.fromList (x:xs)
-
-instance (Unboxable x, Unboxable y) => Monoid (UArray (Labeled' x y)) where
-    zero = UMV_Labeled' zero zero
--}
 
 instance
     ( ClassicalLogic r
@@ -245,69 +247,35 @@ instance
         return $ UArray v
         where
             rbytes=Prim.sizeOf (undefined::r)
-            size=dim x
+            size=roundUpToNearest 4 $ dim x
 
-instance
-    ( ClassicalLogic r
-    , Eq_ r
-    , Unbox r
-    , Prim r
-    , FreeModule r
-    , IsScalar r
-    ) => Monoid (UArray (UVector (s::Symbol) r)) where
-    zero = unsafeInlineIO $ do
-        marr <- safeNewByteArray 0 16
-        arr <- unsafeFreezeByteArray marr
-        return $ UArray $ UArray_UVector arr 0 0 0
+-- instance
+--     ( ClassicalLogic r
+--     , Eq_ r
+--     , Unbox r
+--     , Prim r
+--     , FreeModule r
+--     , IsScalar r
+--     ) => Monoid (UArray (UVector (s::Symbol) r)) where
+--     zero = unsafeInlineIO $ do
+--         marr <- safeNewByteArray 0 16
+--         arr <- unsafeFreezeByteArray marr
+--         return $ UArray $ UArray_UVector arr 0 0 0
 
-instance
-    ( ClassicalLogic r
-    , Eq_ r
-    , Unbox r
-    , Prim r
-    , FreeModule r
-    , IsScalar r
-    , Prim y
-    , Unbox y
-    ) => Constructible (UArray (Labeled' (UVector (s::Symbol) r) y))
-        where
-
-    {-# INLINABLE fromList1 #-}
-    fromList1 x xs = fromList1N (length $ x:xs) x xs
-
-    {-# INLINABLE fromList1N #-}
-    fromList1N n x xs = unsafeInlineIO $ do
-        marr <- safeNewByteArray (n*(xsize+ysize)*rbytes) 16
-        let mv = UArray_Labeled'_MUVector marr 0 n xsize
-
-        let go [] (-1) = return ()
-            go (x:xs) i = do
-                VGM.unsafeWrite mv i x
-                go xs (i-1)
-
-        go (P.reverse $ x:xs) (n-1)
-        v <- VG.basicUnsafeFreeze mv
-        return $ UArray v
-        where
-            rbytes=Prim.sizeOf (undefined::r)
-
-            xsize=dim $ xLabeled' x
-            ysize=4 --Prim.sizeOf (undefined::y) `quot` rbytes
-
-instance
-    ( ClassicalLogic r
-    , Eq_ r
-    , Unbox r
-    , Prim r
-    , FreeModule r
-    , IsScalar r
-    , Prim y
-    , Unbox y
-    ) => Monoid (UArray (Labeled' (UVector (s::Symbol) r) y)) where
-    zero = unsafeInlineIO $ do
-        marr <- safeNewByteArray 0 16
-        arr <- unsafeFreezeByteArray marr
-        return $ UArray $ UArray_Labeled'_UVector arr 0 0 0
+-- instance
+--     ( ClassicalLogic r
+--     , Eq_ r
+--     , Unbox r
+--     , Prim r
+--     , FreeModule r
+--     , IsScalar r
+--     , Prim y
+--     , Unbox y
+--     ) => Monoid (UArray (Labeled' (UVector (s::Symbol) r) y)) where
+--     zero = unsafeInlineIO $ do
+--         marr <- safeNewByteArray 0 16
+--         arr <- unsafeFreezeByteArray marr
+--         return $ UArray $ UArray_Labeled'_UVector arr 0 0 0
 
 instance Unboxable e => Container (UArray e) where
     elem e (UArray v) = elem e $ VG.toList v
@@ -316,6 +284,7 @@ instance Unboxable e => Foldable (UArray e) where
 
     {-# INLINE toList #-}
     toList (UArray v) = VG.toList v
+--     toList UArray_Zero = []
 
     {-# INLINE uncons #-}
     uncons (UArray v) = if VG.null v
@@ -351,11 +320,12 @@ instance Unboxable e => Sliceable (UArray e) where
     slice i n (UArray v) = UArray $ VG.slice i n v
 
 instance Unboxable e => IxContainer (UArray e) where
+    type ValidElem (UArray e) e = Unboxable e
+
     lookup i (UArray v) = v VG.!? i
     (!) (UArray v) = VG.unsafeIndex v
     indices (UArray v) = [0..VG.length v-1]
     values (UArray v) = VG.toList v
---     imap = VG.imap
 
 instance Unboxable e => Partitionable (UArray e) where
     partition n arr = go 0
@@ -369,30 +339,6 @@ instance Unboxable e => Partitionable (UArray e) where
                         else lenmax
 
             lenmax = length arr `quot` n
-
-
--------------------------------------------------------------------------------
--- unsafe globals
-
-{-
-{-# NOINLINE ptsizeIO #-}
-ptsizeIO = unsafeDupablePerformIO $ newIORef (5::Int)
-
-{-# NOINLINE ptalignIO #-}
-ptalignIO = unsafeDupablePerformIO $ newIORef (5::Int)
-
-{-# NOINLINE ptsize #-}
-ptsize = unsafeDupablePerformIO $ readIORef ptsizeIO
-
-{-# NOINLINE ptalign #-}
-ptalign = unsafeDupablePerformIO $ readIORef ptalignIO
-
--- {-# NOINLINE setptsize #-}
-setptsize :: Int -> IO ()
-setptsize len = do
-    writeIORef ptsizeIO len
-    writeIORef ptalignIO (1::Int)
--}
 
 -------------------------------------------------------------------------------
 -- UVector
@@ -462,14 +408,19 @@ instance
     basicLength (UArray_MUVector _ _ n _) = n
 
     {-# INLINABLE basicUnsafeSlice #-}
-    basicUnsafeSlice i lenM' (UArray_MUVector marr off n size) = UArray_MUVector marr (off+i*size) lenM' size
+    basicUnsafeSlice i lenM' (UArray_MUVector marr off n size)
+        = UArray_MUVector marr (off+i*size) lenM' size
 
     {-# INLINABLE basicOverlaps #-}
     basicOverlaps (UArray_MUVector marr1 off1 n1 size) (UArray_MUVector marr2 off2 n2 _)
         = sameMutableByteArray marr1 marr2
 
     {-# INLINABLE basicUnsafeNew #-}
-    basicUnsafeNew lenM' = error "basicUnsafeNew not supported on UArray_MUVector"
+    basicUnsafeNew 0 = do
+        marr <- newByteArray 0
+        return $ UArray_MUVector marr 0 0 0
+    basicUnsafeNew n = error "basicUnsafeNew not supported on UArray_MUVector with nonzero size"
+
 --     basicUnsafeNew lenM' = do
 --         let elemsize=ptsize
 --         marr <- newPinnedByteArray (lenM'*elemsize*Prim.sizeOf (undefined::elem))
@@ -501,7 +452,7 @@ instance
         where
             b = size1*Prim.sizeOf (undefined::elem)
 
-----------------------------------------
+--------------------------------------------------------------------------------
 -- Labeled'
 
 instance
@@ -537,20 +488,23 @@ instance
     basicUnsafeSlice i lenM' (UArray_Labeled'_MUVector marr off n size)
         = UArray_Labeled'_MUVector marr (off+i*(size+ysize)) lenM' size
         where
-            ysize=4--Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=roundUpToNearest 4 $ Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicOverlaps #-}
     basicOverlaps (UArray_Labeled'_MUVector marr1 off1 n1 size) (UArray_Labeled'_MUVector marr2 off2 n2 _)
         = sameMutableByteArray marr1 marr2
 
     {-# INLINABLE basicUnsafeNew #-}
-    basicUnsafeNew = error "basicUnsafeNew not supported on UArray_Labeled'_MUVector"
+    basicUnsafeNew 0 = do
+        marr <- newByteArray 0
+        return $ UArray_Labeled'_MUVector marr 0 0 0
+    basicUnsafeNew n = error "basicUnsafeNew not supported on UArray_MUVector with nonzero size"
 --     basicUnsafeNew lenM' = do
 --         let elemsize=ptsize
 --         marr <- newPinnedByteArray (lenM'*(elemsize+ysize)*Prim.sizeOf (undefined::elem))
 --         return $ UArray_Labeled'_MUVector marr 0 lenM' elemsize
 --         where
---             ysize=Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+--             ysize=roundUpToNearest 4 $ Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicUnsafeRead #-}
     basicUnsafeRead mv@(UArray_Labeled'_MUVector marr off n size) i = do
@@ -558,11 +512,12 @@ instance
         copyMutableByteArray marr' 0 marr ((off+i*(size+ysize))*b) (size*b)
         arr <- unsafeFreezeByteArray marr'
         let x=UVector_Dynamic arr 0 size
-        y <- readByteArray marr $ (off+i*(size+ysize)+size) `quot` ysize
+        y <- readByteArray marr $ (off+i*(size+ysize)+size) `quot` ysizereal
         return $ Labeled' x y
         where
             b=Prim.sizeOf (undefined::elem)
-            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysizereal = Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=roundUpToNearest 4 $ ysizereal
 
     {-# INLINABLE basicUnsafeWrite #-}
     basicUnsafeWrite
@@ -571,10 +526,11 @@ instance
         (Labeled' (UVector_Dynamic arr2 off2 _) y)
         = do
             copyByteArray marr1 ((off1+i*(size+ysize))*b) arr2 (off2*b) (size*b)
-            writeByteArray marr1 ((off1+i*(size+ysize)+size) `quot` ysize) y
+            writeByteArray marr1 ((off1+i*(size+ysize)+size) `quot` ysizereal) y
         where
             b=Prim.sizeOf (undefined::elem)
-            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysizereal = Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=roundUpToNearest 4 $ ysizereal
 
     {-# INLINABLE basicUnsafeCopy #-}
     basicUnsafeCopy
@@ -583,7 +539,7 @@ instance
         = copyMutableByteArray marr1 (off1*b) marr2 (off2*b) (n2*b)
         where
             b = (size1+ysize)*Prim.sizeOf (undefined::elem)
-            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=roundUpToNearest 4 $ Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicUnsafeMove #-}
     basicUnsafeMove
@@ -592,7 +548,7 @@ instance
         = moveByteArray marr1 (off1*b) marr2 (off2*b) (n2*b)
         where
             b = (size1+ysize)*Prim.sizeOf (undefined::elem)
-            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=roundUpToNearest 4 $ Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
 ----------------------------------------
 
@@ -617,7 +573,7 @@ instance
     basicUnsafeSlice i len' (UArray_Labeled'_UVector arr off n size)
         = UArray_Labeled'_UVector arr (off+i*(size+ysize)) len' size
         where
-            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=roundUpToNearest 4 $ Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicUnsafeFreeze #-}
     basicUnsafeFreeze (UArray_Labeled'_MUVector marr off n size) = do
@@ -631,17 +587,174 @@ instance
 
     {-# INLINE basicUnsafeIndexM #-}
     basicUnsafeIndexM (UArray_Labeled'_UVector arr off n size) i =
+--         trace ("off'="+show off') $
         return $ Labeled' x y
         where
             off' = off+i*(size+ysize)
             x = UVector_Dynamic arr off' size
-            y = indexByteArray arr $ (off'+size) `quot` ysize
-            ysize=4 --Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
---             y = indexByteArray arr $ (off'+size) `shiftR` 1
---             ysize=2
+            y = indexByteArray arr $ (off'+size) `quot` ysizereal
+            ysizereal = Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
+            ysize=roundUpToNearest 4 $ ysizereal
+
+instance
+    ( ClassicalLogic r
+    , Eq_ r
+    , Unbox r
+    , Prim r
+    , FreeModule r
+    , IsScalar r
+    , Prim y
+    , Unbox y
+    ) => Constructible (UArray (Labeled' (UVector (s::Symbol) r) y))
+        where
+
+    {-# INLINABLE fromList1 #-}
+    fromList1 x xs = fromList1N (length $ x:xs) x xs
+
+    {-# INLINABLE fromList1N #-}
+    fromList1N n x xs = unsafeInlineIO $ do
+        let arrlen = n*(xsize+ysize)
+        marr <- safeNewByteArray (arrlen*rbytes) 16
+        setByteArray marr 0 arrlen (0::r)
+        let mv = UArray_Labeled'_MUVector marr 0 n xsize
+
+        let go [] (-1) = return ()
+            go (x:xs) i = do
+                VGM.unsafeWrite mv i x
+                go xs (i-1)
+
+        go (P.reverse $ x:xs) (n-1)
+        v <- VG.basicUnsafeFreeze mv
+        return $ UArray v
+        where
+            rbytes=Prim.sizeOf (undefined::r)
+
+            xsize=roundUpToNearest 4 $ dim $ xLabeled' x
+            ysize=roundUpToNearest 4 $ Prim.sizeOf (undefined::y) `quot` rbytes
+
+-- roundUpToNearest_ :: Int -> Int -> Int
+-- roundUpToNearest_  m i = i -- +4-i`rem`4
+-- roundUpToNearest_ m x = x+r
+--     where
+--         s = x`rem`m
+--         r = if s==0 then 0 else m-s
 
 -------------------------------------------------------------------------------
 -- Labeled'
+
+{-
+instance (VU.Unbox x, VU.Unbox y) => VU.Unbox (Labeled' x y)
+
+data instance VUM.MVector s (Labeled' x y) = UArray_Labeled'_MUVector
+    !(VUM.MVector s x)
+    !(VUM.MVector s y)
+
+instance
+    ( VUM.Unbox x
+    , VUM.Unbox y
+    ) => VGM.MVector VUM.MVector (Labeled' x y)
+        where
+
+    {-# INLINABLE basicLength #-}
+    {-# INLINABLE basicUnsafeSlice #-}
+    {-# INLINABLE basicOverlaps #-}
+    {-# INLINABLE basicUnsafeNew #-}
+    {-# INLINABLE basicUnsafeRead #-}
+    {-# INLINABLE basicUnsafeWrite #-}
+    {-# INLINABLE basicUnsafeCopy #-}
+    {-# INLINABLE basicUnsafeMove #-}
+    {-# INLINABLE basicSet #-}
+    basicLength (UArray_Labeled'_MUVector xv yv) = VGM.basicLength xv
+
+    basicUnsafeSlice i len (UArray_Labeled'_MUVector xv yv)
+        = UArray_Labeled'_MUVector
+            (VGM.basicUnsafeSlice i len xv)
+            (VGM.basicUnsafeSlice i len yv)
+
+    basicOverlaps (UArray_Labeled'_MUVector xv1 _) (UArray_Labeled'_MUVector xv2 _)
+        = VGM.basicOverlaps xv1 xv2
+
+    basicUnsafeNew n = do
+        mvx <- VGM.basicUnsafeNew n
+        mvy <- VGM.basicUnsafeNew n
+        return $ UArray_Labeled'_MUVector mvx mvy
+
+    basicUnsafeRead (UArray_Labeled'_MUVector xv yv) i = do
+        x <- VGM.basicUnsafeRead xv i
+        y <- VGM.basicUnsafeRead yv i
+        return $ Labeled' x y
+
+    basicUnsafeWrite (UArray_Labeled'_MUVector xv yv) i (Labeled' x y) = do
+        VGM.basicUnsafeWrite xv i x
+        VGM.basicUnsafeWrite yv i y
+
+    basicUnsafeCopy (UArray_Labeled'_MUVector xv1 yv1) (UArray_Labeled'_MUVector xv2 yv2) = do
+        VGM.basicUnsafeCopy xv1 xv2
+        VGM.basicUnsafeCopy yv1 yv2
+
+    basicUnsafeMove (UArray_Labeled'_MUVector xv1 yv1) (UArray_Labeled'_MUVector xv2 yv2) = do
+        VGM.basicUnsafeMove xv1 xv2
+        VGM.basicUnsafeMove yv1 yv2
+
+    basicSet (UArray_Labeled'_MUVector xv yv) (Labeled' x y) = do
+        VGM.basicSet xv x
+        VGM.basicSet yv y
+
+data instance VU.Vector (Labeled' x y) = UArray_Labeled'_UVector
+    !(VU.Vector x)
+    !(VU.Vector y)
+
+instance
+    ( VUM.Unbox x
+    , VUM.Unbox y
+    ) => VG.Vector VU.Vector (Labeled' x y)
+        where
+
+    {-# INLINABLE basicUnsafeFreeze #-}
+    {-# INLINABLE basicUnsafeThaw #-}
+    {-# INLINABLE basicLength #-}
+    {-# INLINABLE basicUnsafeSlice #-}
+    {-# INLINABLE basicUnsafeIndexM #-}
+    basicUnsafeFreeze (UArray_Labeled'_MUVector mxv myv) = do
+        xv <- VG.basicUnsafeFreeze mxv
+        yv <- VG.basicUnsafeFreeze myv
+        return $ UArray_Labeled'_UVector xv yv
+
+    basicUnsafeThaw (UArray_Labeled'_UVector xv yv) = do
+        mxv <- VG.basicUnsafeThaw xv
+        myv <- VG.basicUnsafeThaw yv
+        return ( UArray_Labeled'_MUVector mxv myv )
+
+    basicLength (UArray_Labeled'_UVector xv _ ) = VG.basicLength xv
+
+    basicUnsafeSlice i len (UArray_Labeled'_UVector xv yv) = UArray_Labeled'_UVector
+        (VG.basicUnsafeSlice i len xv)
+        (VG.basicUnsafeSlice i len yv)
+
+    basicUnsafeIndexM (UArray_Labeled'_UVector xv yv) i = do
+        x <- VG.basicUnsafeIndexM xv i
+        y <- VG.basicUnsafeIndexM yv i
+        return $ Labeled' x y
+
+instance
+    ( Unboxable x
+    , Unboxable y
+    ) => Constructible (UArray (Labeled' x y))
+        where
+
+    fromList1 z zs = UArray $ UArray_Labeled'_UVector
+        ( unUArray $ fromList1 (xLabeled' z) (map xLabeled' zs) )
+        ( unUArray $ fromList1 (yLabeled' z) (map yLabeled' zs) )
+        where
+            unUArray (UArray v) = v
+
+    fromList1N n z zs = UArray $ UArray_Labeled'_UVector
+        ( unUArray $ fromList1N n (xLabeled' z) (map xLabeled' zs) )
+        ( unUArray $ fromList1N n (yLabeled' z) (map yLabeled' zs) )
+        where
+            unUArray (UArray v) = v
+
+-}
 
 {-
 instance (VUM.Unbox x, VUM.Unbox y) => VUM.Unbox (Labeled' x y)
@@ -666,7 +779,8 @@ instance
     basicLength (UMV_Labeled' v) = VGM.basicLength v
     basicUnsafeSlice i len (UMV_Labeled' v) = UMV_Labeled' $ VGM.basicUnsafeSlice i len v
     basicOverlaps (UMV_Labeled' v1) (UMV_Labeled' v2) = VGM.basicOverlaps v1 v2
-    basicUnsafeNew len = liftM UMV_Labeled' $ VGM.basicUnsafeNew len
+    basicUnsafeNew = error "basicUnsafeNew should never be called"
+--     basicUnsafeNew len = liftM UMV_Labeled' $ VGM.basicUnsafeNew len
     basicUnsafeRead (UMV_Labeled' v) i = do
         (!x,!y) <- VGM.basicUnsafeRead v i
         return $ Labeled' x y
@@ -687,8 +801,7 @@ instance
     {-# INLINABLE basicUnsafeThaw #-}
     {-# INLINABLE basicLength #-}
     {-# INLINABLE basicUnsafeSlice #-}
---     {-# INLINABLE basicUnsafeIndexM #-}
-    {-# INLINE basicUnsafeIndexM #-}
+    {-# INLINABLE basicUnsafeIndexM #-}
     basicUnsafeFreeze (UMV_Labeled' v) = liftM UV_Labeled' $ VG.basicUnsafeFreeze v
     basicUnsafeThaw (UV_Labeled' v) = liftM UMV_Labeled' $ VG.basicUnsafeThaw v
     basicLength (UV_Labeled' v) = VG.basicLength v
@@ -696,4 +809,4 @@ instance
     basicUnsafeIndexM (UV_Labeled' v) i = do
         (!x,!y) <- VG.basicUnsafeIndexM v i
         return $ Labeled' x y
-        -}
+-}

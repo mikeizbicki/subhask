@@ -59,6 +59,7 @@ float distance_l2_m128(__m128 *p1, __m128 *p2, int len)
 
     int i=0;
     for (i=0; i<len/4; i++) {
+        /*printf("i=%d, i*4=%d\n",i,i*4);*/
         __m128 diff;
         diff = _mm_sub_ps(p1[i],p2[i]);
         sum = _mm_add_ps(sum,_mm_mul_ps(diff,diff));
@@ -67,17 +68,65 @@ float distance_l2_m128(__m128 *p1, __m128 *p2, int len)
     _mm_store_ps(fsum,sum);
     ret = fsum[0] + fsum[1] + fsum[2] + fsum[3];
 
-    /*for (i*=4; i<len; i++) {*/
-    /*ret += pow(((float*)p1)[i]-((float*)p2)[i],2);*/
-    /*}*/
+    /*
+    for (i*=4; i<len; i++) {
+        ret += pow(((float*)p1)[i]-((float*)p2)[i],2);
+    }
+    */
 
+    return sqrt(ret);
+}
+
+
+float distanceUB_l2_m128_noub(__m128 *p1, __m128 *p2, int len, float dist)
+{
+    float ret=0;
+    float dist2=dist*dist;
+    __m128 sum={0,0,0,0};
+    float fsum[4];
+    int i=0;
+    for (i=0; i<len/4; i++) {
+        __m128 diff;
+        diff = _mm_sub_ps(p1[i],p2[i]);
+        sum = _mm_add_ps(sum,_mm_mul_ps(diff,diff));
+    }
+    _mm_store_ps(fsum,sum);
+    ret = fsum[0] + fsum[1] + fsum[2] + fsum[3];
     return sqrt(ret);
 }
 
 float distanceUB_l2_m128(__m128 *p1, __m128 *p2, int len, float dist)
 {
     float ret=0;
-    /*float dist2=dist*dist;*/
+    float dist2=dist*dist;
+    __m128 sum={0,0,0,0};
+    float fsum[4];
+    int i=0;
+    for (i=0; i<len/4; i++) {
+        __m128 diff;
+        diff = _mm_sub_ps(p1[i],p2[i]);
+        sum = _mm_add_ps(sum,_mm_mul_ps(diff,diff));
+        // moving information out of the simd registers is expensive,
+        // so we don't do it on every iteration
+        if (i%8==7) {
+            _mm_store_ps(fsum,sum);
+            if (fsum[0]+fsum[1]+fsum[2]+fsum[3] > dist2) {
+                return dist2;
+            }
+        }
+    }
+    _mm_store_ps(fsum,sum);
+    ret = fsum[0] + fsum[1] + fsum[2] + fsum[3];
+    return sqrt(ret);
+}
+
+
+float distanceUB_l2_m128_blurp(__m128 *p1, __m128 *p2, int len, float dist)
+{
+    /*printf("distance_l2_m128; p1=%d; p2=%d; len=%d\n", ((unsigned int)p1%16), ((unsigned int)p2%16), len);*/
+
+    float ret=0;
+    float dist2=dist*dist;
     __m128 sum={0,0,0,0};
     float fsum[4];
 
@@ -90,18 +139,72 @@ float distanceUB_l2_m128(__m128 *p1, __m128 *p2, int len, float dist)
 
         // moving information out of the simd registers is expensive,
         // so we don't do it on every iteration
-        /*if (i%4==3) {
-            _mm_store_ss(fsum,sum);
+        if (i%4==3) {
+            /*_mm_store_ss(fsum,sum);
             if (fsum[0] > dist2/4) {
                 return dist2;
+            }*/
+            /*
+            i++;
+            diff = _mm_sub_ps(p1[i],p2[i]);
+            diff = _mm_mul_ps(diff,diff);
+            _mm_hadd_ps(sum
+            */
+
+
+            /*_mm_store_ss(fsum,sum);*/
+            /*if (fsum[0] > dist2/4) {*/
+                _mm_store_ps(fsum,sum);
+                float tmpsum=fsum[0]+fsum[1]+fsum[2]+fsum[3];
+                if (tmpsum > dist2) {
+                    return tmpsum;
+                }
+                /*}*/
+
+        }
+    }
+
+    _mm_store_ps(fsum,sum);
+    ret = fsum[0] + fsum[1] + fsum[2] + fsum[3];
+
+    /*
+    for (i*=4; i<len; i++) {
+        ret += pow(((float*)p1)[i]-((float*)p2)[i],2);
+    }
+    */
+
+    return sqrt(ret);
+}
+
+float distanceUB_l2_m128_mine(__m128 *p1, __m128 *p2, int len, float dist)
+{
+    float ret=0;
+    float dist2=dist*dist;
+    __m128 sum={0,0,0,0};
+    float fsum[4];
+
+    int i=0;
+    for (i=0; i<len/4; i++) {
+        __m128 diff;
+        diff = _mm_sub_ps(p1[i],p2[i]);
+        /*sum = _mm_hadd_ps(sum,_mm_mul_ps(diff,diff));*/
+        sum = _mm_add_ps(sum,_mm_mul_ps(diff,diff));
+
+        // moving information out of the simd registers is expensive,
+        // so we don't do it on every iteration
+        /*if (i>4&&i%4==3) {*/
+        if (i%4==1) {
+            _mm_store_ss(fsum,sum);
+            if (fsum[0] > dist2) {
+                return fsum[0];
             }
             /*
             i++;
             diff = _mm_sub_ps(p1[i],p2[i]);
             diff = _mm_mul_ps(diff,diff);
             _mm_hadd_ps(sum
-            /
-            /*
+
+
             _mm_store_ss(fsum,sum);
             if (fsum[0] > dist2/4) {
                 _mm_store_ps(fsum,sum);
@@ -110,8 +213,8 @@ float distanceUB_l2_m128(__m128 *p1, __m128 *p2, int len, float dist)
                     return tmpsum;
                 }
             }
-            /
-        }*/
+            */
+        }
     }
 
     _mm_store_ps(fsum,sum);
@@ -119,7 +222,6 @@ float distanceUB_l2_m128(__m128 *p1, __m128 *p2, int len, float dist)
 
     return sqrt(ret);
 }
-
 float isFartherThan_l2_m128(__m128 *p1, __m128 *p2, int len, float dist)
 {
     float ret=0;
