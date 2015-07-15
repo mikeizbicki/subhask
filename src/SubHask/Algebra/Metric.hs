@@ -10,7 +10,7 @@ import SubHask.Algebra.Ord
 import SubHask.Internal.Prelude
 import Control.Monad
 
-import Data.List (nubBy,permutations,sort)
+import qualified Data.List as L
 import System.IO
 
 --------------------------------------------------------------------------------
@@ -31,15 +31,15 @@ printQuadDistances m1 m2 m3 m4 = do
         putStrLn $ match ++ " = " ++ show dist
 
     where
-        xs = nubBy (\(x,_) (y,_) -> x==y)
-           $ sort
+        xs = L.nubBy (\(x,_) (y,_) -> x==y)
+           $ L.sort
            $ map mkMatching
-           $ permutations [('1',m1),('2',m2),('3',m3),('4',m4)]
+           $ L.permutations [('1',m1),('2',m2),('3',m3),('4',m4)]
 
         mkMatching [(i1,n1),(i2,n2),(i3,n3),(i4,n4)] =
-            ( (\[x,y] -> x++":"++y) $ sort
-                [ sort (i1:i2:[])
-                , sort (i3:i4:[])
+            ( (\[x,y] -> x++":"++y) $ L.sort
+                [ L.sort (i1:i2:[])
+                , L.sort (i3:i4:[])
                 ]
             , distance n1 n2 + distance n3 n4
             )

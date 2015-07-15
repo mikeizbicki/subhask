@@ -2,8 +2,15 @@
 module SubHask.Algebra.Ord
     where
 
--- import Control.Monad
 import qualified Prelude as P
+import qualified Data.List as L
+
+import qualified GHC.Arr as Arr
+import Data.Array.ST hiding (freeze,thaw)
+import Control.Monad
+import Control.Monad.Random
+import Control.Monad.ST
+import Prelude (take)
 
 import SubHask.Algebra
 import SubHask.Category
@@ -12,38 +19,10 @@ import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
-import Debug.Trace
+--------------------------------------------------------------------------------
 
--- newtype Swap a = Swap a
---     deriving (Read,Show,P.Eq)
---
--- instance P.Ord a => P.Ord (Swap a) where
---     a <= b = b P.<= a
---
--- newtype With a = With a
---     deriving (Read,Show)
-
--- instance Show a => Show (With a)
--- instance Read a => Read (With a)
--- instance NFData a => NFData (With a)
--- deriveHierarchy ''With [ ''Enum, ''Boolean, ''Ring, ''Metric ]
-
--- instance Eq a => P.Eq (With a) where
---     (==) = undefined
---     (/=) = undefined
---
--- instance (P.Eq a, Ord a) => P.Ord (With a) where
--- --     compare = undefined
--- --     (<=) = undefined
---     compare (With a1) (With a2)
---         = trace "compare" $ P.EQ
--- --         = if a1 == a2
--- --             then P.EQ
--- --             else if a1 < a2
--- --                 then P.LT
--- --                 else P.GT
--------------
-
+-- | This wrapper let's us convert between SubHask's Ord type and the Prelude's.
+-- See the "sort" function below for an example.
 newtype WithPreludeOrd a = WithPreludeOrd { unWithPreludeOrd :: a }
     deriving Storable
 
@@ -61,3 +40,27 @@ instance Eq a => P.Eq (WithPreludeOrd a) where
 instance Ord a => P.Ord (WithPreludeOrd a) where
     {-# INLINE (<=) #-}
     a<=b = a<=b
+
+
+-- | A wrapper around the Prelude's sort function.
+--
+-- FIXME:
+-- We should put this in the container hierarchy so we can sort any data type
+sort :: Ord a => [a] -> [a]
+sort = map unWithPreludeOrd . L.sort . map WithPreludeOrd
+
+-- | Randomly shuffles a list in time O(n log n); see http://www.haskell.org/haskellwiki/Random_shuffle
+shuffle :: (Eq a, MonadRandom m) => [a] -> m [a]
+shuffle xs = do
+    let l = length xs
+    rands <- take l `liftM` getRandomRs (0, l-1)
+    let ar = runSTArray ( do
+            ar <- Arr.thawSTArray (Arr.listArray (0, l-1) xs)
+            forM_ (L.zip [0..(l-1)] rands) $ \(i, j) -> do
+                vi <- Arr.readSTArray ar i
+                vj <- Arr.readSTArray ar j
+                Arr.writeSTArray ar j vi
+                Arr.writeSTArray ar i vj
+            return ar
+            )
+    return (Arr.elems ar)
