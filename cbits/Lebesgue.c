@@ -343,6 +343,7 @@ double distance_l2_m128d(__m128d *p1, __m128d *p2, int len)
 {
     double ret=0;
     __m128d sum={0,0};
+    double fsum[2];
 
     int i=0;
     for (i=0; i<len/2; i++) {
@@ -351,7 +352,8 @@ double distance_l2_m128d(__m128d *p1, __m128d *p2, int len)
         sum = _mm_add_pd(sum,_mm_mul_pd(diff,diff));
     }
 
-    ret = sum[0] + sum[1];
+    _mm_store_pd(fsum,sum);
+    ret = fsum[0] + fsum[1];
 
     for (i*=2; i<len; i++) {
         ret += pow(((double*)p1)[i]-((double*)p2)[i],2);
@@ -365,6 +367,7 @@ double isFartherThan_l2_m128d(__m128d *p1, __m128d *p2, int len, double dist)
     double ret=0;
     double dist2=dist*dist;
     __m128d sum={0,0};
+    double fsum[2];
 
     int i=0;
     for (i=0; i<len/2; i++) {
@@ -372,14 +375,15 @@ double isFartherThan_l2_m128d(__m128d *p1, __m128d *p2, int len, double dist)
         diff = _mm_sub_pd(p1[i],p2[i]);
         sum = _mm_add_pd(sum,_mm_mul_pd(diff,diff));
 
+        _mm_store_pd(fsum,sum);
         if (i%4==0) {
-            if (sum[0]+sum[1] > dist2) {
+            if (fsum[0]+fsum[1] > dist2) {
                 return NAN;
             }
         }
     }
 
-    ret = sum[0] + sum[1];
+    ret = fsum[0] + fsum[1];
 
     for (i*=2; i<len; i++) {
         ret += pow(((double*)p1)[i]-((double*)p2)[i],2);
