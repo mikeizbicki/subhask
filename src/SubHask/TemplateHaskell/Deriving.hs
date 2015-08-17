@@ -285,6 +285,7 @@ substituteNewtype conname varname newvar = go
 typeL2patL :: Name -> Name -> [Type] -> [Pat]
 typeL2patL conname varname xs = map go $ zip (map (\a -> mkName [a]) ['a'..]) xs
     where
+        go :: (Name, Type) -> Pat
         go (newvar,VarT v) = if v==varname
             then ConP conname [VarP newvar]
             else VarP newvar
@@ -296,8 +297,6 @@ typeL2patL conname varname xs = map go $ zip (map (\a -> mkName [a]) ['a'..]) xs
         go (newvar,AppT ListT (AppT (ConT _) (VarT v))) = VarP newvar
         go (newvar,ConT c) = VarP newvar
         go (newvar,_) = VarP newvar
-
-        go qqq = error $ "qqq="++show qqq
 
 typeL2expL :: [Type] -> [Exp]
 typeL2expL xs = map fst $ zip (map (\a -> VarE $ mkName [a]) ['a'..]) xs
