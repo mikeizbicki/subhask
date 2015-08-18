@@ -26,17 +26,30 @@ We'll do everything within the `main` function so we can print some output as we
 > main = do
 
 Before we get into monads, let's take a quick look at the `Functor` instances.
-Here we define a set, two functions, and map those functions onto the set.
+We start by defining a set:
 
 >   let xs = [1..5] :: LexSet Int
->
+
+There are multiple types for sets in SubHask, each with slightly different semantics.
+The `LexSet` type has semantics similar to the `Set` type from the containers package.
+In particular, the `Lex` stands for "lexical" because the `Lattice` instance corresponds to a lexical ordering.
+The `Set` type in SubHask uses the more traditional subset ordering for its `Lattice` instance.
+`Set` is an instance of `Functor` but not of `Monad`, so we don't use it in this example.
+
+Next, we'll create two set functions and map those functions onto the set `xs`.
+The type signatures below are not mandatory, just added for clarity.
+
+>   -- f is monotonic
 >   let f :: Semigroup a => a -> a
->       f x = x+x                               -- monotonic
->       g :: (Eq a, Integral a, Logic a ~ Bool) => a -> a
->       g x = if x`mod`2 == 0 then x else -x    -- not monotonic
+>       f x = x+x
 >
->   let fxs :: LexSet Int
+>       fxs :: LexSet Int
 >       fxs = fmap (proveOrdHask f) $ xs
+>
+>   -- g is not monotonic
+>   let g :: (Eq a, Integral a) => a -> a
+>       g x = if x`mod`2 == 0 then x else -x
+>
 >       gxs :: LexSet Int
 >       gxs = fmap (proveOrdHask g) $ xs
 >
@@ -44,23 +57,18 @@ Here we define a set, two functions, and map those functions onto the set.
 >   putStrLn $ "fxs = " + show fxs
 >   putStrLn $ "gxs = " + show gxs
 
-There's a few important points about the code above:
-
-*   The `LexSet` type above is a simple wrapper around the `Set` container from the containers package.
-    In SubHask, the `Lattice` instance for `Set` (without the prefix) is based on the subset relation.
-    This ordering is not total,
-    which means `Set` is not an instance of `Ord`,
-    which means we cannot have a `Set` of a `Set`.
-    The `LexSet` uses lexical ordering.
-    This ordering is total, and therefore we can have sets of sets.
-
-*   When we map a function over a container, we must explicitly say which `Functor` instance we want to use.
-    The `proveOrdHask` functions transform the functions from arrows in `Hask` to arrows in the `OrdHask` category.
-    The program would not type check without these "proofs."
+Notice in the code above that when we call `fmap`, we also called the function `proveOrdHask`.
+When we map a function over a container, we must explicitly say which `Functor` instance we want to use.
+The `proveOrdHask` function transform the functions from arrows in `Hask` to arrows in the `OrdHask` category.
+The program would not type check without these "proofs."
 
 Now let's see the `Functor Mon LexSet` instance in action.
+This instance applies monotonic functions to the elements of the set.
+Monotonic functions can be applied in time O(n), whereas non-monotonic functions take time O(n*log n).
+
 GHC can mechanistically prove when a function in `Hask` belongs in `OrdHask`,
-but there it cannot prove when functions in `OrdHask` also belong to `Mon`.
+but it cannot always prove when functions in `OrdHask` also belong to `Mon`.
+(This proof would require dependent types.)
 Therefore we must use the `unsafeProveMon` function, as follows:
 
 >   let fxs' = fmap (unsafeProveMon f) $ xs
@@ -80,11 +88,12 @@ Notice that equality checking is now broken:
 
 We're now ready to talk about the `Monad` instances.
 To test it out, we'll create two functions, the latter of which is monotonic.
+The type signatures are provided only to aide reading.
 
 >   let oddneg :: Int `OrdHask` (LexSet Int)
 >       oddneg = proveConstrained f
 >         where
->             f :: (Integral a, Ord a, Logic a ~ Bool) => a -> LexSet a
+>             f :: (Integral a, Ord a) => a -> LexSet a
 >             f i = if i `mod` 2 == 0
 >                 then [i]
 >                 else [-i]
