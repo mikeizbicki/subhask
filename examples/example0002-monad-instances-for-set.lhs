@@ -30,10 +30,14 @@ Here we define a set, two functions, and map those functions onto the set.
 
 >   let xs = [1..5] :: LexSet Int
 >
->   let f x = x+x                               -- monotonic
+>   let f :: Semigroup a => a -> a
+>       f x = x+x                               -- monotonic
+>       g :: (Eq a, Integral a, Logic a ~ Bool) => a -> a
 >       g x = if x`mod`2 == 0 then x else -x    -- not monotonic
 >
->   let fxs = fmap (proveOrdHask f) $ xs
+>   let fxs :: LexSet Int
+>       fxs = fmap (proveOrdHask f) $ xs
+>       gxs :: LexSet Int
 >       gxs = fmap (proveOrdHask g) $ xs
 >
 >   putStrLn $ "xs  = " + show xs
@@ -80,6 +84,7 @@ To test it out, we'll create two functions, the latter of which is monotonic.
 >   let oddneg :: Int `OrdHask` (LexSet Int)
 >       oddneg = proveConstrained f
 >         where
+>             f :: (Integral a, Ord a, Logic a ~ Bool) => a -> LexSet a
 >             f i = if i `mod` 2 == 0
 >                 then [i]
 >                 else [-i]
@@ -87,6 +92,7 @@ To test it out, we'll create two functions, the latter of which is monotonic.
 >   let times3 :: (Ord a, Ring a) => a `OrdHask` (LexSet a)
 >       times3 = proveConstrained f
 >         where
+>             f :: (Ord a, Ring a) => a -> LexSet a
 >             f a = [a,2*a,3*a]
 >
 >   let times3mon :: (Ord a, Ring a) => a `Mon` (LexSet a)
