@@ -34,7 +34,7 @@ There are multiple types for sets in SubHask, each with slightly different seman
 The `LexSet` type has semantics similar to the `Set` type from the containers package.
 In particular, the `Lex` stands for "lexical" because the `Lattice` instance corresponds to a lexical ordering.
 The `Set` type in SubHask uses the more traditional subset ordering for its `Lattice` instance.
-`Set` is an instance of `Functor` but not of `Monad`, so we don't use it in this example.
+`Set` is not an instance of `Functor` or `Monad`, so we don't use it in this example.
 
 Next, we'll create two set functions and map those functions onto the set `xs`.
 The type signatures below are not mandatory, just added for clarity.
