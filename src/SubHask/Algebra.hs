@@ -14,6 +14,7 @@ module SubHask.Algebra
     , law_Eq_reflexive
     , law_Eq_symmetric
     , law_Eq_transitive
+    , defn_Eq_noteq
     , POrd_ (..)
     , POrd
     , law_POrd_commutative
