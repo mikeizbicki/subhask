@@ -64,17 +64,17 @@ main = defaultMainWithOpts
         [ $( mkSpecializedClassTests [t| Labeled' Int Int |] [ ''Action,''Ord,''Metric ] )
         ]
     , testGroup "arrays"
-        [ $( mkSpecializedClassTests [t| BArray        Char |] [ ''Foldable,''MinBound,''IxContainer ] )
-        , $( mkSpecializedClassTests [t| UArray        Char |] [ ''Foldable,''MinBound,''IxContainer ] )
-        , $( mkSpecializedClassTests [t| UArray (UVector "dyn" Float) |] [ ''Foldable,''IxContainer ] )
-        , $( mkSpecializedClassTests [t| UArray (Labeled' (UVector "dyn" Float) Int) |] [ ''Foldable,''IxContainer ] )
+        [ $( mkSpecializedClassTests [t| BArray        Char |] [ ''Foldable,''MinBound,''Sliceable ] )
+        , $( mkSpecializedClassTests [t| UArray        Char |] [ ''Foldable,''MinBound,''Sliceable ] )
+--         , $( mkSpecializedClassTests [t| UArray (UVector "dyn" Float) |] [ ''Foldable,''IxContainer ] )
+--         , $( mkSpecializedClassTests [t| UArray (Labeled' (UVector "dyn" Float) Int) |] [ ''Foldable,''IxContainer ] )
         ]
     , testGroup "containers"
         [ $( mkSpecializedClassTests [t| []            Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Set           Char |] [ ''Foldable,''MinBound ] )
         , $( mkSpecializedClassTests [t| Seq           Char |] [ ''Foldable,''MinBound,''Partitionable ] )
         , $( mkSpecializedClassTests [t| Map  Int Int |] [ ''MinBound, ''IxConstructible ] )
-        , $( mkSpecializedClassTests [t| Map' Int Int |] [ ''MinBound, ''IxContainer ] )
+        , $( mkSpecializedClassTests [t| Map' Int Int |] [ ''MinBound, ''IxConstructible ] )
         , $( mkSpecializedClassTests [t| IntMap  Int |] [ ''MinBound, ''IxContainer ] )
         , $( mkSpecializedClassTests [t| IntMap' Int |] [ ''MinBound, ''IxContainer ] )
         , $( mkSpecializedClassTests [t| ByteString Char |] [ ''Foldable,''MinBound,''Partitionable ] )
@@ -100,7 +100,7 @@ main = defaultMainWithOpts
         , ropt_xml_nested       = Nothing
         , ropt_color_mode       = Just ColorAlways
         , ropt_hide_successes   = Just True
-        , ropt_list_only        = Just True
+        , ropt_list_only        = Just False
         }
 
 --------------------------------------------------------------------------------

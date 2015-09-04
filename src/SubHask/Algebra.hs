@@ -58,9 +58,6 @@ module SubHask.Algebra
 
 --     , defn_Latticelessthaninf
 --     , defn_Latticelessthansup
-    , Graded (..)
-    , law_Graded_pred
-    , law_Graded_fromEnum
     , Ord_ (..)
     , law_Ord_totality
     , law_Ord_min
@@ -77,9 +74,14 @@ module SubHask.Algebra
     , argmax
 --     , argminimum_
 --     , argmaximum_
+    , Graded (..)
+    , law_Graded_fromEnum
+    , law_Graded_pred
+    , defn_Graded_predN
     , Enum (..)
-    , law_Enum_succ
     , law_Enum_toEnum
+    , law_Enum_succ
+    , defn_Enum_succN
 
     -- ** Boolean helpers
     , (||)
@@ -144,12 +146,15 @@ module SubHask.Algebra
     , (!?)
 
     , Sliceable (..)
+    , law_Sliceable_restorable
+    , law_Sliceable_preservation
 
     , IxConstructible (..)
     , law_IxConstructible_lookup
     , defn_IxConstructible_consAt
     , defn_IxConstructible_snocAt
     , defn_IxConstructible_fromIxList
+    , theorem_IxConstructible_preservation
     , insertAt
 
     -- * Types
@@ -680,20 +685,114 @@ isAntichain (x:xs) = all (==PNA) (map (pcompare x) xs) && isAntichain xs
 
 -------------------
 
--- | In a WellFounded type, every element (except the 'maxBound" if it exists) has a successor element
+-- | An element of a graded lattice has a unique predecessor.
+--
+-- See <https://en.wikipedia.org/wiki/Graded_poset wikipedia> for more details.
+class Lattice b => Graded b where
+    -- | Algebrists typically call this function the "rank" of the element in the poset;
+    -- however we use the name from the standard prelude instead
+    fromEnum :: b -> Int
+
+    -- | The predecessor in the ordering
+    pred :: b -> b
+
+    -- | Repeatedly apply the "pred" function
+    predN :: Int -> b -> b
+    predN i b
+        | i  < 0 = error $ "predN called on negative number "++show i
+        | i == 0 = b
+        | i  > 0 = predN (i-1) $ pred b
+
+law_Graded_fromEnum :: (Lattice b, Graded b) => b -> b -> Bool
+law_Graded_fromEnum b1 b2
+    | b1 <  b2  = fromEnum b1 <  fromEnum b2
+    | b1 >  b2  = fromEnum b1 >  fromEnum b2
+    | b1 == b2  = fromEnum b1 == fromEnum b2
+    | otherwise = True
+
+law_Graded_pred :: Graded b => b -> b -> Bool
+law_Graded_pred b1 b2 = fromEnum (pred b1) == fromEnum b1-1
+                     || fromEnum (pred b1) == fromEnum b1
+
+defn_Graded_predN :: Graded b => Int -> b -> Bool
+defn_Graded_predN i b
+    | i < 0 = true
+    | otherwise = go i b == predN i b
+    where
+        go 0 b = b
+        go i b = go (i-1) $ pred b
+
+instance Graded Bool where
+    {-# INLINE pred #-}
+    pred True = False
+    pred False = False
+
+    {-# INLINE fromEnum #-}
+    fromEnum True = 1
+    fromEnum False = 0
+
+instance Graded Int where
+    {-# INLINE pred #-}
+    pred i = if i == minBound
+        then i
+        else i-1
+
+    {-# INLINE predN #-}
+    predN n i = if i-n <= i
+        then i-n
+        else minBound
+
+    {-# INLINE fromEnum #-}
+    fromEnum = id
+
+instance Graded Char where
+    {-# INLINE pred #-}
+    pred c = if c=='\NUL'
+        then '\NUL'
+        else P.pred c
+
+    {-# INLINE fromEnum #-}
+    fromEnum = P.fromEnum
+
+instance Graded Integer where
+    {-# INLINE pred #-}
+    pred = P.pred
+
+    {-# INLINE predN #-}
+    predN n i = i - toInteger n
+
+    {-# INLINE fromEnum #-}
+    fromEnum = P.fromEnum
+
+{-# INLINE (<.) #-}
+(<.) :: (Lattice b, Graded b) => b -> b -> Bool
+b1 <. b2 = b1 == pred b2
+
+-- | In a well founded ordering, every element (except possibly the "maxBound" if it exists) has a successor element.
+-- We use the "Enum" to represent well founded orderings to maintain consistency with the standard Prelude.
 --
 -- See <ncatlab http://ncatlab.org/nlab/show/well-founded+relation> for more info.
 class (Graded b, Ord_ b) => Enum b where
+    -- | The next element in the ordering
     succ :: b -> b
 
+    -- | Advance many elements into the ordering.
+    -- This value may be negative to move backwards.
+    succN :: Int -> b -> b
+    succN i b = toEnum $ fromEnum b + i
+
+    -- | Given an index (also called a rank) of an element, return the element
     toEnum :: Int -> b
+
+law_Enum_toEnum :: Enum b => b -> Bool
+law_Enum_toEnum b = toEnum (fromEnum b) == b
 
 law_Enum_succ :: Enum b => b -> b -> Bool
 law_Enum_succ b1 b2 = fromEnum (succ b1) == fromEnum b1+1
                    || fromEnum (succ b1) == fromEnum b1
 
-law_Enum_toEnum :: (Lattice b, Enum b) => b -> Bool
-law_Enum_toEnum b = toEnum (fromEnum b) == b
+defn_Enum_succN :: Enum b => Int -> b -> Logic b
+defn_Enum_succN i b = succN i b == toEnum (fromEnum b + i)
 
 instance Enum Bool where
     {-# INLINE succ #-}
@@ -701,8 +800,9 @@ instance Enum Bool where
     succ False = True
 
     {-# INLINE toEnum #-}
-    toEnum 1 = True
-    toEnum 0 = False
+    toEnum i
+        | i > 0 = True
+        | otherwise = False
 
 instance Enum Int where
     {-# INLINE succ #-}
@@ -729,65 +829,6 @@ instance Enum Integer where
     {-# INLINE toEnum #-}
     toEnum = P.toEnum
 
--- | An element of a graded poset has a unique predecessor.
---
--- See <https://en.wikipedia.org/wiki/Graded_poset wikipedia> for more details.
-class Lattice b => Graded b where
-    -- | the predecessor in the ordering
-    pred :: b -> b
-
-    -- | Algebrists typically call this function the "rank" of the element in the poset;
-    -- however we use the name from the standard prelude instead
-    fromEnum :: b -> Int
-
-law_Graded_pred :: Graded b => b -> b -> Bool
-law_Graded_pred b1 b2 = fromEnum (pred b1) == fromEnum b1-1
-                     || fromEnum (pred b1) == fromEnum b1
-
-law_Graded_fromEnum :: (Lattice b, Graded b) => b -> b -> Bool
-law_Graded_fromEnum b1 b2
-    | b1 <  b2  = fromEnum b1 <  fromEnum b2
-    | b1 >  b2  = fromEnum b1 >  fromEnum b2
-    | b1 == b2  = fromEnum b1 == fromEnum b2
-    | otherwise = True
-
-instance Graded Bool where
-    {-# INLINE pred #-}
-    pred True = False
-    pred False = False
-
-    {-# INLINE fromEnum #-}
-    fromEnum True = 1
-    fromEnum False = 0
-
-instance Graded Int where
-    {-# INLINE pred #-}
-    pred i = if i == minBound
-        then i
-        else i-1
-
-    {-# INLINE fromEnum #-}
-    fromEnum = id
-
-instance Graded Char where
-    {-# INLINE pred #-}
-    pred c = if c=='\NUL'
-        then '\NUL'
-        else P.pred c
-
-    {-# INLINE fromEnum #-}
-    fromEnum = P.fromEnum
-
-instance Graded Integer where
-    {-# INLINE pred #-}
-    pred = P.pred
-
-    {-# INLINE fromEnum #-}
-    fromEnum = P.fromEnum
-
-{-# INLINE (<.) #-}
-(<.) :: (Lattice b, Graded b) => b -> b -> Bool
-b1 <. b2 = b1 == pred b2
 
 {-# INLINE (>.) #-}
 (>.) :: (Lattice b, Enum b) => b -> b -> Bool
@@ -2711,6 +2752,8 @@ class (Boolean (Logic s), Boolean s, Container s) => Topology s where
 type family Index s
 type family SetIndex s a
 
+-- | FIXME:
+-- This type is a hack designed to work around the lack of injective type families.
 type ValidSetIndex s = SetIndex s (Index s) ~ s
 
 -- | An indexed constructible container associates an 'Index' with each 'Elem'.
@@ -2763,10 +2806,8 @@ law_IxContainer_preservation ::
     , IxContainer s
     ) => s -> s -> Index s -> Logic s
 law_IxContainer_preservation s1 s2 i = case s1 !? i of
-    Nothing -> case s2 !? i of
-        Nothing -> true
-        Just e  -> (s1+s2) !? i == Just e
     Just e -> (s1+s2) !? i == Just e
+    Nothing -> true
 
 defn_IxContainer_bang ::
     ( Eq_ (Elem s)
@@ -2810,10 +2851,44 @@ mkIxContainer(Double)
 mkIxContainer(Rational)
 
 -- | Sliceable containers generalize the notion of a substring to any IxContainer.
-class (IxContainer s, Enum (Index s)) => Sliceable s where
-    slice :: Index s -> Int -> s -> s
+-- Sliceables place a stronger guarantee on the way the Semigroup and IxContainer class interact to make the containers more array-like.
+--
+-- FIXME:
+-- Slice should probably be redefined in terms of "drop" and "take" (which also need to be included into the class hierarchy properly).
+class (IxContainer s, Scalar s~Index s, HasScalar s, Normed s) => Sliceable s where
+    -- | Extract a subcontainer
+    slice
+        :: Index s -- ^ starting index
+        -> Index s -- ^ number of elements
+        -> s       -- ^ container
+        -> s
 
--- | Some containers that use indices are not typically constructed with those indices (e.g. Arrays).
+law_Sliceable_restorable ::
+    ( Sliceable s
+    , Eq s
+    ) => s -> Index s -> Logic s
+law_Sliceable_restorable s i
+    | i >= 0 && i < length s = slice 0 i s + slice i (length s-i) s == s
+    | otherwise = True
+
+law_Sliceable_preservation ::
+    ( ValidLogic s
+    , Logic (Elem s) ~ Logic s
+    , Eq_ (Elem s)
+    , Eq_ s
+    , Sliceable s
+    ) => s -> s -> Index s -> Logic s
+law_Sliceable_preservation s1 s2 i = case s1 !? i of
+    Just e -> (s1+s2) !? i == Just e
+    Nothing -> case s2 !? (i - length s1) of
+        Just e  -> (s1+s2) !? i == Just e
+        Nothing -> true
+
+-- | This is the class for Map-like containers.
+-- Every element in these containers must contain both an index and an element.
+--
+-- Some containers that use indices are not typically constructed with those indices (e.g. Arrays).
+-- They belong to the "Sliceable" and "Constructable" classes, but not to this class.
 class IxContainer s => IxConstructible s where
     {-# MINIMAL singletonAt | consAt #-}
 
@@ -2860,10 +2935,25 @@ defn_IxConstructible_fromIxList :: (Eq_ s, IxConstructible s) => s -> [(Index s,
 defn_IxConstructible_fromIxList t es
     = fromIxList es `asTypeOf` t == foldl' (\s (i,e) -> snocAt s i e) zero es
 
+-- | Follows from "law_IxConstructible_lookup" but is closely related to "law_IxContainer_preservation" and "law_Sliceable_preservation"
+theorem_IxConstructible_preservation ::
+    ( ValidLogic s
+    , Logic (Elem s) ~ Logic s
+    , Eq_ (Elem s)
+    , IxContainer s
+    , Scalar s ~ Int
+    ) => s -> s -> Index s -> Logic s
+theorem_IxConstructible_preservation s1 s2 i = case s1 !? i of
+    Just e -> (s1+s2) !? i == Just e
+    Nothing -> case s2 !? i of
+        Just e  -> (s1+s2) !? i == Just e
+        Nothing -> true
+
 insertAt :: IxConstructible s => Index s -> Elem s -> s -> s
 insertAt = consAt
 
 -- | An infix operator equivalent to 'lookup'
+-- FIXME: what should the precedence be?
 {-# INLINABLE (!?) #-}
 (!?) :: IxContainer s => s -> Index s -> Maybe (Elem s)
 (!?) s i = lookup i s

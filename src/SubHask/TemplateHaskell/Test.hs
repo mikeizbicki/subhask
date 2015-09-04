@@ -69,12 +69,14 @@ testMap = Map.fromList
         , "law_Boolean_supdistributivity"
         ])
     , ( "Graded",
-        [ "law_Graded_pred"
-        , "law_Graded_fromEnum"
+        [ "law_Graded_fromEnum"
+        , "law_Graded_pred"
+        , "defn_Graded_predN"
         ] )
     , ( "Enum",
-        [ "law_Enum_succ"
-        , "law_Enum_toEnum"
+        [ "law_Enum_toEnum"
+        , "law_Enum_succ"
+        , "defn_Enum_succN"
         ] )
 
     -- algebra
@@ -192,19 +194,23 @@ testMap = Map.fromList
 
     -- indexed containers
 
-    , ( "IxConstructible",
-        [ "law_IxConstructible_lookup"
-        , "defn_IxConstructible_consAt"
-        , "defn_IxConstructible_snocAt"
-        , "defn_IxConstructible_fromIxList"
-        ] )
     , ( "IxContainer",
         [ "law_IxContainer_preservation"
         , "defn_IxContainer_bang"
         , "defn_IxContainer_findWithDefault"
         , "defn_IxContainer_hasIndex"
         ] )
-
+    , ( "Sliceable",
+        [ "law_Sliceable_restorable"
+        , "law_Sliceable_preservation"
+        ] )
+    , ( "IxConstructible",
+        [ "law_IxConstructible_lookup"
+        , "defn_IxConstructible_consAt"
+        , "defn_IxConstructible_snocAt"
+        , "defn_IxConstructible_fromIxList"
+        , "theorem_IxConstructible_preservation"
+        ] )
     ]
 
 -- | makes tests for all instances of a class that take no type variables
