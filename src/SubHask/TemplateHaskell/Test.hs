@@ -32,6 +32,7 @@ testMap = Map.fromList
         [ "law_Eq_reflexive"
         , "law_Eq_symmetric"
         , "law_Eq_transitive"
+        , "defn_Eq_noteq"
         ] )
     , ( "POrd_",
         [ "law_POrd_commutative"
@@ -44,6 +45,13 @@ testMap = Map.fromList
     , ( "Lattice_",
         [ "law_Lattice_infabsorption"
         , "law_Lattice_supabsorption"
+        , "law_Lattice_antisymmetry"
+        , "law_Lattice_associative"
+        , "law_Lattice_commutative"
+        , "law_Lattice_reflexivity"
+        , "law_Lattice_transitivity"
+        , "theorem_Lattice_idempotent"
+        , "defn_Lattice_greaterthan"
         ] )
     , ( "Ord_",
         [ "law_Ord_totality"
