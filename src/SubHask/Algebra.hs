@@ -2118,6 +2118,12 @@ class (VectorSpace v, Normed v, Metric v) => Banach v where
     normalize :: v -> v
     normalize v = v ./ size v
 
+-- | These laws correspond to the actual math class, but they don't
+-- actually hold for 'Float' and 'Double'.
+--
+-- FIXME:
+-- Find a way to actually test these laws and add them to
+-- "SubHask.TemplateHaskell.Test".
 law_Banach_distance :: Banach v => v -> v -> Logic (Scalar v)
 law_Banach_distance v1 v2 = size (v1 - v2) == distance v1 v2
 
