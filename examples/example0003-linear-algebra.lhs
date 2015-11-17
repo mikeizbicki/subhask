@@ -1,5 +1,5 @@
 This example introduces subhask's basic linear algebra system.
-It starts with the differences between arrays and vectors,
+It starts with the differences between arrays and vectors, 
 then shows example manipulations on a few vector spaces,
 and concludes with links to real world code.
 
@@ -27,9 +27,9 @@ Arrays vs. Vectors
 
 Vectors are the heart of linear algebra.
 But before we talk about vectors, we need to talk about containers.
-In particular, arrays and vectors are different in subhask.
-Arrays are generic containers suitable for storing both numeric and non-numeric values.
-Vectors are elements of a vector space and come with a completely different set of laws.
+In particular, arrays and vectors are different in Subhask than in most standard libraries.
+In the context of Subhask; arrays are generic containers suitable for storing both numeric and non-numeric values -
+while vectors are elements of a vector space and come with a completely different set of laws.
 
 There are three different types of arrays, each represented differently in memory.
 The `BArray` is a boxed array, `UArray` is an unboxed array, and `SArray` is a storable array.
@@ -50,7 +50,7 @@ We construct vectors using the `unsafeToModule` function.
 >   putStrLn $ "vec  = " + show vec
 
 If the dimension of the vector is not known at compile time, it does not need to be specified in the type signature.
-Instead, you can provide a string that represents the size of the vector.
+Instead, you can provide a string annotation in the type which will represent -- or act as a reference to -- it's size.
 
 >   let vec' = unsafeToModule [1..5] :: SVector "datapoint" Double
 >
@@ -58,7 +58,7 @@ Instead, you can provide a string that represents the size of the vector.
 
 The laws of the `Constructible` class, ensure that the `Monoid` instance concatenates two containers together.
 Vectors are not `Constructible` because their `Monoid` instance is not concatenation.
-Instead, is is componentwise addition on each of the elements.
+Instead, it is component-wise addition on each of the elements.
 Compare the following:
 
 >   putStrLn ""
@@ -67,11 +67,11 @@ Compare the following:
 >   putStrLn $ "vec' + vec' = " + (show $ vec'+vec')
 
 One commonality between vectors and arrays is that they are both indexed containers (i.e. instances of `IxContainer`).
-This lets us look up a value at a specific instance using the `(!)` operator:
+This lets us look up a value in a specific instance using the `(!)` operator:
 
 >   putStrLn ""
->   putStrLn $ "arr!0  = " + show (arr!0)
->   putStrLn $ "vec!0  = " + show (vec!0)
+>   putStrLn $ "arr !0 = " + show (arr !0)
+>   putStrLn $ "vec !0 = " + show (vec !0)
 >   putStrLn $ "vec'!0 = " + show (vec'!0)
 
 Unboxed arrays in subhask are more powerful than the unboxed vectors used in standard haskell.
@@ -92,7 +92,8 @@ Nonetheless, because we have annotated the sizes with different strings, the fol
 ```
 
 And this is exactly what we want!
-It doesn't make sense to add a vector of dimension 2 to a vector of dimension 3, so the types prevent it.
+It doesn't make sense to add a vector of dimension 2 to a vector of dimension 3 however we, ourselves, may not know what kind of dimentionality we are dealing with.
+Instead of requiring the us to have this knowledge, we can offload the work to the type system to prevent this!
 
 I've found this distinction between vectors and arrays greatly simplifies the syntax when using linear algebra.
 
@@ -105,10 +106,10 @@ Let's create two vectors and show all the vector operations you might want to pe
 >       v = unsafeToModule [0,1,2] :: SVector 3 Double
 >
 >   putStrLn ""
->   putStrLn $ "add:           " + show (u+v)
->   putStrLn $ "sub:           " + show (u-v)
->   putStrLn $ "scalar mul:    " + show (5*.u)
->   putStrLn $ "component mul: " + show (u.*.v)
+>   putStrLn $ "add:           " + show (u + v)
+>   putStrLn $ "sub:           " + show (u - v)
+>   putStrLn $ "scalar mul:    " + show (5  *. u)
+>   putStrLn $ "component mul: " + show (u .*. v)
 
 Because `SVector` is not just a vector space but also a hilbert space (i.e. instance of `Hilbert`),
 we get the following operations as well:
@@ -116,16 +117,17 @@ we get the following operations as well:
 >   putStrLn ""
 >   putStrLn $ "norm:          " + show (size u)
 >   putStrLn $ "distance:      " + show (distance u v)
->   putStrLn $ "inner product: " + show (u<>v)
->   putStrLn $ "outer product: " + show (u><v)
+>   putStrLn $ "inner product: " + show (u <> v)
+>   putStrLn $ "outer product: " + show (u >< v)
 
-The usual way people think of the outer product of two vectors is as a matrix.
+Usually, people think of the outer product of two vectors is as a matrix.
 But matrices are equivalent to linear functions, and that's the interpretation used in subhask.
 The category `(+>)` (also called `Vect`) is the subcategory of `Hask` corresponding to linear functions.
 
-The main advantage of this interpretation is that matrix multiplication is the same thing as function composition.
+The main advantage of this interpretation is that matrix multiplication becomes the same as function composition,
+which also means that we can go about representing a matrix as two `SVector`s composed together with `(+>)`.
 
->   let matrix1 = u><v :: SVector 3 Double +> SVector 3 Double
+>   let matrix1 = u >< v :: SVector 3 Double +> SVector 3 Double
 >
 >   putStrLn ""
 >   putStrLn $ "matrix1*matrix1 = " + show (matrix1*matrix1)
@@ -175,7 +177,7 @@ and ordinary haskell functions are actually infinite dimensional vector space!
 Here they are in action:
 
 >   let f x = x.*.x -- :: SVector 5 Double
->       g x = x+x   -- :: SVector 5 Double
+>       g x = x + x -- :: SVector 5 Double
 >
 >   let h = f.*.g   -- :: SVector 5 Double -> SVector 5 Double
 >
