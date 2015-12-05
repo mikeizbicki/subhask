@@ -51,6 +51,7 @@ We construct vectors using the `unsafeToModule` function.
 
 If the dimension of the vector is not known at compile time, it does not need to be specified in the type signature.
 Instead, you can provide a string annotation in the type which will represent -- or act as a reference to -- it's size.
+In addition, you can use any number of strings to reference the same size -- allowing for more flexible type signatures.
 
 >   let vec' = unsafeToModule [1..5] :: SVector "datapoint" Double
 >
