@@ -111,7 +111,7 @@ Let's create two vectors and show all the vector operations you might want to pe
 >   putStrLn $ "scalar mul:    " + show (5  *. u)
 >   putStrLn $ "component mul: " + show (u .*. v)
 
-Because `SVector` is not just a vector space but also a hilbert space (i.e. instance of `Hilbert`),
+Because `SVector` is not just a vector space but also a [hilbert space][hilbert-wiki] (i.e. instance of `Hilbert`),
 we get the following operations as well:
 
 >   putStrLn ""
@@ -134,7 +134,8 @@ which also means that we can go about representing a matrix as two `SVector`s co
 >   putStrLn $ "matrix1.matrix1 = " + show (matrix1.matrix1)
 
 Square matrices (as shown above) are instances of the `Ring` type class.
-But non-square matrices cannot be made instances of `Ring`.
+But non-square matrices cannot be made instances of `Ring`
+-- for more information on the ring algebraic structure, [see here][ring-wiki].
 The reason is that the type signature for multiplication
 ```
 (*) :: Ring r => r -> r -> r
@@ -158,14 +159,14 @@ Here's an example:
 >   putStrLn $ "b.a     = " + show (b.a)
 >   putStrLn $ "b.c.c.a = " + show (b.c.c.a)
 
-Linear functions form a subcategory of Hask,
+Linear functions form a [subcategory of Hask][LinearObjects.hs],
 and function application corresponds to right multiplying by a vector:
 
 >   putStrLn ""
 >   putStrLn $ "c $ u = " + show (c $ u)
 
 Linear functions form what's known as a dagger catgory (i.e. `(+>)` is an instance of `Dagger`).
-Dagger categories capture the idea of transposing a function and the ability to left multiply a vector.
+[Dagger categories][dagger-wiki] capture the idea of transposing a function and the ability to left multiply a vector.
 
 >   putStrLn ""
 >   putStrLn $ "trans c = " + show (trans c)
@@ -208,3 +209,9 @@ These multiparameter functions correspond to higher order tensors.
 The reason for this limitation is type system issues I haven't figured out.
 
 There are many more FIXME annotations documented in the code.
+
+[LinearObjects.hs]: https://github.com/mikeizbicki/subhask/blob/master/src/SubHask/Category/Linear/Objects.hs
+[dagger-wiki]: https://en.wikipedia.org/wiki/Dagger_category
+[ring-wiki]: https://en.wikipedia.org/wiki/Ring_(mathematics)
+[hilbert-wiki]: https://en.wikipedia.org/wiki/Hilbert_space
+
