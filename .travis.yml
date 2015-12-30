@@ -30,7 +30,9 @@ before_install:
  - travis_retry sudo add-apt-repository "deb http://llvm.org/apt/precise/ llvm-toolchain-precise-$LLVMVER main"
  - travis_retry sudo apt-get update
  - sudo apt-get install -y llvm-$LLVMVER llvm-$LLVMVER-dev
- - sudo ln -s /usr/bin/opt-$LLVMVER /usr/bin/opt
+ #- sudo ln -s /usr/bin/opt-$LLVMVER /usr/bin/opt
+ - sudo rm -rf /usr/bin/opt && sudo ln -s /usr/bin/opt-$LLVMVER /usr/bin/opt
+ - sudo rm -rf /usr/bin/llc && sudo ln -s /usr/bin/llc-$LLVMVER /usr/bin/llc
  - export PATH="/usr/bin:$PATH"
 
 install:
