@@ -1661,7 +1661,7 @@ instance Category (+>) where
 
     (Mat_ m1) . Zero      = Zero
     (Mat_ m ) . (Id_  r ) = Mat_ $ HM.scale r m
-    (Mat_ m1) . (Mat_ m2) = Mat_ $ m2 HM.<> m1
+    (Mat_ m1) . (Mat_ m2) = Mat_ $ m1 HM.<> m2
 
 instance Sup (+>) (->) (->)
 instance Sup (->) (+>) (->)

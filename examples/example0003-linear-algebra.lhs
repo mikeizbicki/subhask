@@ -148,8 +148,8 @@ So the type system will ensure that your matrix multiplications actually make se
 
 Here's an example:
 
->   let a = unsafeMkSMatrix 2 3 [1..6] :: SVector "a" Double +> SVector 3   Double
->       b = unsafeMkSMatrix 3 2 [1..6] :: SVector 3   Double +> SVector "a" Double
+>   let a = unsafeMkSMatrix 3 2 [1..6] :: SVector "a" Double +> SVector 3   Double
+>       b = unsafeMkSMatrix 2 3 [1..6] :: SVector 3   Double +> SVector "a" Double
 >       c = unsafeMkSMatrix 3 3 [1..9] :: SVector 3   Double +> SVector 3   Double
 >
 >   putStrLn ""
@@ -161,6 +161,11 @@ and function application corresponds to right multiplying by a vector:
 
 >   putStrLn ""
 >   putStrLn $ "c $ u = " + show (c $ u)
+
+When thinking of linear functions as matrices, the type signature may be slightly confusing.
+A linear function that takes a vector of length n to a vector of length m corresponds to a matrix with n columns and m rows.
+Thus, the type `SVector 3 Double +> SVector 2 Double` is the type of a 2 by 3 matrix.
+The argument order of `unsafeMkSMatrix` is the standard "row, column" order, however.
 
 Linear functions form what's known as a dagger catgory (i.e. `(+>)` is an instance of `Dagger`).
 Dagger categories capture the idea of transposing a function and the ability to left multiply a vector.
