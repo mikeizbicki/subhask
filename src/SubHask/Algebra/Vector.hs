@@ -90,7 +90,14 @@ data family UVector (n::k) r
 
 type instance Scalar (UVector n r) = Scalar r
 type instance Logic (UVector n r) = Logic r
-type instance UVector n r >< a = UVector n (r><a)
+-- type instance UVector n r >< a = UVector n (r><a)
+
+type instance UVector m a >< b = Tensor_UVector (UVector m a) b
+type family Tensor_UVector a b where
+    Tensor_UVector (UVector n r1) (UVector m r2) = UVector n r1 +> UVector m r2
+    Tensor_UVector (UVector n r1) r1 = UVector n r1 -- (r1><r2)
+
+type ValidUVector n r = ( (UVector n r><Scalar r)~UVector n r, Prim r)
 
 type instance Index (UVector n r) = Int
 type instance Elem (UVector n r) = Scalar r
@@ -113,7 +120,7 @@ instance (Show r, Monoid r, Prim r) => Show (UVector (n::Symbol) r) where
                 where
                     x = indexByteArray arr (off+i) :: r
 
-instance (Arbitrary r, Prim r, FreeModule r, IsScalar r) => Arbitrary (UVector (n::Symbol) r) where
+instance (Arbitrary r, ValidUVector n r, FreeModule r, IsScalar r) => Arbitrary (UVector (n::Symbol) r) where
     arbitrary = frequency
         [ (1,return zero)
         , (9,fmap unsafeToModule $ replicateM 27 arbitrary)
@@ -125,7 +132,7 @@ instance (Show r, Monoid r, Prim r) => CoArbitrary (UVector (n::Symbol) r) where
 instance (NFData r, Prim r) => NFData (UVector (n::Symbol) r) where
     rnf (UVector_Dynamic arr off n) = seq arr ()
 
-instance (FromField r, Prim r, IsScalar r, FreeModule r) => FromRecord (UVector (n::Symbol) r) where
+instance (FromField r, ValidUVector n r, IsScalar r, FreeModule r) => FromRecord (UVector (n::Symbol) r) where
     parseRecord r = do
         rs :: [r] <- parseRecord r
         return $ unsafeToModule rs
@@ -347,15 +354,21 @@ instance (Group r, Prim r) => Group (UVector (n::Symbol) r) where
 
 instance (Monoid r, Abelian r, Prim r) => Abelian (UVector (n::Symbol) r)
 
-instance (Module r, Prim r) => Module (UVector (n::Symbol) r) where
+instance (Module r, ValidUVector n r) => Module (UVector (n::Symbol) r) where
     {-# INLINE (.*)   #-} ;  (.*)  v r = monopDynUV  (.*r) v
 --     {-# INLINE (.*=)  #-} ;  (.*=) v r = monopDynM (.*r) v
 
-instance (FreeModule r, Prim r) => FreeModule (UVector (n::Symbol) r) where
+type instance Actor (UVector n r) = Actor r
+
+instance (Action r, Semigroup r, Prim r) => Action (UVector (n::Symbol) r) where
+  {-# INLINE (.+)   #-}
+  (.+) v r = monopDynUV (.+r) v
+
+instance (FreeModule r, ValidUVector n r) => FreeModule (UVector (n::Symbol) r) where
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopDynUV  (.*.)
 --     {-# INLINE (.*.=) #-} ;  (.*.=)    = binopDynUVM (.*.)
 
-instance (VectorSpace r, Prim r) => VectorSpace (UVector (n::Symbol) r) where
+instance (VectorSpace r, ValidUVector n r) => VectorSpace (UVector (n::Symbol) r) where
     {-# INLINE (./)   #-} ;  (./)  v r = monopDynUV  (./r) v
 --     {-# INLINE (./=)  #-} ;  (./=) v r = monopDynM (./r) v
 
@@ -379,7 +392,7 @@ instance (Monoid r, ValidLogic r, Prim r, IsScalar r) => IxContainer (UVector (n
 --     imap f v = unsafeToModule $ imap f $ values v
 
 
-instance (FreeModule r, ValidLogic r, Prim r, IsScalar r) => FiniteModule (UVector (n::Symbol) r) where
+instance (FreeModule r, ValidUVector n r, ValidLogic r, IsScalar r) => FiniteModule (UVector (n::Symbol) r) where
 
     {-# INLINE dim #-}
     dim (UVector_Dynamic _ _ n) = n
@@ -523,6 +536,78 @@ instance (VectorSpace r, Prim r, IsScalar r, ExpField r) => Normed (UVector (n::
             goEach !tot !i = if i<0
                 then tot
                 else goEach (tot+v!i*v!i) (i-1)
+
+instance
+    ( VectorSpace r
+    , ValidUVector n r
+    , IsScalar r
+    , ExpField r
+    , Real r
+    ) => Banach (UVector (n::Symbol) r)
+
+instance
+    ( VectorSpace r
+    , ValidUVector n r
+    , IsScalar r
+    , ExpField r
+    , Real r
+    , OrdField r
+    , MatrixField r
+    ) => Hilbert (UVector (n::Symbol) r)
+        where
+
+    {-# INLINE (<>) #-}
+    v1@(UVector_Dynamic _ _ n)<>v2@(UVector_Dynamic _ _ _) = if isZero n
+        then 0
+        else go 0 (n-1)
+        where
+            go !tot !i =  if i<4
+                then goEach tot i
+                else
+                    go (tot+(v1!(i  ) * v2!(i  ))
+                           +(v1!(i-1) * v2!(i-1))
+                           +(v1!(i-2) * v2!(i-2))
+                           +(v1!(i-3) * v2!(i-3))
+                       ) (i-4)
+
+            goEach !tot !i = if i<0
+                then tot
+                else goEach (tot+(v1!i * v2!i)) (i-1)
+
+instance MatrixField r => ToFromVector (UVector (n::Symbol) r) where
+    toVector (UVector_Dynamic fp off n) = undefined
+    fromVector v = UVector_Dynamic fp off n
+        where
+            (fp,off,n) = undefined -- VS.unsafeToForeignPtr v
+
+instance MatrixField r => Normed (UVector m r +> UVector n r) where
+    size (Id_ r) = r
+    size (Mat_ m) = HM.det m
+
+-- | A slightly more convenient type for linear functions between "UVector"s
+type UMatrix r m n = UVector m r +> UVector n r
+
+-- | Construct an "UMatrix"
+unsafeMkUMatrix ::
+    ( VectorSpace (UVector m r)
+    , VectorSpace (UVector n r)
+    , ToFromVector (UVector m r)
+    , ToFromVector (UVector n r)
+    , MatrixField r
+    ) => Int -> Int -> [r] -> UMatrix r m n
+unsafeMkUMatrix m n rs = Mat_ $ (m HM.>< n) rs
+
+instance
+    ( FiniteModule (UVector n r)
+    , VectorSpace (UVector n r)
+    , MatrixField r
+    , ToFromVector (UVector n r)
+    ) => TensorAlgebra (UVector n r)
+        where
+    v1><v2 = unsafeMkUMatrix (dim v1) (dim v2) [ v1!i * v2!j | i <- [0..dim v1-1], j <- [0..dim v2-1] ]
+
+    mXv m v = m $ v
+    vXm v m = trans m $ v
 
 --------------------------------------------------------------------------------
 -- helper functions for memory management
