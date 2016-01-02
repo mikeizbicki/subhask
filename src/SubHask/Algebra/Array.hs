@@ -226,6 +226,7 @@ instance
     , Prim r
     , FreeModule r
     , IsScalar r
+    , ValidUVector s r
     ) => Constructible (UArray (UVector (s::Symbol) r))
         where
 
@@ -605,6 +606,7 @@ instance
     , IsScalar r
     , Prim y
     , Unbox y
+    , ValidUVector s r
     ) => Constructible (UArray (Labeled' (UVector (s::Symbol) r) y))
         where
 

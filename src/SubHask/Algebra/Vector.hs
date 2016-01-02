@@ -16,6 +16,7 @@
 module SubHask.Algebra.Vector
     ( SVector (..)
     , UVector (..)
+    , ValidUVector
     , Unbox
     , type (+>)
     , SMatrix
@@ -517,7 +518,6 @@ instance
             goEach !tot !i = if i<0
                 then tot
                 else goEach (tot + (v1!i-v2!i).*.(v1!i-v2!i)) (i-1)
-
 
 instance (VectorSpace r, Prim r, IsScalar r, ExpField r) => Normed (UVector (n::Symbol) r) where
     {-# INLINE size #-}
