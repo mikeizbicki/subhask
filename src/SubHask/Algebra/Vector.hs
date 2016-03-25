@@ -13,6 +13,7 @@
 --
 -- FIXME:
 -- We shouldn't need to call out to the FFI in order to get SIMD instructions.
+
 module SubHask.Algebra.Vector
     ( SVector (..)
     , UVector (..)
@@ -44,8 +45,10 @@ import qualified Data.Vector.Generic.Mutable as VGM
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Unboxed.Mutable as VUM
 import qualified Data.Vector.Storable as VS
-import qualified Data.Packed.Matrix as HM
+-- import qualified Data.Packed.Matrix as HM
 import qualified Numeric.LinearAlgebra as HM
+import qualified Numeric.LinearAlgebra.HMatrix as HM
+import qualified Numeric.LinearAlgebra.Data as HM
 
 import qualified Prelude as P
 import SubHask.Algebra
@@ -553,6 +556,7 @@ instance
     , Real r
     , OrdField r
     , MatrixField r
+    , P.Num (HM.Vector r)
     ) => Hilbert (UVector (n::Symbol) r)
         where
 
@@ -594,6 +598,7 @@ unsafeMkUMatrix ::
     , ToFromVector (UVector m r)
     , ToFromVector (UVector n r)
     , MatrixField r
+    , P.Num (HM.Vector r)
     ) => Int -> Int -> [r] -> UMatrix r m n
 unsafeMkUMatrix m n rs = Mat_ $ (m HM.>< n) rs
 
@@ -602,6 +607,7 @@ instance
     , VectorSpace (UVector n r)
     , MatrixField r
     , ToFromVector (UVector n r)
+    , P.Num (HM.Vector r)
     ) => TensorAlgebra (UVector n r)
         where
     v1><v2 = unsafeMkUMatrix (dim v1) (dim v2) [ v1!i * v2!j | i <- [0..dim v1-1], j <- [0..dim v2-1] ]
@@ -1054,6 +1060,7 @@ instance
     , Real r
     , OrdField r
     , MatrixField r
+    , P.Num (HM.Vector r)
     ) => Hilbert (SVector (n::Symbol) r)
         where
 
@@ -1466,6 +1473,7 @@ instance
     , MatrixField r
     , ValidSVector n r
     , ValidSVector "dyn" r
+    , P.Num (HM.Vector r)
     ) => Hilbert (SVector (n::Nat) r)
         where
 
@@ -1672,11 +1680,12 @@ instance (KnownNat n, MatrixField r) => ToFromVector (SVector (n::Nat) r) where
 
 apMat_ ::
     ( Scalar a~Scalar b
+    , Scalar b ~ Scalar (Scalar b)
     , MatrixField (Scalar a)
     , ToFromVector a
     , ToFromVector b
     ) => HM.Matrix (Scalar a) -> a -> b
-apMat_ m a = fromVector $ m HM.<> toVector a
+apMat_ m a = fromVector $ HM.flatten $ m HM.<> HM.asColumn (toVector a)
 
 ---------------------------------------
 
@@ -1693,10 +1702,12 @@ data a +> b where
     Mat_ ::
         ( MatrixField (Scalar b)
         , Scalar a~Scalar b
+        , Scalar b~Scalar (Scalar b)
         , VectorSpace a
         , VectorSpace b
         , ToFromVector a
         , ToFromVector b
+        , P.Num (HM.Vector (Scalar a))
         ) => {-#UNPACK#-}!(HM.Matrix (Scalar b)) -> a +> b
 
 type instance Scalar (a +> b) = Scalar b
@@ -1720,6 +1731,7 @@ unsafeMkSMatrix ::
     , ToFromVector (SVector m r)
     , ToFromVector (SVector n r)
     , MatrixField r
+    , P.Num (HM.Vector r)
     ) => Int -> Int -> [r] -> SMatrix r m n
 unsafeMkSMatrix m n rs = Mat_ $ (m HM.>< n) rs
 
@@ -1762,7 +1774,7 @@ instance (+>) <: (->) where
 instance Dagger (+>) where
     trans Zero     = Zero
     trans (Id_  r) = Id_ r
-    trans (Mat_ m) = Mat_ $ HM.trans m
+    trans (Mat_ m) = Mat_ $ HM.tr' m
 
 instance Groupoid (+>) where
     inverse (Id_  r) = Id_  $ reciprocal r
@@ -1783,9 +1795,9 @@ instance Semigroup (a +> b) where
     Zero      + a         = a
     a         + Zero      = a
     (Id_  r1) + (Id_  r2) = Id_ (r1+r2)
-    (Id_  r ) + (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) `HM.add` m
-    (Mat_ m ) + (Id_  r ) = Mat_ $ m `HM.add` HM.scale r (HM.ident (HM.rows m))
-    (Mat_ m1) + (Mat_ m2) = Mat_ $ m1 `HM.add` m2
+    (Id_  r ) + (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) P.+ m
+    (Mat_ m ) + (Id_  r ) = Mat_ $ m P.+ HM.scale r (HM.ident (HM.rows m))
+    (Mat_ m1) + (Mat_ m2) = Mat_ $ m1 P.+ m2
 
 instance (VectorSpace a, VectorSpace b) => Monoid (a +> b) where
     zero = Zero
@@ -1794,9 +1806,9 @@ instance (VectorSpace a, VectorSpace b) => Cancellative (a +> b) where
     a         - Zero      = a
     Zero      - a         = negate a
     (Id_  r1) - (Id_  r2) = Id_ (r1-r2)
-    (Id_  r ) - (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) `HM.sub` m
-    (Mat_ m ) - (Id_  r ) = Mat_ $ m `HM.sub` HM.scale r (HM.ident (HM.rows m))
-    (Mat_ m1) - (Mat_ m2) = Mat_ $ m1 `HM.sub` m2
+    (Id_  r ) - (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) P.- m
+    (Mat_ m ) - (Id_  r ) = Mat_ $ m P.- HM.scale r (HM.ident (HM.rows m))
+    (Mat_ m1) - (Mat_ m2) = Mat_ $ m1 P.- m2
 
 instance (VectorSpace a, VectorSpace b) => Group (a +> b) where
     negate Zero     = Zero
@@ -1817,16 +1829,16 @@ instance (VectorSpace a, VectorSpace b) => FreeModule (a +> b) where
     Zero      .*. _         = Zero
     _         .*. Zero      = Zero
     (Id_  r1) .*. (Id_  r2) = Id_ $ r1*r2
-    (Id_  r ) .*. (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) `HM.mul` m
-    (Mat_ m ) .*. (Id_  r ) = Mat_ $ m `HM.mul` HM.scale r (HM.ident (HM.rows m))
-    (Mat_ m1) .*. (Mat_ m2) = Mat_ $ m1 `HM.mul` m2
+    (Id_  r ) .*. (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) P.* m
+    (Mat_ m ) .*. (Id_  r ) = Mat_ $ m P.* HM.scale r (HM.ident (HM.rows m))
+    (Mat_ m1) .*. (Mat_ m2) = Mat_ $ m1 P.* m2
 
 instance (VectorSpace a, VectorSpace b) => VectorSpace (a +> b) where
     Zero      ./. _         = Zero
     (Id_  r1) ./. (Id_  r2) = Id_ $ r1/r2
-    (Id_  r ) ./. (Mat_ m ) = Mat_ $ HM.scale r (HM.ident (HM.rows m)) `HM.divide` m
-    (Mat_ m ) ./. (Id_  r ) = Mat_ $ m `HM.divide` HM.scale r (HM.ident (HM.rows m))
-    (Mat_ m1) ./. (Mat_ m2) = Mat_ $ m1 `HM.divide` m2
+    (Id_  r ) ./. (Mat_ m ) = Mat_ $ (HM.scale r (HM.ident (HM.rows m))) P./ m
+    (Mat_ m ) ./. (Id_  r ) = Mat_ $ m P./ HM.scale r (HM.ident (HM.rows m))
+    (Mat_ m1) ./. (Mat_ m2) = Mat_ $ m1 P./ m2
 
 -------------------
 -- rings
@@ -1853,6 +1865,7 @@ instance
     , VectorSpace (SVector n r)
     , MatrixField r
     , ToFromVector (SVector n r)
+    , P.Num (HM.Vector r)
     ) => TensorAlgebra (SVector n r)
         where
     v1><v2 = unsafeMkSMatrix (dim v1) (dim v2) [ v1!i * v2!j | i <- [0..dim v1-1], j <- [0..dim v2-1] ]
