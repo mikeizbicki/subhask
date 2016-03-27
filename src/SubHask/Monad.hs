@@ -73,7 +73,7 @@ class (Then m, Functor cat m) => Monad cat m where
     (=<<) :: cat a (m b) -> cat (m a) (m b)
     (=<<) f = join . fmap f
 
-    -- | The bind operator is used in desguaring do notation;
+    -- | The bind operator is used in desugaring do notation;
     -- unlike all the other operators, we're explicitly applying values to the arrows passed in;
     -- that's why we need the "Concrete" constraint
     infixl 1 >>=
