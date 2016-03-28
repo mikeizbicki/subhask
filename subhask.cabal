@@ -124,7 +124,7 @@ library
         -- But since subhask is designed as an alternative to base, this is an acceptable tradeoff.
 
         -- haskell language
-        base                        ,
+        base                        >= 4.8 && <4.9,
         ghc-prim                    ,
         template-haskell            ,
 
