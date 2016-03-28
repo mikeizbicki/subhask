@@ -772,7 +772,7 @@ b1 <. b2 = b1 == pred b2
 -- | In a well founded ordering, every element (except possibly the "maxBound" if it exists) has a successor element.
 -- We use the "Enum" to represent well founded orderings to maintain consistency with the standard Prelude.
 --
--- See <ncatlab http://ncatlab.org/nlab/show/well-founded+relation> for more info.
+-- See <http://ncatlab.org/nlab/show/well-founded+relation ncatlab> for more info.
 class (Graded b, Ord_ b) => Enum b where
     -- | The next element in the ordering
     succ :: b -> b
@@ -1058,7 +1058,7 @@ type family Actor s
 
 -- | Semigroup actions let us apply a semigroup to a set.
 -- The theory of Modules is essentially the theory of Ring actions.
--- (See <http://mathoverflow.net/questions/100565/why-are-ring-actions-much-harder-to-find-than-group-actions mathoverflow.)
+-- (See <http://mathoverflow.net/questions/100565/why-are-ring-actions-much-harder-to-find-than-group-actions mathoverflow>.)
 -- That is why the two classes use similar notation.
 --
 -- See <https://en.wikipedia.org/wiki/Semigroup_action wikipedia> for more detail.
@@ -1395,7 +1395,7 @@ indicator False = 0
 -- | 'Integral' numbers can be formed from a wide class of things that behave
 -- like integers, but intuitively look nothing like integers.
 --
--- FIXME: All Fields are integral domains; should we make it a subclass?  This wouuld have the (minor?) problem of making the Integral class have to be an approximate embedding.
+-- FIXME: All Fields are integral domains; should we make it a subclass?  This would have the (minor?) problem of making the Integral class have to be an approximate embedding.
 -- FIXME: Not all integral domains are homomorphic to the integers (e.g. a field)
 --
 -- See wikipedia on <https://en.wikipedia.org/wiki/Integral_element integral elements>,
@@ -1749,7 +1749,7 @@ instance ExpField Double where
 --
 -- FIXME:
 -- Factor this out into a more appropriate class hierarchy.
--- For example, some (all?) trig functions need to move to a separate class in order to support trig in finite fields (see <en.wikipedia.org/wiki/Trigonometry_in_Galois_fields wikipedia>).
+-- For example, some (all?) trig functions need to move to a separate class in order to support trig in finite fields (see <https://en.wikipedia.org/wiki/Trigonometry_in_Galois_fields wikipedia>).
 --
 -- FIXME:
 -- This class is misleading/incorrect for complex numbers.
@@ -1881,7 +1881,7 @@ instance Normed Rational  where size = P.abs
 -- | A Cone is an \"almost linear\" subspace of a module.
 -- Examples include the cone of positive real numbers and the cone of positive semidefinite matrices.
 --
--- See <http://en.wikipedia.org/wiki/Cone_%28linear_algebra%29 wikipedia for more details.
+-- See <http://en.wikipedia.org/wiki/Cone_%28linear_algebra%29 wikipedia> for more details.
 --
 -- FIXME:
 -- There are many possible laws for cones (as seen in the wikipedia article).
@@ -2105,7 +2105,7 @@ instance VectorSpace b => VectorSpace (a -> b) where g ./. f = \a -> g a ./. f a
 -- See <http://en.wikipedia.org/wiki/Riesz_space wikipedia> for more details.
 class (VectorSpace v, Lattice_ v) => Reisz v where
     --
-    -- | An element of a reisz space can always be split into positive and negative components.
+    -- | An element of a Reisz space can always be split into positive and negative components.
     reiszSplit :: v -> (v,v)
 
 ---------------------------------------
@@ -2354,7 +2354,7 @@ sizeDisjoint s1 s2 = size s1 + size s2 == size (s1+s2)
 type Constructible0 x = (Monoid x, Constructible x)
 
 -- | This is the class for any type that gets "constructed" from smaller types.
--- It is a massive generalization of the notion of a constructable set in topology.
+-- It is a massive generalization of the notion of a constructible set in topology.
 --
 -- See <https://en.wikipedia.org/wiki/Constructible_set_%28topology%29 wikipedia> for more details.
 class Semigroup s => Constructible s where
