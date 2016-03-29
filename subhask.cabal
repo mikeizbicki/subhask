@@ -125,39 +125,40 @@ library
 
         -- haskell language
         base                        >= 4.8 && <4.9,
-        ghc-prim                    == 0.4.0.0,
-        template-haskell            == 2.10.0.0,
+        ghc-prim                    ,
+        template-haskell            ,
 
         -- special functionality
-        parallel                    == 3.2.0.6,
-        deepseq                     == 1.4.1.1,
-        primitive                   == 0.6,
-        monad-primitive             == 0.1,
-        QuickCheck                  == 2.8.1,
+        parallel                    ,
+        deepseq                     ,
+        primitive                   ,
+        monad-primitive             ,
+        QuickCheck                  ,
 
         -- math
-        erf                         == 2.0.0.0,
-        gamma                       == 0.9.0.2,
-        hmatrix                     == 0.16.1.5,
+        erf                         ,
+        gamma                       ,
+        hmatrix                     ,
 
         -- compatibility control flow
-        mtl                         == 2.2.1,
-        MonadRandom                 == 0.4,
+        mtl                         ,
+        MonadRandom                 ,
 
         -- compatibility data structures
-        bytestring                  == 0.10.6.0,
-        bloomfilter                 == 2.0.1.0,
-        cassava                     == 0.4.3.1,
-        containers                  == 0.5.6.2,
-        vector                      == 0.10.12.3,
-        array                       == 0.5.1.0,
-        hyperloglog                 == 0.3.4,
+        bytestring                  ,
+        bloomfilter                 ,
+        cassava                     ,
+        containers                  ,
+        vector                      ,
+        array                       ,
+        hyperloglog                 ,
+        reflection                  ,
 
         -- required for hyperloglog compatibility
-        semigroups                  == 0.16.2.2,
-        bytes                       == 0.15.0.1,
-        approximate                 == 0.2.2.1,
-        lens                        == 4.12.3
+        semigroups                  ,
+        bytes                       ,
+        approximate                 ,
+        lens                        
 
     default-language:
         Haskell2010
@@ -175,8 +176,8 @@ Test-Suite TestSuite-Unoptimized
 
     build-depends:
         subhask,
-        test-framework-quickcheck2  >= 0.3.0,
-        test-framework              >= 0.8.0
+        test-framework-quickcheck2,
+        test-framework
 
 -- FIXME:
 -- The test below takes a long time to compile.
@@ -230,7 +231,7 @@ benchmark Vector
     build-depends:
         base,
         subhask,
-        criterion                   == 1.1.0.0,
+        criterion,
         MonadRandom
 
     ghc-options:
