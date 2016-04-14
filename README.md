@@ -59,6 +59,7 @@ To install on Linux or Mac, run the following commands:
     $ tar -xf llvm-3.5.2.src.tar.xz
     $ cd llvm-3.5.2
     $ mkdir build
+    $ cd build
     $ cmake ..
     $ make -j5
     $ sudo make install
