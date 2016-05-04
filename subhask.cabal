@@ -35,6 +35,7 @@ library
         SubHask.Algebra.Container
         SubHask.Algebra.Group
         SubHask.Algebra.Logic
+        SubHask.Algebra.Matrix
         SubHask.Algebra.Metric
         SubHask.Algebra.Ord
         SubHask.Algebra.Parallel
