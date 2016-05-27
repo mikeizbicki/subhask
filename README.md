@@ -1,4 +1,5 @@
-# SubHask ![](https://travis-ci.org/mikeizbicki/subhask.svg)
+# SubHask
+<!--![](https://travis-ci.org/mikeizbicki/subhask.svg)-->
 
 SubHask is a radical rewrite of the Haskell [Prelude](https://www.haskell.org/onlinereport/standard-prelude.html).
 The goal is to make numerical computing in Haskell *fun* and *fast*.
@@ -60,10 +61,13 @@ To install on Linux or Mac, run the following commands:
     $ cd llvm-3.5.2
     $ mkdir build
     $ cd build
-    $ cmake ..
+    $ ../configure --enable-shared --enable-optimized
     $ make -j5
     $ sudo make install
     ```
+(Configuring with `cmake` won't export the correct shared libraries that llvm-general
+expects.  If you want more debugging capability of the llvm code, removed the `--enable-optimized` flag)
+
 
 1. Any version of BLAS and LAPACK.
 How to install these packages varies for different operating systems.
