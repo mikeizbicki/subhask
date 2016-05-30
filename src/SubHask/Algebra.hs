@@ -928,10 +928,6 @@ instance Complemented b => Complemented (a -> b) where
 
 -- | Heyting algebras are lattices that support implication, but not necessarily the law of excluded middle.
 --
--- FIXME:
--- Is every Heyting algebra a cancellative Abelian semigroup?
--- If so, should we make that explicit in the class hierarchy?
---
 -- ==== Laws
 -- There is a single, simple law that Heyting algebras must satisfy:
 --
@@ -943,6 +939,8 @@ instance Complemented b => Complemented (a -> b) where
 -- distributivity
 --
 -- See <https://en.wikipedia.org/wiki/Heyting_algebra wikipedia> for more details.
+--
+-- Note that while Heyting algebras are abelian semigroups with respect to ⋀, they are not necessarily cancellative.
 class Bounded b => Heyting b where
     -- | FIXME: think carefully about infix
     infixl 3 ==>
