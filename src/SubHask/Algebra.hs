@@ -940,7 +940,7 @@ instance Complemented b => Complemented (a -> b) where
 --
 -- See <https://en.wikipedia.org/wiki/Heyting_algebra wikipedia> for more details.
 --
--- Note that while Heyting algebras are abelian semigroups with respect to ⋀, they are not necessarily cancellative.
+-- Note that while Heyting algebras are abelian semigroups with respect to ⋀, they are not in general cancellative.
 class Bounded b => Heyting b where
     -- | FIXME: think carefully about infix
     infixl 3 ==>
