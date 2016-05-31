@@ -1504,8 +1504,7 @@ type MatrixField r =
     , HM.Field r
     , HM.Container HM.Vector r
     , HM.Product r
-    )
-
+   )
 {-
 data Matrix r (m::k1) (n::k2) where
     Zero  ::                                Matrix r m n
