@@ -139,7 +139,9 @@ library
         erf                         ,
         gamma                       ,
         hmatrix                     ,
+        accelerate                  ,
         accelerate-cuda             ,
+        cuda                        ,
 
         -- compatibility control flow
         mtl                         ,

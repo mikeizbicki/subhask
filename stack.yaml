@@ -2,15 +2,13 @@ flags: {}
 packages:
 - '.'
 extra-deps:
-    [ gamma-0.9.0.2
-    , continued-fractions-0.9.1.1
-    , converge-0.1.0.1
-    , accelerate-cuda-0.15.1.1
-    , cuda-0.7.0.0
-    , language-c-quote-0.11.6.2
-    , mainland-pretty-0.4.1.4
-    , exception-mtl-0.4.0.1
-    , symbol-0.2.4
-
-    ]
+- accelerate-cuda-0.15.1.1
+- continued-fractions-0.9.1.1
+- converge-0.1.0.1
+- cuda-0.7.0.0
+- exception-mtl-0.4.0.1
+- gamma-0.9.0.2
+- language-c-quote-0.11.6.2
+- mainland-pretty-0.4.1.4
+- symbol-0.2.4
 resolver: lts-5.9

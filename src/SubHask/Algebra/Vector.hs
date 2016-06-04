@@ -18,6 +18,12 @@ module SubHask.Algebra.Vector
     ( SVector (..)
     , UVector (..)
     , ValidUVector
+    , ACCVector (..)
+    , Backend (..)
+    , ValidBackend
+    , mkAccVector
+    , runAccVector
+    , mkAccVectorFromList
     , Unbox
     , type (+>)
     , SMatrix
@@ -49,6 +55,10 @@ import qualified Data.Vector.Storable as VS
 import qualified Numeric.LinearAlgebra as HM
 import qualified Numeric.LinearAlgebra.HMatrix as HM
 import qualified Numeric.LinearAlgebra.Data as HM
+import qualified Data.Array.Accelerate as A
+import qualified Data.Array.Accelerate.Interpreter as I
+import qualified Data.Array.Accelerate.CUDA as CUDA
+
 
 import qualified Prelude as P
 import SubHask.Algebra
@@ -62,6 +72,14 @@ import Data.Csv (FromRecord,FromField,parseRecord)
 import System.IO.Unsafe
 import Unsafe.Coerce
 
+
+data Backend
+    = Interpreter
+    | CUDA
+    -- | LLVM
+    -- | Repa
+
+    -- LLVM has a haskell SoC project slated, so check back in 60 days
 --------------------------------------------------------------------------------
 -- rewrite rules for faster static parameters
 --
@@ -1496,6 +1514,130 @@ instance
                 else goEach (tot+(v1!i * v2!i)) (i-1)
 
 --------------------------------------------------------------------------------
+
+-- | Accelerate based Vector
+-- | A.Acc is an accelreate computation, A.Array A.DIM1 a is a one dimensional array
+
+newtype ACCVector (bknd::Backend) (n::k) a = ACCVector (A.Acc (A.Array A.DIM1 a))
+
+type instance Scalar (ACCVector bknd n r) = Scalar r
+type instance Logic (ACCVector bknd n r) = Logic r
+
+type instance ACCVector bknd m a >< b = Tensor_ACCVector (ACCVector bknd m a) b
+type family Tensor_ACCVector a b where
+    Tensor_ACCVector (ACCVector bknd n r1) (ACCVector bknd m r2) = ACCVector bknd n r1 +> ACCVector bknd m r2
+    Tensor_ACCVector (ACCVector bknd n r1) r1 = ACCVector bknd n r1 -- (r1><r2)
+
+type ValidACCVector bknd n a = ( (ACCVector (bknd::Backend) n a><Scalar a)~ACCVector (bknd::Backend) n a, Prim a, A.Elt a, A.IsNum a, IsScalar a)
+
+type instance Index (ACCVector bknd n r) = Int
+type instance Elem (ACCVector bknd n r) = Scalar r
+type instance SetElem (ACCVector (bknd::Backend) n r) b = ACCVector (bknd::Backend) n b
+
+
+type instance Actor (ACCVector (bknd::Backend) n r) = Actor r
+
+
+mkAccVectorFromList :: A.Elt a => [a] -> ACCVector bknd (n::Symbol) a
+mkAccVectorFromList l = let
+    len = P.length l
+  in ACCVector (A.use (A.fromList (A.Z A.:.len) l))
+
+mkAccVector :: (A.Elt a, ValidSVector (n::Symbol) a) => SVector (n::Symbol) a -> ACCVector (bknd::Backend) (n::Symbol) a
+mkAccVector v @(SVector_Dynamic fp off n) = let
+  arr = A.fromList (A.Z A.:. n) $ unsafeInlineIO $ go (n-1) []
+  go (-1) xs = return $ xs
+  go i    xs = withForeignPtr fp $ \p -> do
+      x <- peekElemOff p (off+i)
+      go (i-1) (x:xs)
+  in ACCVector (A.use arr)
+
+
+-- acc2SVector fails with:
+-- Could not deduce (Scalar a1 ~ Scalar (Scalar a1))
+-- from the context (ValidACCVector n a)
+--   bound by the type signature for
+--              acc2SVector :: ValidACCVector n a =>
+--                             Backend -> ACCVector n a -> SVector n a
+
+-- acc2SVector :: ValidACCVector (n::Symbol) a => Backend -> ACCVector (n::Symbol) a  -> SVector (n::Symbol) a
+-- acc2SVector bknd v = unsafeToModule (runAccVector bknd v) :: SVector (n::Symbol) a
+
+
+class ValidBackend (bknd::Backend) where
+    -- runAccVector :: (ValidACCVector bknd n a, IsScalar a) => ACCVector (bknd::Backend) n a -> SVector n a
+    runAccVector :: (ValidACCVector bknd n a, IsScalar a) => ACCVector (bknd::Backend) n a -> [a]
+
+instance ValidBackend Interpreter where
+    -- runAccVector (ACCVector a) = unsafeToModule (A.toList (I.run a)) :: SVector n a
+    runAccVector (ACCVector a) =  A.toList (I.run a)
+
+instance ValidBackend CUDA where
+    -- runAccVector (ACCVector a) = unsafeToModule (A.toList (CUDA.run a)) :: SVector n a
+    runAccVector (ACCVector a) = A.toList (CUDA.run a)
+
+-- we need an is mutable instance even though Acc types are not mutable, how to handle this?
+instance Prim a => IsMutable (ACCVector (bknd::Backend) (n::Symbol) a)
+
+instance (Monoid r, ValidACCVector bknd n r) => Semigroup (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE (+)  #-}
+    (+) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.+) a1 a2)
+
+-- no worky
+-- "Couldn't match type ‘r’ with ‘Actor r’""
+-- instance (Action r, Semigroup r, Prim r) => Action (ACCVector (bknd::Backend) (n::Symbol) r) where
+--   {-# INLINE (.+)   #-}
+--   (.+) (ACCVector v) r = ACCVector (A.map (\x -> x P.+ (A.constant r)) v)
+
+instance (Monoid r, Cancellative r, ValidACCVector bknd n r) => Cancellative (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE (-)  #-}
+    (-) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.-) a1 a2)
+
+instance (Monoid r, ValidACCVector bknd n r) => Monoid (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE zero #-}
+    zero = mkAccVectorFromList [0]
+
+instance (Group r, ValidACCVector bknd n r) => Group (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE negate #-}
+    negate v = negate v
+
+instance (Monoid r, Abelian r, ValidACCVector bknd n r) => Abelian (ACCVector (bknd::Backend)  (n::Symbol) r)
+
+instance (FreeModule r, ValidACCVector bknd n r, IsScalar r) => FreeModule (ACCVector (bknd::Backend)  (n::Symbol) r) where
+    {-# INLINE (.*.)   #-}
+    (.*.) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.*) a1 a2)
+
+instance (Module r, ValidACCVector bknd n r, IsScalar r) => Module (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE (.*)   #-}
+    (.*) (ACCVector  v) r = ACCVector (A.map (\x -> x P.* (A.constant r)) v)
+
+instance (VectorSpace r, ValidACCVector bknd n r, IsScalar r, A.IsFloating r) => VectorSpace (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE (./)   #-}
+    (./) (ACCVector  v) r = ACCVector (A.map (\x -> x P./(A.constant r)) v)
+
+    {-# INLINE (./.)  #-}
+    (./.) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P./) a1 a2)
+
+
+newtype ACCMatrix (bknd::Backend) (m::k1) (n::k2) a = ACCMatrix (A.Acc (A.Array A.DIM2 a))
+
+data ACCMatrix' b (m::k1) (n::k2) r where
+  Id    :: {-#UNPACK#-}!r              -> ACCMatrix' b m m r
+  Diag  :: {-#UNPACK#-}!(ACCVector b m r)  -> ACCMatrix' b m m r
+  Mat   :: {-#UNPACK#-}!(ACCMatrix b m n r)  -> ACCMatrix' b m n r
+
+
+type instance Scalar (ACCMatrix' b r m n) = Scalar r
+type instance (ACCMatrix' b r m n)><r = ACCMatrix b r m n
+
+
+mkAccMatrixFromList :: A.Elt a => [a] -> ACCMatrix' bknd n m a
+mkAccMatrixFromList l = let
+    m = P.length l
+    n = P.length l ! 0
+  in Mat (ACCMatrix (A.use (A.fromList (A.Z A.:.m A.:.n) l)))
+
+
 
 type MatrixField r =
     ( IsScalar r
