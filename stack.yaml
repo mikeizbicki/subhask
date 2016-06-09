@@ -1,8 +1,21 @@
 flags: {}
 packages:
 - '.'
+- location:
+    git: https://github.com/AccelerateHS/accelerate
+    commit: 01d1d2da0b5147041af61e95936262e6eff3f881
+  extra-dep: true
+- location:
+    git: https://github.com/AccelerateHS/accelerate-cuda
+    commit: b33150316aa8b8dd611cfc59f08429bd64fdb747
+  extra-dep: true
+# stack can't resolve this, complains about missing cabal file
+# - location:
+#     git: https://github.com/AccelerateHS/accelerate-llvm
+#     commit: 987bff46f146b718a1da60c194eceff4b91a843f
+#   extra-dep: true
 extra-deps:
-- accelerate-cuda-0.15.1.1
+- accelerate-2.0.0.0
 - continued-fractions-0.9.1.1
 - converge-0.1.0.1
 - cuda-0.7.0.0
@@ -11,4 +24,5 @@ extra-deps:
 - language-c-quote-0.11.6.2
 - mainland-pretty-0.4.1.4
 - symbol-0.2.4
+- unique-0
 resolver: lts-5.9

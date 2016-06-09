@@ -18,16 +18,16 @@ module SubHask.Algebra.Vector
     ( SVector (..)
     , UVector (..)
     , ValidUVector
+    , ValidACCVector
+    , ValidSVector
     , ACCVector (..)
-    , Backend (..)
-    , ValidBackend
-    , mkAccVector
-    , runAccVector
-    , mkAccVectorFromList
     , Unbox
     , type (+>)
     , SMatrix
     , unsafeMkSMatrix
+    , mkAccVector
+    , mkAccVectorFromList
+    , unsafeToModule
 
     -- * Debug
     , safeNewByteArray
@@ -56,12 +56,13 @@ import qualified Numeric.LinearAlgebra as HM
 import qualified Numeric.LinearAlgebra.HMatrix as HM
 import qualified Numeric.LinearAlgebra.Data as HM
 import qualified Data.Array.Accelerate as A
-import qualified Data.Array.Accelerate.Interpreter as I
-import qualified Data.Array.Accelerate.CUDA as CUDA
+
+
 
 
 import qualified Prelude as P
 import SubHask.Algebra
+import SubHask.Algebra.AccelerateBackend (Backend)
 import SubHask.Category
 import SubHask.Compatibility.Base
 import SubHask.Internal.Prelude
@@ -72,14 +73,6 @@ import Data.Csv (FromRecord,FromField,parseRecord)
 import System.IO.Unsafe
 import Unsafe.Coerce
 
-
-data Backend
-    = Interpreter
-    | CUDA
-    -- | LLVM
-    -- | Repa
-
-    -- LLVM has a haskell SoC project slated, so check back in 60 days
 --------------------------------------------------------------------------------
 -- rewrite rules for faster static parameters
 --
@@ -1538,6 +1531,166 @@ type instance SetElem (ACCVector (bknd::Backend) n r) b = ACCVector (bknd::Backe
 type instance Actor (ACCVector (bknd::Backend) n r) = Actor r
 
 
+-- we need an is mutable instance even though Acc types arent made mutable or immutable, how to handle this?
+instance Prim a => IsMutable (ACCVector (bknd::Backend) (n::Symbol) a)
+
+
+--Not sure about all the Prelude Contexts necessary in these instances
+instance (P.Num (A.Exp r), Monoid r, ValidACCVector bknd n r) => Semigroup (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE (+)  #-}
+    (+) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.+) a1 a2)
+
+instance (Action r, Semigroup r, Prim r) => Action (ACCVector (bknd::Backend) (n::Symbol) r) where
+-- "Couldn't match type ‘r’ with ‘Actor r’""
+  -- {-# INLINE (.+)   #-}
+  -- (.+) (ACCVector v) r = ACCVector (A.map (\x -> x P.+ r) v)
+
+instance (P.Num (A.Exp r), Monoid r, Cancellative r, ValidACCVector bknd n r) => Cancellative (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE (-)  #-}
+    (-) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.-) a1 a2)
+
+--How to get the correct dimension for this?
+instance (P.Num (A.Exp r), Monoid r, ValidACCVector bknd n r) => Monoid (ACCVector (bknd::Backend) (n::Symbol) r) where
+    -- {-# INLINE zero #-}
+    -- zero = ACCVector(A.fill (A.index1 2) (A.lift 0))
+
+instance (P.Num (A.Exp r), Group r, ValidACCVector bknd n r) => Group (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE negate #-}
+    negate v = negate v
+
+instance (P.Num (A.Exp r), Monoid r, Abelian r, ValidACCVector bknd n r) => Abelian (ACCVector (bknd::Backend)  (n::Symbol) r)
+
+instance (P.Num (A.Exp r), FreeModule r, ValidACCVector bknd n r, IsScalar r) => FreeModule (ACCVector (bknd::Backend)  (n::Symbol) r) where
+    {-# INLINE (.*.)   #-}
+    (.*.) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.*) a1 a2)
+
+instance (P.Num (A.Exp r), Module r, ValidACCVector bknd n r, IsScalar r) => Module (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE (.*)   #-}
+    (.*) (ACCVector  v) r = ACCVector (A.map (\x -> x P.* (A.constant r)) v)
+
+instance (P.Fractional (A.Exp r), VectorSpace r, ValidACCVector bknd n r, IsScalar r, A.IsFloating r) => VectorSpace (ACCVector (bknd::Backend) (n::Symbol) r) where
+    {-# INLINE (./)   #-}
+    (./) (ACCVector  v) r = ACCVector (A.map (\x -> x P./(A.constant r)) v)
+
+    {-# INLINE (./.)  #-}
+    (./.) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P./) a1 a2)
+
+
+instance (P.Num (A.Exp r), FreeModule r, ValidLogic r, ValidACCVector b n r, IsScalar r) => FiniteModule (ACCVector b (n::Symbol) r)
+
+-- this returns an A.Exp Int and not an Int, which makes GHC complain
+-- where
+--
+--     {-# INLINE dim #-}
+--     dim (ACCVector v) = A.length v
+
+
+
+instance
+    ( P.Num (A.Exp r)
+    , Monoid r
+    , ValidLogic r
+    , ValidACCVector b n r
+    , A.Elt r
+    , IsScalar r
+    , FreeModule r
+    ) => IxContainer (ACCVector b (n::Symbol) r)
+        where
+    --(!) also returns A.Exp r where r is expected ...
+    -- {-# INLINE (!) #-}
+    -- (!) (ACCVector v) i =  v A.! (A.index1 (A.lift i))
+    -- {-# INLINABLE  toIxList #-}
+    -- toIxList v = P.zip [0..] $ go (dim v-1) []
+    --     where
+    --         go (-1) xs = xs
+    --         go    i xs = go (i-1) (v!i : xs)
+    -- fails on f with:
+    -- Couldn't match type ‘Int’ with ‘A.Exp A.DIM1’
+    -- Expected type: A.Exp A.DIM1 -> A.Exp r -> A.Exp b1
+    --   Actual type: Index (ACCVector b n r)
+    --                -> Elem (ACCVector b n r) -> b1
+    -- {-# INLINABLE imap #-}
+    -- imap f (ACCVector v) = ACCVector (A.zipWith f (A.generate (A.shape v) P.id) v)
+
+    type ValidElem (ACCVector b n r) e = (ClassicalLogic e, IsScalar e, FiniteModule e, ValidACCVector b n e)
+
+
+instance (Eq r, Monoid r, ValidACCVector b n r) => Eq_ (ACCVector b (n::Symbol) r) where
+    -- returns A.Exp Bool . . . .
+    -- {-# INLINE (==) #-}
+    -- (ACCVector v2) == (ACCVector v1) = (A.lift v1) A.==* (A.lift v2)
+
+--Will acc arrays support Logic r~Bool?
+instance
+    ( ValidACCVector b n r
+    , P.Num (A.Exp r)
+    , ExpField r
+    , Normed r
+    , Ord_ r
+    , Logic r~Bool
+    , IsScalar r
+    , VectorSpace r
+    ) => Metric (ACCVector b (n::Symbol) r)
+        -- where
+
+    -- also seems to wan to deduce r ~ A.Acc (Scalar r)
+    -- {-# INLINE[2] distance #-}
+    -- distance (ACCVector v1) (ACCVector v2) = {-# SCC distance_ACCVector #-}let
+    --   dmag = A.zipWith (P.-) v1 v2
+    --   dsq = A.zipWith (P.*) dmag dmag
+    --   drt = A.sqrt (A.sum dsq)
+    --   in drt
+
+    --what is distanceUB tring to do?
+    -- {-# INLINE[2] distanceUB #-}
+    -- distanceUB v1 v2 ub = {-# SCC distanceUB_ACCVectorr #-}let
+    --   ub2 = ub*ub
+    --   dmag = A.zipWith (P.-) v1 v2
+    --   dsq = A.zipWith (P.*) dsq dsq
+    --   drt = A.map A.sqrt dsq
+    --   in expression
+
+instance (VectorSpace r, ValidACCVector b n r, IsScalar r, ExpField r) => Normed (ACCVector b (n::Symbol) r) where
+    -- {-# INLINE size #-}
+    -- size (ACCVector v1) = let
+    --   sq = A.zipWith (P.*) v1 v1
+    --   s = A.fold (P.+) 0.0 sq
+    --   in A.sqrt s
+
+
+-- Could not deduce (P.Floating (A.Exp r))
+--   arising from the superclasses of an instance declaration
+-- from the context (VectorSpace r,
+--                   ValidACCVector b n r,
+--                   IsScalar r,
+--                   ExpField r,
+--                   Real r)
+--   bound by the instance declaration
+-- instance
+--     ( VectorSpace r
+--     , ValidACCVector b n r
+--     , IsScalar r
+--     , ExpField r
+--     , Real r
+--     ) => Banach (ACCVector b (n::Symbol) r)
+
+-- Could not deduce TensorAlgebra
+-- instance
+--     ( VectorSpace r
+--     , ValidACCVector b n r
+--     , IsScalar r
+--     , ExpField r
+--     , Real r
+--     , OrdField r
+--     , MatrixField r
+--     , P.Num r
+--     ) => Hilbert (ACCVector b (n::Symbol) r)
+    -- could not deduce r ~ ...
+    -- where
+    -- {-# INLINE (<>) #-}
+    -- (<>) (ACCVector v1) (ACCVector v2) = A.fold (+) 0 (A.zipWith (*) v1 v2)
+
+--FIXME:  Replace all intermediary lists with correct use of acclerate-io
 mkAccVectorFromList :: A.Elt a => [a] -> ACCVector bknd (n::Symbol) a
 mkAccVectorFromList l = let
     len = P.length l
@@ -1552,90 +1705,7 @@ mkAccVector v @(SVector_Dynamic fp off n) = let
       go (i-1) (x:xs)
   in ACCVector (A.use arr)
 
-
--- acc2SVector fails with:
--- Could not deduce (Scalar a1 ~ Scalar (Scalar a1))
--- from the context (ValidACCVector n a)
---   bound by the type signature for
---              acc2SVector :: ValidACCVector n a =>
---                             Backend -> ACCVector n a -> SVector n a
-
--- acc2SVector :: ValidACCVector (n::Symbol) a => Backend -> ACCVector (n::Symbol) a  -> SVector (n::Symbol) a
--- acc2SVector bknd v = unsafeToModule (runAccVector bknd v) :: SVector (n::Symbol) a
-
-
-class ValidBackend (bknd::Backend) where
-    -- runAccVector :: (ValidACCVector bknd n a, IsScalar a) => ACCVector (bknd::Backend) n a -> SVector n a
-    runAccVector :: (ValidACCVector bknd n a, IsScalar a) => ACCVector (bknd::Backend) n a -> [a]
-
-instance ValidBackend Interpreter where
-    -- runAccVector (ACCVector a) = unsafeToModule (A.toList (I.run a)) :: SVector n a
-    runAccVector (ACCVector a) =  A.toList (I.run a)
-
-instance ValidBackend CUDA where
-    -- runAccVector (ACCVector a) = unsafeToModule (A.toList (CUDA.run a)) :: SVector n a
-    runAccVector (ACCVector a) = A.toList (CUDA.run a)
-
--- we need an is mutable instance even though Acc types are not mutable, how to handle this?
-instance Prim a => IsMutable (ACCVector (bknd::Backend) (n::Symbol) a)
-
-instance (Monoid r, ValidACCVector bknd n r) => Semigroup (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE (+)  #-}
-    (+) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.+) a1 a2)
-
--- no worky
--- "Couldn't match type ‘r’ with ‘Actor r’""
--- instance (Action r, Semigroup r, Prim r) => Action (ACCVector (bknd::Backend) (n::Symbol) r) where
---   {-# INLINE (.+)   #-}
---   (.+) (ACCVector v) r = ACCVector (A.map (\x -> x P.+ (A.constant r)) v)
-
-instance (Monoid r, Cancellative r, ValidACCVector bknd n r) => Cancellative (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE (-)  #-}
-    (-) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.-) a1 a2)
-
-instance (Monoid r, ValidACCVector bknd n r) => Monoid (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE zero #-}
-    zero = mkAccVectorFromList [0]
-
-instance (Group r, ValidACCVector bknd n r) => Group (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE negate #-}
-    negate v = negate v
-
-instance (Monoid r, Abelian r, ValidACCVector bknd n r) => Abelian (ACCVector (bknd::Backend)  (n::Symbol) r)
-
-instance (FreeModule r, ValidACCVector bknd n r, IsScalar r) => FreeModule (ACCVector (bknd::Backend)  (n::Symbol) r) where
-    {-# INLINE (.*.)   #-}
-    (.*.) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.*) a1 a2)
-
-instance (Module r, ValidACCVector bknd n r, IsScalar r) => Module (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE (.*)   #-}
-    (.*) (ACCVector  v) r = ACCVector (A.map (\x -> x P.* (A.constant r)) v)
-
-instance (VectorSpace r, ValidACCVector bknd n r, IsScalar r, A.IsFloating r) => VectorSpace (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE (./)   #-}
-    (./) (ACCVector  v) r = ACCVector (A.map (\x -> x P./(A.constant r)) v)
-
-    {-# INLINE (./.)  #-}
-    (./.) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P./) a1 a2)
-
-
-newtype ACCMatrix (bknd::Backend) (m::k1) (n::k2) a = ACCMatrix (A.Acc (A.Array A.DIM2 a))
-
-data ACCMatrix' b (m::k1) (n::k2) r where
-  Id    :: {-#UNPACK#-}!r              -> ACCMatrix' b m m r
-  Diag  :: {-#UNPACK#-}!(ACCVector b m r)  -> ACCMatrix' b m m r
-  Mat   :: {-#UNPACK#-}!(ACCMatrix b m n r)  -> ACCMatrix' b m n r
-
-
-type instance Scalar (ACCMatrix' b r m n) = Scalar r
-type instance (ACCMatrix' b r m n)><r = ACCMatrix b r m n
-
-
-mkAccMatrixFromList :: A.Elt a => [a] -> ACCMatrix' bknd n m a
-mkAccMatrixFromList l = let
-    m = P.length l
-    n = P.length l ! 0
-  in Mat (ACCMatrix (A.use (A.fromList (A.Z A.:.m A.:.n) l)))
+-- Do I handle the matrixField types here? Which instances?
 
 
 
@@ -1646,7 +1716,8 @@ type MatrixField r =
     , HM.Field r
     , HM.Container HM.Vector r
     , HM.Product r
-   )
+    )
+
 {-
 data Matrix r (m::k1) (n::k2) where
     Zero  ::                                Matrix r m n
