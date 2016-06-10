@@ -146,7 +146,8 @@ library
         accelerate                  ,
         accelerate-cuda             ,
         cuda                        ,
-        -- accelerate-llvm             ,
+        llvm-general                ,
+        accelerate-llvm             ,
 
         -- compatibility control flow
         mtl                         ,
