@@ -18,15 +18,10 @@ module SubHask.Algebra.Vector
     ( SVector (..)
     , UVector (..)
     , ValidUVector
-    , ValidACCVector
-    , ValidSVector
-    , ACCVector (..)
     , Unbox
     , type (+>)
     , SMatrix
     , unsafeMkSMatrix
-    , mkAccVector
-    , mkAccVectorFromList
     , unsafeToModule
 
     -- * Debug
@@ -55,14 +50,8 @@ import qualified Data.Vector.Storable as VS
 import qualified Numeric.LinearAlgebra as HM
 import qualified Numeric.LinearAlgebra.HMatrix as HM
 import qualified Numeric.LinearAlgebra.Data as HM
-import qualified Data.Array.Accelerate as A
 
-
-
-
-import qualified Prelude as P
 import SubHask.Algebra
-import SubHask.Algebra.AccelerateBackend (Backend)
 import SubHask.Category
 import SubHask.Compatibility.Base
 import SubHask.Internal.Prelude
@@ -1505,207 +1494,6 @@ instance
             goEach !tot !i = if i<0
                 then tot
                 else goEach (tot+(v1!i * v2!i)) (i-1)
-
---------------------------------------------------------------------------------
-
--- | Accelerate based Vector
--- | A.Acc is an accelreate computation, A.Array A.DIM1 a is a one dimensional array
-
-newtype ACCVector (bknd::Backend) (n::k) a = ACCVector (A.Acc (A.Array A.DIM1 a))
-
-type instance Scalar (ACCVector bknd n r) = Scalar r
-type instance Logic (ACCVector bknd n r) = Logic r
-
-type instance ACCVector bknd m a >< b = Tensor_ACCVector (ACCVector bknd m a) b
-type family Tensor_ACCVector a b where
-    Tensor_ACCVector (ACCVector bknd n r1) (ACCVector bknd m r2) = ACCVector bknd n r1 +> ACCVector bknd m r2
-    Tensor_ACCVector (ACCVector bknd n r1) r1 = ACCVector bknd n r1 -- (r1><r2)
-
-type ValidACCVector bknd n a = ( (ACCVector (bknd::Backend) n a><Scalar a)~ACCVector (bknd::Backend) n a, Prim a, A.Elt a, A.IsNum a, IsScalar a)
-
-type instance Index (ACCVector bknd n r) = Int
-type instance Elem (ACCVector bknd n r) = Scalar r
-type instance SetElem (ACCVector (bknd::Backend) n r) b = ACCVector (bknd::Backend) n b
-
-
-type instance Actor (ACCVector (bknd::Backend) n r) = Actor r
-
-
--- we need an is mutable instance even though Acc types arent made mutable or immutable, how to handle this?
-instance Prim a => IsMutable (ACCVector (bknd::Backend) (n::Symbol) a)
-
-
---Not sure about all the Prelude Contexts necessary in these instances
-instance (P.Num (A.Exp r), Monoid r, ValidACCVector bknd n r) => Semigroup (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE (+)  #-}
-    (+) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.+) a1 a2)
-
-instance (Action r, Semigroup r, Prim r) => Action (ACCVector (bknd::Backend) (n::Symbol) r) where
--- "Couldn't match type ‘r’ with ‘Actor r’""
-  -- {-# INLINE (.+)   #-}
-  -- (.+) (ACCVector v) r = ACCVector (A.map (\x -> x P.+ r) v)
-
-instance (P.Num (A.Exp r), Monoid r, Cancellative r, ValidACCVector bknd n r) => Cancellative (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE (-)  #-}
-    (-) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.-) a1 a2)
-
---How to get the correct dimension for this?
-instance (P.Num (A.Exp r), Monoid r, ValidACCVector bknd n r) => Monoid (ACCVector (bknd::Backend) (n::Symbol) r) where
-    -- {-# INLINE zero #-}
-    -- zero = ACCVector(A.fill (A.index1 2) (A.lift 0))
-
-instance (P.Num (A.Exp r), Group r, ValidACCVector bknd n r) => Group (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE negate #-}
-    negate v = negate v
-
-instance (P.Num (A.Exp r), Monoid r, Abelian r, ValidACCVector bknd n r) => Abelian (ACCVector (bknd::Backend)  (n::Symbol) r)
-
-instance (P.Num (A.Exp r), FreeModule r, ValidACCVector bknd n r, IsScalar r) => FreeModule (ACCVector (bknd::Backend)  (n::Symbol) r) where
-    {-# INLINE (.*.)   #-}
-    (.*.) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P.*) a1 a2)
-
-instance (P.Num (A.Exp r), Module r, ValidACCVector bknd n r, IsScalar r) => Module (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE (.*)   #-}
-    (.*) (ACCVector  v) r = ACCVector (A.map (\x -> x P.* (A.constant r)) v)
-
-instance (P.Fractional (A.Exp r), VectorSpace r, ValidACCVector bknd n r, IsScalar r, A.IsFloating r) => VectorSpace (ACCVector (bknd::Backend) (n::Symbol) r) where
-    {-# INLINE (./)   #-}
-    (./) (ACCVector  v) r = ACCVector (A.map (\x -> x P./(A.constant r)) v)
-
-    {-# INLINE (./.)  #-}
-    (./.) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P./) a1 a2)
-
-
-instance (P.Num (A.Exp r), FreeModule r, ValidLogic r, ValidACCVector b n r, IsScalar r) => FiniteModule (ACCVector b (n::Symbol) r)
-
--- this returns an A.Exp Int and not an Int, which makes GHC complain
--- where
---
---     {-# INLINE dim #-}
---     dim (ACCVector v) = A.length v
-
-
-
-instance
-    ( P.Num (A.Exp r)
-    , Monoid r
-    , ValidLogic r
-    , ValidACCVector b n r
-    , A.Elt r
-    , IsScalar r
-    , FreeModule r
-    ) => IxContainer (ACCVector b (n::Symbol) r)
-        where
-    --(!) also returns A.Exp r where r is expected ...
-    -- {-# INLINE (!) #-}
-    -- (!) (ACCVector v) i =  v A.! (A.index1 (A.lift i))
-    -- {-# INLINABLE  toIxList #-}
-    -- toIxList v = P.zip [0..] $ go (dim v-1) []
-    --     where
-    --         go (-1) xs = xs
-    --         go    i xs = go (i-1) (v!i : xs)
-    -- fails on f with:
-    -- Couldn't match type ‘Int’ with ‘A.Exp A.DIM1’
-    -- Expected type: A.Exp A.DIM1 -> A.Exp r -> A.Exp b1
-    --   Actual type: Index (ACCVector b n r)
-    --                -> Elem (ACCVector b n r) -> b1
-    -- {-# INLINABLE imap #-}
-    -- imap f (ACCVector v) = ACCVector (A.zipWith f (A.generate (A.shape v) P.id) v)
-
-    type ValidElem (ACCVector b n r) e = (ClassicalLogic e, IsScalar e, FiniteModule e, ValidACCVector b n e)
-
-
-instance (Eq r, Monoid r, ValidACCVector b n r) => Eq_ (ACCVector b (n::Symbol) r) where
-    -- returns A.Exp Bool . . . .
-    -- {-# INLINE (==) #-}
-    -- (ACCVector v2) == (ACCVector v1) = (A.lift v1) A.==* (A.lift v2)
-
---Will acc arrays support Logic r~Bool?
-instance
-    ( ValidACCVector b n r
-    , P.Num (A.Exp r)
-    , ExpField r
-    , Normed r
-    , Ord_ r
-    , Logic r~Bool
-    , IsScalar r
-    , VectorSpace r
-    ) => Metric (ACCVector b (n::Symbol) r)
-        -- where
-
-    -- also seems to wan to deduce r ~ A.Acc (Scalar r)
-    -- {-# INLINE[2] distance #-}
-    -- distance (ACCVector v1) (ACCVector v2) = {-# SCC distance_ACCVector #-}let
-    --   dmag = A.zipWith (P.-) v1 v2
-    --   dsq = A.zipWith (P.*) dmag dmag
-    --   drt = A.sqrt (A.sum dsq)
-    --   in drt
-
-    --what is distanceUB tring to do?
-    -- {-# INLINE[2] distanceUB #-}
-    -- distanceUB v1 v2 ub = {-# SCC distanceUB_ACCVectorr #-}let
-    --   ub2 = ub*ub
-    --   dmag = A.zipWith (P.-) v1 v2
-    --   dsq = A.zipWith (P.*) dsq dsq
-    --   drt = A.map A.sqrt dsq
-    --   in expression
-
-instance (VectorSpace r, ValidACCVector b n r, IsScalar r, ExpField r) => Normed (ACCVector b (n::Symbol) r) where
-    -- {-# INLINE size #-}
-    -- size (ACCVector v1) = let
-    --   sq = A.zipWith (P.*) v1 v1
-    --   s = A.fold (P.+) 0.0 sq
-    --   in A.sqrt s
-
-
--- Could not deduce (P.Floating (A.Exp r))
---   arising from the superclasses of an instance declaration
--- from the context (VectorSpace r,
---                   ValidACCVector b n r,
---                   IsScalar r,
---                   ExpField r,
---                   Real r)
---   bound by the instance declaration
--- instance
---     ( VectorSpace r
---     , ValidACCVector b n r
---     , IsScalar r
---     , ExpField r
---     , Real r
---     ) => Banach (ACCVector b (n::Symbol) r)
-
--- Could not deduce TensorAlgebra
--- instance
---     ( VectorSpace r
---     , ValidACCVector b n r
---     , IsScalar r
---     , ExpField r
---     , Real r
---     , OrdField r
---     , MatrixField r
---     , P.Num r
---     ) => Hilbert (ACCVector b (n::Symbol) r)
-    -- could not deduce r ~ ...
-    -- where
-    -- {-# INLINE (<>) #-}
-    -- (<>) (ACCVector v1) (ACCVector v2) = A.fold (+) 0 (A.zipWith (*) v1 v2)
-
---FIXME:  Replace all intermediary lists with correct use of acclerate-io
-mkAccVectorFromList :: A.Elt a => [a] -> ACCVector bknd (n::Symbol) a
-mkAccVectorFromList l = let
-    len = P.length l
-  in ACCVector (A.use (A.fromList (A.Z A.:.len) l))
-
-mkAccVector :: (A.Elt a, ValidSVector (n::Symbol) a) => SVector (n::Symbol) a -> ACCVector (bknd::Backend) (n::Symbol) a
-mkAccVector v @(SVector_Dynamic fp off n) = let
-  arr = A.fromList (A.Z A.:. n) $ unsafeInlineIO $ go (n-1) []
-  go (-1) xs = return $ xs
-  go i    xs = withForeignPtr fp $ \p -> do
-      x <- peekElemOff p (off+i)
-      go (i-1) (x:xs)
-  in ACCVector (A.use arr)
-
--- Do I handle the matrixField types here? Which instances?
 
 
 

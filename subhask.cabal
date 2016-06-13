@@ -42,8 +42,9 @@ library
         SubHask.Algebra.Ring
         SubHask.Algebra.Vector
         SubHask.Algebra.Vector.FFI
-        SubHask.Algebra.Accelerate
-        SubHask.Algebra.AccelerateBackend
+        SubHask.Algebra.Accelerate.AccelerateBackend
+        SubHask.Algebra.Accelerate.Vector
+        SubHask.Algebra.Accelerate.Matrix
 
 
         SubHask.Category
@@ -146,7 +147,7 @@ library
         accelerate                  ,
         accelerate-cuda             ,
         cuda                        ,
-        -- accelerate-llvm             ,
+        accelerate-llvm             ,
 
         -- compatibility control flow
         mtl                         ,
