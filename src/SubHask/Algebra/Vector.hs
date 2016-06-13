@@ -22,6 +22,7 @@ module SubHask.Algebra.Vector
     , type (+>)
     , SMatrix
     , unsafeMkSMatrix
+    , unsafeToModule
 
     -- * Debug
     , safeNewByteArray
@@ -50,7 +51,6 @@ import qualified Numeric.LinearAlgebra as HM
 import qualified Numeric.LinearAlgebra.HMatrix as HM
 import qualified Numeric.LinearAlgebra.Data as HM
 
-import qualified Prelude as P
 import SubHask.Algebra
 import SubHask.Category
 import SubHask.Compatibility.Base
@@ -1495,7 +1495,7 @@ instance
                 then tot
                 else goEach (tot+(v1!i * v2!i)) (i-1)
 
---------------------------------------------------------------------------------
+
 
 type MatrixField r =
     ( IsScalar r
@@ -1504,7 +1504,8 @@ type MatrixField r =
     , HM.Field r
     , HM.Container HM.Vector r
     , HM.Product r
-   )
+    )
+
 {-
 data Matrix r (m::k1) (n::k2) where
     Zero  ::                                Matrix r m n
