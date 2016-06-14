@@ -11,8 +11,6 @@ import SubHask.TemplateHaskell.Deriving
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Prelude as P
 
---------------------------------------------------------------------------------
-
 -- | The type of lazy byte strings.
 --
 -- FIXME:
@@ -25,8 +23,6 @@ type instance Scalar (ByteString b) = Int
 type instance Logic (ByteString b) = Bool
 type instance Elem (ByteString b) = b
 type instance SetElem (ByteString b) c = ByteString c
-
-----------------------------------------
 
 newtype instance ByteString Char = BSLC { unBSLC :: BS.ByteString }
     deriving (NFData,Read,Show)
@@ -69,10 +65,7 @@ instance Foldable (ByteString Char) where
     toList (BSLC xs) = BS.unpack xs
 
     foldr   f a (BSLC xs) = BS.foldr   f a xs
---     foldr'  f a (BSLC xs) = BS.foldr'  f a xs
     foldr1  f   (BSLC xs) = BS.foldr1  f   xs
---     foldr1' f   (BSLC xs) = BS.foldr1' f   xs
-
     foldl   f a (BSLC xs) = BS.foldl   f a xs
     foldl'  f a (BSLC xs) = BS.foldl'  f a xs
     foldl1  f   (BSLC xs) = BS.foldl1  f   xs
@@ -92,16 +85,12 @@ instance Partitionable (ByteString Char) where
             len = size `P.div` n'
               P.+ if size `P.rem` n' P.== (P.fromInteger 0) then P.fromInteger 0 else P.fromInteger 1
 
---------------------------------------------------------------------------------
-
 -- |
 --
 -- FIXME:
 -- Make generic method "readFile" probably using cereal/binary
 readFileByteString :: FilePath -> IO (ByteString Char)
 readFileByteString = fmap BSLC . BS.readFile
-
---------------------------------------------------------------------------------
 
 -- | FIXME:
 -- Make this generic by moving some of the BS functions into the Foldable/Unfoldable type classes.

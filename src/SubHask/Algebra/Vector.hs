@@ -45,7 +45,6 @@ import qualified Data.Vector.Generic.Mutable as VGM
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Unboxed.Mutable as VUM
 import qualified Data.Vector.Storable as VS
--- import qualified Data.Packed.Matrix as HM
 import qualified Numeric.LinearAlgebra as HM
 import qualified Numeric.LinearAlgebra.HMatrix as HM
 import qualified Numeric.LinearAlgebra.Data as HM
@@ -198,31 +197,13 @@ instance Prim r => IsMutable (UVector (n::Symbol) r) where
 -- algebra
 
 extendDimensions :: Int -> Int
-extendDimensions = roundUpToNearest 4 -- i+4-i`rem`4
-
--- extendDimensions :: Int -> Int
--- extendDimensions x = x+r
---     where
---         m = 4
---         s = x`rem`m
---         r = if s==0 then 0 else m-s
+extendDimensions = roundUpToNearest 4
 
 safeNewByteArray :: PrimMonad m => Int -> Int -> m (MutableByteArray (PrimState m))
 safeNewByteArray b 16 = do
     let n=extendDimensions $ b`quot`4
     marr <- newAlignedPinnedByteArray b 16
---     writeByteArray marr (n-0) (0::Float)
---     writeByteArray marr (n-1) (0::Float)
---     writeByteArray marr (n-2) (0::Float)
---     writeByteArray marr (n-3) (0::Float)
     setByteArray marr 0 n (0::Float)
-
---     trace ("n="++show n) $ return ()
---     a <- forM [0..n-1] $ \i -> do
---         v :: Float <- readByteArray marr i
---         return $ unsafeInlineIO $ P.putStrLn $ "marr!"+show i+" = "+show v
---     deepseq a $ return marr
-
     return marr
 
 {-# INLINE binopDynUV #-}
@@ -269,81 +250,11 @@ monopDynUV f v@(UVector_Dynamic arr1 off1 n) = if n==0
             writeByteArray marr2 i (f v1)
             go marr2 (i-1)
 
-{-
-{-# INLINE binopDynUVM #-}
-binopDynUVM :: forall a b n m.
-    ( PrimBase m
-    , Prim a
-    , Prim b
-    , Monoid a
-    , Monoid b
-    ) => (a -> b -> a) -> Mutable m (UVector (n::Symbol) a) -> UVector n b -> m ()
-binopDynUVM f (Mutable_UVector ref) (UVector_Dynamic arr2 off2 n2) = do
-    (UVector_Dynamic arr1 off1 n1) <- readPrimRef ref
-
-    let runop arr1 arr2 n = unsafePrimToPrim $
-            withForeignPtr arr1 $ \p1 ->
-            withForeignPtr arr2 $ \p2 ->
-                go (plusPtr p1 off1) (plusPtr p2 off2) (n-1)
-
-    unsafePrimToPrim $ if
-        -- both vectors are zero: do nothing
-        | isNull arr1 && isNull arr2 -> return ()
-
-        -- only left vector is zero: allocate space and overwrite old vector
-        -- FIXME: this algorithm requires two passes over the left vector
-        | isNull arr1 -> do
-            arr1' <- zerofp n2
-            unsafePrimToPrim $ writePrimRef ref (UVector_Dynamic arr1' 0 n2)
-            runop arr1' arr2 n2
-
-        -- only right vector is zero: use a temporary zero vector to run like normal
-        -- FIXME: this algorithm requires an unneeded memory allocation and memory pass
-        | isNull arr2 -> do
-            arr2' <- zerofp n1
-            runop arr1 arr2' n1
-
-        -- both vectors nonzero: run like normal
-        | otherwise -> runop arr1 arr2 n1
-
-    where
-        go _ _ (-1) = return ()
-        go p1 p2 i = do
-            v1 <- peekElemOff p1 i
-            v2 <- peekElemOff p2 i
-            pokeElemOff p1 i (f v1 v2)
-            go p1 p2 (i-1)
-
-{-# INLINE monopDynM #-}
-monopDynM :: forall a b n m.
-    ( PrimMonad m
-    , Prim a
-    ) => (a -> a) -> Mutable m (UVector (n::Symbol) a) -> m ()
-monopDynM f (Mutable_UVector ref) = do
-    (UVector_Dynamic arr1 off1 n) <- readPrimRef ref
-    if isNull arr1
-        then return ()
-        else unsafePrimToPrim $
-            withForeignPtr arr1 $ \p1 ->
-                go (plusPtr p1 off1) (n-1)
-
-    where
-        go _ (-1) = return ()
-        go p1 i = do
-            v1 <- peekElemOff p1 i
-            pokeElemOff p1 i (f v1)
-            go p1 (i-1)
-
--------------------
-
--}
 instance (Monoid r, Prim r) => Semigroup (UVector (n::Symbol) r) where
     {-# INLINE (+)  #-} ; (+)  = binopDynUV  (+)
---     {-# INLINE (+=) #-} ; (+=) = binopDynUVM (+)
 
 instance (Monoid r, Cancellative r, Prim r) => Cancellative (UVector (n::Symbol) r) where
     {-# INLINE (-)  #-} ; (-)  = binopDynUV  (-)
---     {-# INLINE (-=) #-} ; (-=) = binopDynUVM (-)
 
 instance (Monoid r, Prim r) => Monoid (UVector (n::Symbol) r) where
     {-# INLINE zero #-}
@@ -360,7 +271,6 @@ instance (Monoid r, Abelian r, Prim r) => Abelian (UVector (n::Symbol) r)
 
 instance (Module r, ValidUVector n r) => Module (UVector (n::Symbol) r) where
     {-# INLINE (.*)   #-} ;  (.*)  v r = monopDynUV  (.*r) v
---     {-# INLINE (.*=)  #-} ;  (.*=) v r = monopDynM (.*r) v
 
 type instance Actor (UVector n r) = Actor r
 
@@ -370,14 +280,10 @@ instance (Action r, Semigroup r, Prim r) => Action (UVector (n::Symbol) r) where
 
 instance (FreeModule r, ValidUVector n r) => FreeModule (UVector (n::Symbol) r) where
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopDynUV  (.*.)
---     {-# INLINE (.*.=) #-} ;  (.*.=)    = binopDynUVM (.*.)
 
 instance (VectorSpace r, ValidUVector n r) => VectorSpace (UVector (n::Symbol) r) where
     {-# INLINE (./)   #-} ;  (./)  v r = monopDynUV  (./r) v
---     {-# INLINE (./=)  #-} ;  (./=) v r = monopDynM (./r) v
-
     {-# INLINE (./.)  #-} ;  (./.)     = binopDynUV  (./.)
---     {-# INLINE (./.=) #-} ;  (./.=)    = binopDynUVM (./.)
 
 ----------------------------------------
 -- container
@@ -392,9 +298,6 @@ instance (Monoid r, ValidLogic r, Prim r, IsScalar r) => IxContainer (UVector (n
         where
             go (-1) xs = xs
             go i xs = go (i-1) (indexByteArray arr (off+i) : xs)
-
---     imap f v = unsafeToModule $ imap f $ values v
-
 
 instance (FreeModule r, ValidUVector n r, ValidLogic r, IsScalar r) => FiniteModule (UVector (n::Symbol) r) where
 
@@ -439,31 +342,6 @@ instance (Eq r, Monoid r, Prim r) => Eq_ (UVector (n::Symbol) r) where
                     v1 = indexByteArray arr1 (off1+i) :: r
                     v2 = indexByteArray arr2 (off2+i) :: r
 
-{-
-
-
-{-# INLINE innerp #-}
--- innerp :: UVector 200 Float -> UVector 200 Float -> Float
-innerp v1 v2 = go 0 (n-1)
-
-    where
-        n = 200
---         n = nat2int (Proxy::Proxy n)
-
-        go !tot !i =  if i<4
-            then goEach tot i
-            else
-                go (tot+(v1!(i  ) * v2!(i  ))
-                       +(v1!(i-1) * v2!(i-1))
-                       +(v1!(i-2) * v2!(i-2))
-                       +(v1!(i-3) * v2!(i-3))
-                   ) (i-4)
-
-        goEach !tot !i = if i<0
-            then tot
-            else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
--}
-
 ----------------------------------------
 -- distances
 
@@ -480,7 +358,7 @@ instance
 
     {-# INLINE[2] distance #-}
     distance v1@(UVector_Dynamic arr1 off1 n1) v2@(UVector_Dynamic arr2 off2 n2)
-      = {-# SCC distance_UVector #-} if
+      = if
         | isZero n1 -> size v2
         | isZero n2 -> size v1
         | otherwise -> sqrt $ go 0 (n1-1)
@@ -500,7 +378,7 @@ instance
 
     {-# INLINE[2] distanceUB #-}
     distanceUB v1@(UVector_Dynamic arr1 off1 n1) v2@(UVector_Dynamic arr2 off2 n2) ub
-      = {-# SCC distanceUB_UVector #-} if
+      = if
         | isZero n1 -> size v2
         | isZero n2 -> size v1
         | otherwise -> sqrt $ go 0 (n1-1)
@@ -643,14 +521,6 @@ data family SVector (n::k) r
 
 type instance Scalar (SVector n r) = Scalar r
 type instance Logic (SVector n r) = Logic r
-
--- type instance SVector m a >< b = VectorOuterProduct (SVector m a) b
--- type family VectorOuterProduct a b where
--- --     VectorOuterProduct (SVector m a) (SVector n a) = SVector m a
--- --     VectorOuterProduct (SVector m a) (SVector n a) = Matrix a m n
---     VectorOuterProduct (SVector m a) a = SVector m a -- (a><b)
-
--- type instance SVector n r >< a = SVector n (r><a)
 
 type instance SVector m a >< b = Tensor_SVector (SVector m a) b
 type family Tensor_SVector a b where
@@ -987,7 +857,7 @@ instance
         where
 
     {-# INLINE[2] distance #-}
-    distance v1@(SVector_Dynamic fp1 _ n) v2@(SVector_Dynamic fp2 _ _) = {-# SCC distance_SVector #-} if
+    distance v1@(SVector_Dynamic fp1 _ n) v2@(SVector_Dynamic fp2 _ _) = if
         | isNull fp1 -> size v2
         | isNull fp2 -> size v1
         | otherwise -> sqrt $ go 0 (n-1)
@@ -1005,7 +875,7 @@ instance
                 else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
 
     {-# INLINE[2] distanceUB #-}
-    distanceUB v1@(SVector_Dynamic fp1 _ n) v2@(SVector_Dynamic fp2 _ _) ub = {-# SCC distanceUB_SVector #-}if
+    distanceUB v1@(SVector_Dynamic fp1 _ n) v2@(SVector_Dynamic fp2 _ _) ub = if
         | isNull fp1 -> size v2
         | isNull fp2 -> size v1
         | otherwise -> sqrt $ go 0 (n-1)
@@ -1119,8 +989,6 @@ instance (NFData r, ValidSVector n r) => NFData (SVector (n::Nat) r) where
 static2dynamic :: forall n m r. KnownNat n => SVector (n::Nat) r -> SVector (m::Symbol) r
 static2dynamic (SVector_Nat fp) = SVector_Dynamic fp 0 $ nat2int (Proxy::Proxy n)
 
---------------------
-
 newtype instance Mutable m (SVector (n::Nat) r) = Mutable_SVector_Nat (ForeignPtr r)
 
 instance (KnownNat n, ValidSVector n r) => IsMutable (SVector (n::Nat) r) where
@@ -1171,22 +1039,9 @@ binopStatic f v1@(SVector_Nat fp1) v2@(SVector_Nat fp2) = unsafeInlineIO $ do
         go _ _ _ (-1) = return ()
         go p1 p2 p3 i = do
             x0 <- peekElemOff p1 i
---             x1 <- peekElemOff p1 (i-1)
---             x2 <- peekElemOff p1 (i-2)
---             x3 <- peekElemOff p1 (i-3)
-
             y0 <- peekElemOff p2 i
---             y1 <- peekElemOff p2 (i-1)
---             y2 <- peekElemOff p2 (i-2)
---             y3 <- peekElemOff p2 (i-3)
-
             pokeElemOff p3 i     (f x0 y0)
---             pokeElemOff p3 (i-1) (f x1 y1)
---             pokeElemOff p3 (i-2) (f x2 y2)
---             pokeElemOff p3 (i-3) (f x3 y3)
-
             go p1 p2 p3 (i-1)
---             go p1 p2 p3 (i-4)
 
 {-# INLINE monopStatic #-}
 monopStatic :: forall a b n m.
@@ -1250,8 +1105,6 @@ monopStaticM f (Mutable_SVector_Nat fp1)  = unsafePrimToPrim $
             v1 <- peekElemOff p1 i
             pokeElemOff p1 i (f v1)
             go p1 (i-1)
-
--------------------
 
 instance (KnownNat n, Semigroup r, ValidSVector n r) => Semigroup (SVector (n::Nat) r) where
     {-# INLINE (+)  #-} ; (+)  = binopStatic  (+)
@@ -1390,24 +1243,9 @@ instance
     -- For some reason, using the dynamic vector is a little faster than a straight implementation
     {-# INLINE[2] distance #-}
     distance v1 v2 = distance (static2dynamic v1) (static2dynamic v2 :: SVector "dyn" r)
---     distance v1 v2 = sqrt $ go 0 (n-1)
---         where
---             n = nat2int (Proxy::Proxy n)
---
---             go !tot !i =  if i<4
---                 then goEach tot i
---                 else go (tot+(v1!(i  ) - v2!(i  )) .*. (v1!(i  ) - v2!(i  ))
---                             +(v1!(i-1) - v2!(i-1)) .*. (v1!(i-1) - v2!(i-1))
---                             +(v1!(i-2) - v2!(i-2)) .*. (v1!(i-2) - v2!(i-2))
---                             +(v1!(i-3) - v2!(i-3)) .*. (v1!(i-3) - v2!(i-3))
---                         ) (i-4)
---
---             goEach !tot !i = if i<0
---                 then tot
---                 else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
 
     {-# INLINE[2] distanceUB #-}
-    distanceUB v1 v2 ub = {-# SCC distanceUB_SVector #-} sqrt $ go 0 (n-1)
+    distanceUB v1 v2 ub = sqrt $ go 0 (n-1)
         where
             n = nat2int (Proxy::Proxy n)
             ub2 = ub*ub
@@ -1458,7 +1296,6 @@ instance
     , IsScalar r
     , ExpField r
     , Real r
-    , ValidSVector n r
     , ValidSVector "dyn" r
     ) => Banach (SVector (n::Nat) r)
 
@@ -1505,153 +1342,6 @@ type MatrixField r =
     , HM.Container HM.Vector r
     , HM.Product r
    )
-{-
-data Matrix r (m::k1) (n::k2) where
-    Zero  ::                                Matrix r m n
-    Id    :: {-#UNPACK#-}!r              -> Matrix r m m
-    Diag  :: {-#UNPACK#-}!(SVector m r)  -> Matrix r m m
-    Mat   :: {-#UNPACK#-}!(HM.Matrix r)  -> Matrix r m n
-
-type instance Scalar (Matrix r m n) = Scalar r
-type instance (Matrix r m n)><r = Matrix r m n
-
-mkMutable [t| forall a b c. Matrix a b c |]
-
-mkMatrix :: MatrixField r => Int -> Int -> [r] -> Matrix r m n
-mkMatrix m n rs = Mat $ (m HM.>< n) rs
-
---------------------------------------------------------------------------------
--- class instances
-
-deriving instance
-    ( MatrixField r
-    , Show (SVector n r)
-    , Show r
-    ) => Show (Matrix r m n)
-
-----------------------------------------
--- misc
-
-instance (Storable r, NFData r) => NFData (Matrix r m n) where
-    rnf (Id  r) = ()
-    rnf (Mat m) = rnf m
-
-----------------------------------------
--- category
-
-instance MatrixField r => Category (Matrix r) where
-    type ValidCategory (Matrix r) a = ()
-
-    id = Id 1
-
-    (Id  r1).(Id  r2) = Id (r1*r2)
-    (Id  r ).(Mat m ) = Mat $ HM.scale r m
-    (Mat m ).(Id  r ) = Mat $ HM.scale r m
-    (Mat m1).(Mat m2) = Mat $ m2 HM.<> m1
-
-instance MatrixField r => Matrix r (m::Symbol) (n::Symbol) <: (SVector m r -> SVector n r) where
-    embedType_ = Embed0 $ embedType go
-        where
-            go :: Matrix r m n -> SVector m r -> SVector n r
-            go (Id  r) (SVector_Dynamic fp off n) = (SVector_Dynamic fp off n).*r
-            go (Mat m) (SVector_Dynamic fp off n) = SVector_Dynamic fp' off' n'
-                where
-                    (fp',off',n') = VS.unsafeToForeignPtr $ m HM.<> VS.unsafeFromForeignPtr fp off n
-
-type family ToHask (cat :: ka -> kb -> *) (a :: ka) (b :: kb) :: * where
-    ToHask (Matrix r) a b = SVector r a -> SVector r b
-
-infixr 0 $$$
--- ($$$) :: (Matrix r a b <: (SVector a r -> SVector b r)) => Matrix r a b -> SVector a r -> SVector b r
-($$$) :: (Matrix r a b <: ToHask (Matrix r) a b) => Matrix r a b -> ToHask (Matrix r) a b
-($$$) = embedType
-
-instance MatrixField r => Dagger (Matrix r) where
-    dagger (Id  r) = Id r
-    dagger (Mat m) = Mat $ HM.trans m
-
-----------------------------------------
--- size
-
-instance MatrixField r => Normed (Matrix r m n) where
-    size (Id r) = r
-    size (Mat m) = HM.det m
-
-----------------------------------------
--- algebra
-
-instance MatrixField r => Semigroup (Matrix r m n) where
-    (Id  r1)+(Id  r2) = Id (r1+r2)
-    (Id  r )+(Mat m ) = Mat $ HM.scale r (HM.ident (HM.rows m)) `HM.add` m
-    (Mat m )+(Id  r ) = Mat $ m `HM.add` HM.scale r (HM.ident (HM.rows m))
-    (Mat m1)+(Mat m2) = Mat $ m1 `HM.add` m2
-
-instance MatrixField r => Monoid (Matrix r m n) where
-    zero = Zero
-
-instance MatrixField r => Cancellative (Matrix r m n) where
-    (Id  r1)-(Id  r2) = Id (r1-r2)
-    (Id  r )-(Mat m ) = Mat $ HM.scale r (HM.ident (HM.rows m)) `HM.sub` m
-    (Mat m )-(Id  r ) = Mat $ m `HM.sub` HM.scale r (HM.ident (HM.rows m))
-    (Mat m1)-(Mat m2) = Mat $ m1 `HM.sub` m2
-
-instance MatrixField r => Group (Matrix r m n) where
-    negate (Id r) = Id $ negate r
-    negate (Mat m) = Mat $ HM.scale (-1) m
-
-instance MatrixField r => Abelian (Matrix r m n)
-
--------------------
--- modules
-
-instance MatrixField r => Module (Matrix r m n) where
-    (Id r1) .* r2 = Id $ r1*r2
-    (Mat m) .* r2 = Mat $ HM.scale r2 m
-
-instance MatrixField r => FreeModule (Matrix r m n) where
-    (Id  r1) .*. (Id  r2) = Id $ r1*r2
-    (Id  r ) .*. (Mat m ) = Mat $ HM.scale r (HM.ident (HM.rows m)) `HM.mul` m
-    (Mat m ) .*. (Id  r ) = Mat $ m `HM.mul` HM.scale r (HM.ident (HM.rows m))
-    (Mat m1) .*. (Mat m2) = Mat $ m1 `HM.mul` m2
-
-instance MatrixField r => VectorSpace (Matrix r m n) where
-    (Id  r1) ./. (Id  r2) = Id $ r1/r2
-    (Id  r ) ./. (Mat m ) = Mat $ HM.scale r (HM.ident (HM.rows m)) `HM.divide` m
-    (Mat m ) ./. (Id  r ) = Mat $ m `HM.divide` HM.scale r (HM.ident (HM.rows m))
-    (Mat m1) ./. (Mat m2) = Mat $ m1 `HM.divide` m2
-
--------------------
--- rings
---
--- NOTE: matrices are only a ring when their dimensions are equal
-
-instance MatrixField r => Rg (Matrix r m m) where
-    (*) = (>>>)
-
-instance MatrixField r => Rig (Matrix r m m) where
-    one = id
-
-instance MatrixField r => Ring (Matrix r m m) where
-    fromInteger i = Id $ fromInteger i
-
-instance MatrixField r => Field (Matrix r m m) where
-    fromRational r = Id $ fromRational r
-
-    reciprocal (Id r ) = Id $ reciprocal r
-    reciprocal (Mat m) = Mat $ HM.inv m
-
-----------------------------------------
-
-instance
-    ( FiniteModule (SVector n r)
-    , VectorSpace (SVector n r)
-    , MatrixField r
-    ) => TensorAlgebra (SVector n r)
-        where
-    v1><v2 = mkMatrix (dim v1) (dim v2) [ v1!i * v2!j | i <- [0..dim v1-1], j <- [0..dim v2-1] ]
-
--}
---------------------------------------------------------------------------------
 
 class ToFromVector a where
     toVector   :: a -> VS.Vector (Scalar a)
@@ -1675,8 +1365,6 @@ instance (KnownNat n, MatrixField r) => ToFromVector (SVector (n::Nat) r) where
         where
             (fp,off,n) = VS.unsafeToForeignPtr v
 
----------
-
 apMat_ ::
     ( Scalar a~Scalar b
     , Scalar b ~ Scalar (Scalar b)
@@ -1685,8 +1373,6 @@ apMat_ ::
     , ToFromVector b
     ) => HM.Matrix (Scalar a) -> a -> b
 apMat_ m a = fromVector $ HM.flatten $ m HM.<> HM.asColumn (toVector a)
-
----------------------------------------
 
 data a +> b where
     Zero ::
@@ -1714,8 +1400,6 @@ type instance Logic (a +> b) = Bool
 
 type instance (a +> b) >< c = Tensor_Linear (a +> b) c
 type family Tensor_Linear a b where
---     Tensor_SVector (SVector n r1) (SVector m r2) = SVector n r1 +> SVector m r2
---     Tensor_Linear (a +> b) (c +> d) = (a +> b) +> (c +> d)
     Tensor_Linear (a +> b) c = a +> b
 
 mkMutable [t| forall a b. a +> b |]

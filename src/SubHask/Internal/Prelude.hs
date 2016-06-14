@@ -4,7 +4,6 @@ module SubHask.Internal.Prelude
     Show (..)
     , Read (..)
     , read
-
     , Storable (..)
 
     -- * data types
@@ -30,10 +29,8 @@ module SubHask.Internal.Prelude
     -- * Prelude functions
     , build
     , (++)
-
     , Prelude.all
     , map
-
     , asTypeOf
     , undefined
     , otherwise
@@ -49,8 +46,6 @@ module SubHask.Internal.Prelude
     , module Data.Proxy
     , module Data.Typeable
     , module GHC.TypeLits
-
-    -- * Non-Prelude types
 
     -- ** QuickCheck
     , Arbitrary (..)

@@ -9,8 +9,6 @@ import SubHask.Internal.Prelude
 
 import qualified Data.BloomFilter as BF
 
---------------------------------------------------------------------------------
-
 newtype BloomFilter (n::Nat) a = BloomFilter (BF.Bloom a)
 
 mkMutable [t| forall n a. BloomFilter n a |]

@@ -4,7 +4,6 @@
 module SubHask.Algebra.Container
     where
 
-import Control.Monad
 import GHC.Prim
 import Control.Monad
 import GHC.TypeLits
@@ -137,7 +136,6 @@ instance
 
     {-# INLINE distance #-}
     distance (Hamming xs) (Hamming ys) =
-        {-# SCC distance_Hamming #-}
         go (toList xs) (toList ys) 0
         where
             go [] [] i = i
@@ -149,7 +147,6 @@ instance
 
     {-# INLINE distanceUB #-}
     distanceUB (Hamming xs) (Hamming ys) dist =
-        {-# SCC distanceUB_Hamming #-}
         go (toList xs) (toList ys) 0
         where
             go xs ys tot = if tot > dist
@@ -193,7 +190,6 @@ instance
 
     {-# INLINE distance #-}
     distance (Levenshtein xs) (Levenshtein ys) =
-        {-# SCC distance_Levenshtein #-}
         fromIntegral $ dist (toList xs) (toList ys)
 
 -- | this function stolen from
