@@ -1,17 +1,11 @@
 # SubHask 
-<!--![](https://travis-ci.org/mikeizbicki/subhask.svg)-->
+<!--![](https://travis-ci.org/mikeizbicki/subhask.png)-->
 
 SubHask is a radical rewrite of the Haskell [Prelude](https://www.haskell.org/onlinereport/standard-prelude.html).
 The goal is to make numerical computing in Haskell *fun* and *fast*.
 The main idea is to use a type safe interface for programming in arbitrary subcategories of [Hask](https://wiki.haskell.org/Hask).
 For example, the category [Vect](http://ncatlab.org/nlab/show/Vect) of linear functions is a subcategory of Hask, and SubHask exploits this fact to give a nice interface for linear algebra.
 To achieve this goal, almost every class hierarchy is redefined to be more general.
-
-<!--[MATLAB](http://www.mathworks.com/products/matlab/)/[Octave](https://www.gnu.org/software/octave/),-->
-<!--[R](http://www.r-project.org/),-->
-<!--[Julia](http://julialang.org/);-->
-<!--[Armadillo](http://arma.sourceforge.net/) and-->
-<!--[Eigen](http://eigen.tuxfamily.org/).-->
 
 <!--
 Haskell is the most fun language I've ever used,
@@ -67,6 +61,7 @@ To install on Linux or Mac, run the following commands:
     ```
 
 1. Any version of BLAS and LAPACK.
+
 How to install these packages varies for different operating systems.
 For Debian/Ubuntu systems, you can install them using:
 
@@ -74,24 +69,22 @@ For Debian/Ubuntu systems, you can install them using:
     $ sudo apt-get install libblas-dev liblapack-dev
     ```
 
-SubHask also has strict dependency requirements on other Haskell packages.
-Therefore, I recommend installing in a sandbox.
-The following steps will create a project called `subhask-test`.
+For OSX, try homebrew:
 
-```
-$ mkdir subhask-test
-$ cd subhask-test
-$ cabal update
-$ cabal sandbox init
-$ cabal install subhask -j5
-```
+    ```
+    $ brew install libblas-dev liblapack-dev
+    ```
 
-The cabal install command takes about an hour to run on my laptop.
+The easiest way to build and try Subhask is to clone the repo
 
-<!--Then you can start ghci by running:-->
-<!--```-->
-<!--$ cabal repl-->
-<!--```-->
+    git clone https://github.com/mikeizbicki/subhask
+    cd subhask
+
+and use stack to build. eg
+
+    stack test --bench
+
+will build the project, run the tests, and run the benchmark.
 
 ## Examples
 
