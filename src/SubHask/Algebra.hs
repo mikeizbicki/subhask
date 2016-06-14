@@ -2243,12 +2243,12 @@ class
     -- Otherwise, it will return some number greater than the upper bound.
     {-# INLINE distanceUB #-}
     distanceUB :: v -> v -> Scalar v -> Scalar v
-    distanceUB v1 v2 _ = {-# SCC distanceUB #-} distance v1 v2
+    distanceUB v1 v2 _ = distance v1 v2
 
 -- | Calling this function will be faster on some 'Metric's than manually checking if distance is greater than the bound.
 {-# INLINE isFartherThan #-}
 isFartherThan :: Metric v => v -> v -> Scalar v -> Logic v
-isFartherThan s1 s2 b = {-# SCC isFartherThan #-} distanceUB s1 s2 b > b
+isFartherThan s1 s2 b = distanceUB s1 s2 b > b
 
 -- | This function constructs an efficient default implementation for 'distanceUB' given a function that lower bounds the distance metric.
 {-# INLINE lb2distanceUB #-}
@@ -2493,17 +2493,7 @@ class (Constructible s, Monoid s, Normed s, Scalar s~Int) => Foldable s where
     sum :: Monoid (Elem s) => s -> Elem s
     sum xs = foldl' (+) zero $ toList xs
 
-    -- | the default summation uses kahan summation
---     sum :: (Abelian (Elem s), Group (Elem s)) => s -> Elem s
---     sum = snd . foldl' go (zero,zero)
---         where
---             go (c,t) i = ((t'-t)-y,t')
---                 where
---                     y = i-c
---                     t' = t+y
-
     -- the definitions below are copied from Data.Foldable
-
     foldMap :: Monoid a => (Elem s -> a) -> s -> a
     foldMap f = foldr ((+) . f) zero
 
@@ -2667,24 +2657,6 @@ argmin a1 a2 f = if f a1 < f a2 then a1 else a2
 {-# INLINE argmax #-}
 argmax :: Ord b => a -> a -> (a -> b) -> a
 argmax a1 a2 f = if f a1 > f a2 then a1 else a2
-
--- {-# INLINE argminimum_ #-}
--- argminimum_ :: Ord_ b => a -> [a] -> (a -> b) -> a
--- argminimum_ a as f = fstHask $ foldl' go (a,f a) as
---     where
---         go (a1,fa1) a2 = if fa1 < fa2
---             then (a1,fa1)
---             else (a2,fa2)
---             where fa2 = f a2
---
--- {-# INLINE argmaximum_ #-}
--- argmaximum_ :: Ord_ b => a -> [a] -> (a -> b) -> a
--- argmaximum_ a as f = fstHask $ foldl' go (a,f a) as
---     where
---         go (a1,fa1) a2 = if fa1 > fa2
---             then (a1,fa1)
---             else (a2,fa2)
---             where fa2 = f a2
 
 {-# INLINE maximum #-}
 maximum :: (ValidLogic b, Bounded b) => [b] -> b
@@ -3125,24 +3097,6 @@ instance (Abelian a, Abelian b) => Abelian (a,b)
 
 instance (Abelian a, Abelian b, Abelian c) => Abelian (a,b,c)
 
--- instance (Module a, Module b, Scalar a ~ Scalar b) => Module (a,b) where
---     (a,b) .* r = (r*.a, r*.b)
---     (a1,b1).*.(a2,b2) = (a1.*.a2,b1.*.b2)
---
--- instance (Module a, Module b, Module c, Scalar a ~ Scalar b, Scalar c~Scalar b) => Module (a,b,c) where
---     (a,b,c) .* r = (r*.a, r*.b,r*.c)
---     (a1,b1,c1).*.(a2,b2,c2) = (a1.*.a2,b1.*.b2,c1.*.c2)
---
--- instance (VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => VectorSpace (a,b) where
---     (a,b) ./ r = (a./r,b./r)
---     (a1,b1)./.(a2,b2) = (a1./.a2,b1./.b2)
---
--- instance (VectorSpace a,VectorSpace b, VectorSpace c, Scalar a ~ Scalar b, Scalar c~Scalar b) => VectorSpace (a,b,c) where
---     (a,b,c) ./ r = (a./r,b./r,c./r)
---     (a1,b1,c1)./.(a2,b2,c2) = (a1./.a2,b1./.b2,c1./.c2)
-
---------------------------------------------------------------------------------
-
 data Labeled' x y = Labeled' { xLabeled' :: !x, yLabeled' :: !y }
     deriving (Read,Show,Typeable)
 
@@ -3184,12 +3138,8 @@ instance (ClassicalLogic x, Ord_ x) => Lattice_ (Labeled' x y) where
 
 instance (ClassicalLogic x, Ord_ x) => Ord_ (Labeled' x y) where
 
------
-
 instance Semigroup x => Action (Labeled' x y) where
     (Labeled' x y) .+ x' = Labeled' (x'+x) y
-
------
 
 instance Metric x => Metric (Labeled' x y) where
     distance (Labeled' x1 y1) (Labeled' x2 y2) = distance x1 x2

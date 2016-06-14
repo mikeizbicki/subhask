@@ -100,15 +100,6 @@ instance Category SparseFunction where
                 Just v -> v
                 Nothing -> swapZIndex k
 
--- instance Sup SparseFunction (->) (->)
--- instance Sup (->) SparseFunction (->)
--- instance SparseFunction <: (->) where
---     embedType_ = Embed2 $ map2function f
---         where
---             map2function map k = case Map.lookup (index k) map of
---                 Just v -> deZIndex v
---                 Nothing -> deZIndex $ swapZIndex $ index k
-
 -- | Generates a sparse representation of a 'Hask' function.
 -- This proof will always succeed, although it may be computationally expensive if the 'Order' of a and b is large.
 proveSparseFunction ::
@@ -130,8 +121,6 @@ list2sparseFunction xs = SparseFunction $ Map.fromList $ go xs
     where
         go (y:[]) = [(ZIndex y, ZIndex $ P.head xs)]
         go (y1:y2:ys) = (ZIndex y1,ZIndex y2):go (y2:ys)
-
--------------------------------------------------------------------------------
 
 data SparseFunctionMonoid a b where
     SparseFunctionMonoid ::
@@ -160,51 +149,6 @@ instance Category SparseFunctionMonoid where
                 Just v -> v
                 Nothing -> index zero
 
--- instance Sup SparseFunctionMonoid (->) (->)
--- instance Sup (->) SparseFunctionMonoid (->)
--- instance (SparseFunctionMonoid <: (->)) where
---     embedType_ = Embed2 $ map2function f
---         where
---             map2function map k = case Map.lookup (index k) map of
---                 Just v -> deZIndex v
---                 Nothing -> zero
-
----------------------------------------
-
-{-
-instance (FiniteType b, Semigroup b) => Semigroup (SparseFunctionMonoid a b) where
-    (SparseFunctionMonoid f1)+(SparseFunctionMonoid f2) = SparseFunctionMonoid $ Map.unionWith go f1 f2
-        where
-            go b1 b2 = index $ deZIndex b1 + deZIndex b2
-
-instance
-    ( FiniteType a
-    , FiniteType b
-    , Monoid a
-    , Monoid b
-    , Order a ~ Order b
-    ) => Monoid (SparseFunctionMonoid a b) where
-    zero = SparseFunctionMonoid $ Map.empty
-
-instance
-    ( FiniteType b
-    , Abelian b
-    ) => Abelian (SparseFunctionMonoid a b)
-
-instance (FiniteType b, Group b) => Group (SparseFunctionMonoid a b) where
-    negate (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.negate.deZIndex) f
-
-type instance Scalar (SparseFunctionMonoid a b) = Scalar b
-
-instance (FiniteType b, Module b) => Module (SparseFunctionMonoid a b) where
-    r *. (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.(r*.).deZIndex) f
-
-instance (FiniteType b, VectorSpace b) => VectorSpace (SparseFunctionMonoid a b) where
-    (SparseFunctionMonoid f) ./ r = SparseFunctionMonoid $ Map.map (index.(./r).deZIndex) f
--}
-
--------------------------------------------------------------------------------
-
 -- | Represents finite functions as a hash table associating input/output value pairs.
 data DenseFunction (a :: *) (b :: *) where
     DenseFunction ::
@@ -223,9 +167,6 @@ instance Category DenseFunction where
             n = fromIntegral $ natVal (Proxy :: Proxy (Order a))
 
     (DenseFunction f).(DenseFunction g) = DenseFunction $ VU.map (f VU.!) g
-
--- instance SubCategory DenseFunction (->) where
---     embed (DenseFunction f) = \x -> deZIndex $ int2index $ f VU.! (index2int $ index x)
 
 -- | Generates a dense representation of a 'Hask' function.
 -- This proof will always succeed; however, if the 'Order' of the finite types

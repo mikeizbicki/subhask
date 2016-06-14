@@ -114,7 +114,7 @@ instance Foldable (BArray e) where
     {-# INLINE foldl1 #-}
     {-# INLINE foldl1' #-}
     foldr   f x (BArray v) = VG.foldr   f x v
-    foldr'  f x (BArray v) = {-# SCC foldr'_BArray #-} VG.foldr'  f x v
+    foldr'  f x (BArray v) = VG.foldr'  f x v
     foldr1  f   (BArray v) = VG.foldr1  f   v
     foldr1' f   (BArray v) = VG.foldr1' f   v
     foldl   f x (BArray v) = VG.foldl   f x v
@@ -250,34 +250,6 @@ instance
             rbytes=Prim.sizeOf (undefined::r)
             size=roundUpToNearest 4 $ dim x
 
--- instance
---     ( ClassicalLogic r
---     , Eq_ r
---     , Unbox r
---     , Prim r
---     , FreeModule r
---     , IsScalar r
---     ) => Monoid (UArray (UVector (s::Symbol) r)) where
---     zero = unsafeInlineIO $ do
---         marr <- safeNewByteArray 0 16
---         arr <- unsafeFreezeByteArray marr
---         return $ UArray $ UArray_UVector arr 0 0 0
-
--- instance
---     ( ClassicalLogic r
---     , Eq_ r
---     , Unbox r
---     , Prim r
---     , FreeModule r
---     , IsScalar r
---     , Prim y
---     , Unbox y
---     ) => Monoid (UArray (Labeled' (UVector (s::Symbol) r) y)) where
---     zero = unsafeInlineIO $ do
---         marr <- safeNewByteArray 0 16
---         arr <- unsafeFreezeByteArray marr
---         return $ UArray $ UArray_Labeled'_UVector arr 0 0 0
-
 instance Unboxable e => Container (UArray e) where
     elem e (UArray v) = elem e $ VG.toList v
 
@@ -285,7 +257,6 @@ instance Unboxable e => Foldable (UArray e) where
 
     {-# INLINE toList #-}
     toList (UArray v) = VG.toList v
---     toList UArray_Zero = []
 
     {-# INLINE uncons #-}
     uncons (UArray v) = if VG.null v
@@ -309,7 +280,7 @@ instance Unboxable e => Foldable (UArray e) where
     {-# INLINE foldl1 #-}
     {-# INLINE foldl1' #-}
     foldr   f x (UArray v) = VG.foldr   f x v
-    foldr'  f x (UArray v) = {-# SCC foldr'_UArray #-} VG.foldr'  f x v
+    foldr'  f x (UArray v) = VG.foldr'  f x v
     foldr1  f   (UArray v) = VG.foldr1  f   v
     foldr1' f   (UArray v) = VG.foldr1' f   v
     foldl   f x (UArray v) = VG.foldl   f x v
@@ -351,8 +322,6 @@ instance
     , Prim elem
     ) => Unbox (UVector (n::Symbol) elem)
 
----------------------------------------
-
 data instance VU.Vector (UVector (n::Symbol) elem) = UArray_UVector
     {-#UNPACK#-}!ByteArray
     {-#UNPACK#-}!Int -- offset
@@ -386,11 +355,6 @@ instance
     basicUnsafeIndexM (UArray_UVector arr off n size) i =
         return $ UVector_Dynamic arr (off+i*size) size
 
---     {-# INLINABLE basicUnsafeCopy #-}
---     basicUnsafeCopy mv v = VG.basicUnsafeCopy (vecM mv) (vec v)
-
----------------------------------------
-
 data instance VUM.MVector s (UVector (n::Symbol) elem) = UArray_MUVector
     {-#UNPACK#-}!(MutableByteArray s)
     {-#UNPACK#-}!Int -- offset in number of elem
@@ -421,11 +385,6 @@ instance
         marr <- newByteArray 0
         return $ UArray_MUVector marr 0 0 0
     basicUnsafeNew n = error "basicUnsafeNew not supported on UArray_MUVector with nonzero size"
-
---     basicUnsafeNew lenM' = do
---         let elemsize=ptsize
---         marr <- newPinnedByteArray (lenM'*elemsize*Prim.sizeOf (undefined::elem))
---         return $ UArray_MUVector marr 0 lenM' elemsize
 
     {-# INLINABLE basicUnsafeRead #-}
     basicUnsafeRead mv@(UArray_MUVector marr off n size) i = do
@@ -465,8 +424,6 @@ instance
     , Prim a
     ) => Unbox (Labeled' (UVector (s::Symbol) a) y)
 
----------------------------------------
-
 data instance VUM.MVector s (Labeled' (UVector (n::Symbol) elem) y) = UArray_Labeled'_MUVector
     {-#UNPACK#-}!(MutableByteArray s)
     {-#UNPACK#-}!Int -- offset in number of elem
@@ -500,12 +457,6 @@ instance
         marr <- newByteArray 0
         return $ UArray_Labeled'_MUVector marr 0 0 0
     basicUnsafeNew n = error "basicUnsafeNew not supported on UArray_MUVector with nonzero size"
---     basicUnsafeNew lenM' = do
---         let elemsize=ptsize
---         marr <- newPinnedByteArray (lenM'*(elemsize+ysize)*Prim.sizeOf (undefined::elem))
---         return $ UArray_Labeled'_MUVector marr 0 lenM' elemsize
---         where
---             ysize=roundUpToNearest 4 $ Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
 
     {-# INLINABLE basicUnsafeRead #-}
     basicUnsafeRead mv@(UArray_Labeled'_MUVector marr off n size) i = do
@@ -550,8 +501,6 @@ instance
         where
             b = (size1+ysize)*Prim.sizeOf (undefined::elem)
             ysize=roundUpToNearest 4 $ Prim.sizeOf (undefined::y) `quot` Prim.sizeOf (undefined::elem)
-
-----------------------------------------
 
 data instance VU.Vector (Labeled' (UVector (n::Symbol) elem) y) = UArray_Labeled'_UVector
     {-#UNPACK#-}!ByteArray
@@ -633,182 +582,3 @@ instance
 
             xsize=roundUpToNearest 4 $ dim $ xLabeled' x
             ysize=roundUpToNearest 4 $ Prim.sizeOf (undefined::y) `quot` rbytes
-
--- roundUpToNearest_ :: Int -> Int -> Int
--- roundUpToNearest_  m i = i -- +4-i`rem`4
--- roundUpToNearest_ m x = x+r
---     where
---         s = x`rem`m
---         r = if s==0 then 0 else m-s
-
--------------------------------------------------------------------------------
--- Labeled'
-
-{-
-instance (VU.Unbox x, VU.Unbox y) => VU.Unbox (Labeled' x y)
-
-data instance VUM.MVector s (Labeled' x y) = UArray_Labeled'_MUVector
-    !(VUM.MVector s x)
-    !(VUM.MVector s y)
-
-instance
-    ( VUM.Unbox x
-    , VUM.Unbox y
-    ) => VGM.MVector VUM.MVector (Labeled' x y)
-        where
-
-    {-# INLINABLE basicLength #-}
-    {-# INLINABLE basicUnsafeSlice #-}
-    {-# INLINABLE basicOverlaps #-}
-    {-# INLINABLE basicUnsafeNew #-}
-    {-# INLINABLE basicUnsafeRead #-}
-    {-# INLINABLE basicUnsafeWrite #-}
-    {-# INLINABLE basicUnsafeCopy #-}
-    {-# INLINABLE basicUnsafeMove #-}
-    {-# INLINABLE basicSet #-}
-    basicLength (UArray_Labeled'_MUVector xv yv) = VGM.basicLength xv
-
-    basicUnsafeSlice i len (UArray_Labeled'_MUVector xv yv)
-        = UArray_Labeled'_MUVector
-            (VGM.basicUnsafeSlice i len xv)
-            (VGM.basicUnsafeSlice i len yv)
-
-    basicOverlaps (UArray_Labeled'_MUVector xv1 _) (UArray_Labeled'_MUVector xv2 _)
-        = VGM.basicOverlaps xv1 xv2
-
-    basicUnsafeNew n = do
-        mvx <- VGM.basicUnsafeNew n
-        mvy <- VGM.basicUnsafeNew n
-        return $ UArray_Labeled'_MUVector mvx mvy
-
-    basicUnsafeRead (UArray_Labeled'_MUVector xv yv) i = do
-        x <- VGM.basicUnsafeRead xv i
-        y <- VGM.basicUnsafeRead yv i
-        return $ Labeled' x y
-
-    basicUnsafeWrite (UArray_Labeled'_MUVector xv yv) i (Labeled' x y) = do
-        VGM.basicUnsafeWrite xv i x
-        VGM.basicUnsafeWrite yv i y
-
-    basicUnsafeCopy (UArray_Labeled'_MUVector xv1 yv1) (UArray_Labeled'_MUVector xv2 yv2) = do
-        VGM.basicUnsafeCopy xv1 xv2
-        VGM.basicUnsafeCopy yv1 yv2
-
-    basicUnsafeMove (UArray_Labeled'_MUVector xv1 yv1) (UArray_Labeled'_MUVector xv2 yv2) = do
-        VGM.basicUnsafeMove xv1 xv2
-        VGM.basicUnsafeMove yv1 yv2
-
-    basicSet (UArray_Labeled'_MUVector xv yv) (Labeled' x y) = do
-        VGM.basicSet xv x
-        VGM.basicSet yv y
-
-data instance VU.Vector (Labeled' x y) = UArray_Labeled'_UVector
-    !(VU.Vector x)
-    !(VU.Vector y)
-
-instance
-    ( VUM.Unbox x
-    , VUM.Unbox y
-    ) => VG.Vector VU.Vector (Labeled' x y)
-        where
-
-    {-# INLINABLE basicUnsafeFreeze #-}
-    {-# INLINABLE basicUnsafeThaw #-}
-    {-# INLINABLE basicLength #-}
-    {-# INLINABLE basicUnsafeSlice #-}
-    {-# INLINABLE basicUnsafeIndexM #-}
-    basicUnsafeFreeze (UArray_Labeled'_MUVector mxv myv) = do
-        xv <- VG.basicUnsafeFreeze mxv
-        yv <- VG.basicUnsafeFreeze myv
-        return $ UArray_Labeled'_UVector xv yv
-
-    basicUnsafeThaw (UArray_Labeled'_UVector xv yv) = do
-        mxv <- VG.basicUnsafeThaw xv
-        myv <- VG.basicUnsafeThaw yv
-        return ( UArray_Labeled'_MUVector mxv myv )
-
-    basicLength (UArray_Labeled'_UVector xv _ ) = VG.basicLength xv
-
-    basicUnsafeSlice i len (UArray_Labeled'_UVector xv yv) = UArray_Labeled'_UVector
-        (VG.basicUnsafeSlice i len xv)
-        (VG.basicUnsafeSlice i len yv)
-
-    basicUnsafeIndexM (UArray_Labeled'_UVector xv yv) i = do
-        x <- VG.basicUnsafeIndexM xv i
-        y <- VG.basicUnsafeIndexM yv i
-        return $ Labeled' x y
-
-instance
-    ( Unboxable x
-    , Unboxable y
-    ) => Constructible (UArray (Labeled' x y))
-        where
-
-    fromList1 z zs = UArray $ UArray_Labeled'_UVector
-        ( unUArray $ fromList1 (xLabeled' z) (map xLabeled' zs) )
-        ( unUArray $ fromList1 (yLabeled' z) (map yLabeled' zs) )
-        where
-            unUArray (UArray v) = v
-
-    fromList1N n z zs = UArray $ UArray_Labeled'_UVector
-        ( unUArray $ fromList1N n (xLabeled' z) (map xLabeled' zs) )
-        ( unUArray $ fromList1N n (yLabeled' z) (map yLabeled' zs) )
-        where
-            unUArray (UArray v) = v
-
--}
-
-{-
-instance (VUM.Unbox x, VUM.Unbox y) => VUM.Unbox (Labeled' x y)
-
-newtype instance VUM.MVector s (Labeled' x y) = UMV_Labeled' (VUM.MVector s (x,y))
-
-instance
-    ( VUM.Unbox x
-    , VUM.Unbox y
-    ) => VGM.MVector VUM.MVector (Labeled' x y)
-        where
-
-    {-# INLINABLE basicLength #-}
-    {-# INLINABLE basicUnsafeSlice #-}
-    {-# INLINABLE basicOverlaps #-}
-    {-# INLINABLE basicUnsafeNew #-}
-    {-# INLINABLE basicUnsafeRead #-}
-    {-# INLINABLE basicUnsafeWrite #-}
-    {-# INLINABLE basicUnsafeCopy #-}
-    {-# INLINABLE basicUnsafeMove #-}
-    {-# INLINABLE basicSet #-}
-    basicLength (UMV_Labeled' v) = VGM.basicLength v
-    basicUnsafeSlice i len (UMV_Labeled' v) = UMV_Labeled' $ VGM.basicUnsafeSlice i len v
-    basicOverlaps (UMV_Labeled' v1) (UMV_Labeled' v2) = VGM.basicOverlaps v1 v2
-    basicUnsafeNew = error "basicUnsafeNew should never be called"
---     basicUnsafeNew len = liftM UMV_Labeled' $ VGM.basicUnsafeNew len
-    basicUnsafeRead (UMV_Labeled' v) i = do
-        (!x,!y) <- VGM.basicUnsafeRead v i
-        return $ Labeled' x y
-    basicUnsafeWrite (UMV_Labeled' v) i (Labeled' x y) = VGM.basicUnsafeWrite v i (x,y)
-    basicUnsafeCopy (UMV_Labeled' v1) (UMV_Labeled' v2) = VGM.basicUnsafeCopy v1 v2
-    basicUnsafeMove (UMV_Labeled' v1) (UMV_Labeled' v2) = VGM.basicUnsafeMove v1 v2
-    basicSet (UMV_Labeled' v1) (Labeled' x y) = VGM.basicSet v1 (x,y)
-
-newtype instance VU.Vector (Labeled' x y) = UV_Labeled' (VU.Vector (x,y))
-
-instance
-    ( VUM.Unbox x
-    , VUM.Unbox y
-    ) => VG.Vector VU.Vector (Labeled' x y)
-        where
-
-    {-# INLINABLE basicUnsafeFreeze #-}
-    {-# INLINABLE basicUnsafeThaw #-}
-    {-# INLINABLE basicLength #-}
-    {-# INLINABLE basicUnsafeSlice #-}
-    {-# INLINABLE basicUnsafeIndexM #-}
-    basicUnsafeFreeze (UMV_Labeled' v) = liftM UV_Labeled' $ VG.basicUnsafeFreeze v
-    basicUnsafeThaw (UV_Labeled' v) = liftM UMV_Labeled' $ VG.basicUnsafeThaw v
-    basicLength (UV_Labeled' v) = VG.basicLength v
-    basicUnsafeSlice i len (UV_Labeled' v) = UV_Labeled' $ VG.basicUnsafeSlice i len v
-    basicUnsafeIndexM (UV_Labeled' v) i = do
-        (!x,!y) <- VG.basicUnsafeIndexM v i
-        return $ Labeled' x y
--}

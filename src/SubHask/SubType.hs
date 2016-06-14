@@ -5,16 +5,11 @@ module SubHask.SubType
     ( (<:) (..)
     , Sup
 
---     , toRational
-
     -- **
     , Embed (..)
     , embedType
     , embedType1
     , embedType2
---     , Embed0 (..)
---     , Embed1 (..)
---     , Embed2 (..)
 
     -- * Template Haskell
     , mkSubtype
@@ -25,7 +20,6 @@ module SubHask.SubType
 import Control.Monad
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
--- import Language.Haskell.Meta
 
 import SubHask.Internal.Prelude
 import Prelude
