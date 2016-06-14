@@ -18,7 +18,7 @@ description:
     For example, the category <http://ncatlab.org/nlab/show/Vect Vect> of linear functions is a subcategory of Hask, and SubHask exploits this fact to give a nice interface for linear algebra.
     To achieve this goal, almost every class hierarchy is redefined to be more general.
 
-    I recommend reading the <http://github.com/mikeizbicki/subhask/blob/master/README.md README> file and the <http://github.com/mikeizbicki/subhask/blob/master/examples examples> before looking at the documetation here.
+    I recommend reading the <http://github.com/mikeizbicki/subhask/blob/master/README.md README> file and the <http://github.com/mikeizbicki/subhask/blob/master/examples examples> before looking at the documentation here.
 
 source-repository head
     type: git
@@ -107,59 +107,49 @@ library
         cbits/Lebesgue.c
 
     cc-options:
---         -O3
         -ffast-math
         -msse3
 
     ghc-options:
---         -O2
---         -O
         -funbox-strict-fields
 
     build-depends:
-        -- NOTE:
-        -- We specify the *exact* versions of all non-base libraries to ensure that we get reproducible builds.
-        -- This helps prevent performance regressions.
-        -- The downside of exact version dependencies is that the user probably doesn't have these versions installed.
-        -- This can result in significantly longer build times and build conflicts.
-        -- But since subhask is designed as an alternative to base, this is an acceptable tradeoff.
-
         -- haskell language
-        base                        >= 4.8 && <4.9,
-        ghc-prim                    ,
-        template-haskell            ,
+        base >= 4.8 && <4.9,
+        ghc-prim,
+        template-haskell,
 
         -- special functionality
-        parallel                    ,
-        deepseq                     ,
-        primitive                   ,
-        monad-primitive             ,
-        QuickCheck                  ,
+        parallel,
+        deepseq,
+        primitive,
+        monad-primitive,
+        QuickCheck,
 
         -- math
-        erf                         ,
-        gamma                       ,
-        hmatrix                     ,
+        erf,
+        gamma,
+        hmatrix,
 
         -- compatibility control flow
-        mtl                         ,
-        MonadRandom                 ,
+        mtl,
+        MonadRandom,
 
         -- compatibility data structures
-        bytestring                  ,
-        bloomfilter                 ,
-        cassava                     ,
-        containers                  ,
-        vector                      ,
-        array                       ,
-        hyperloglog                 ,
-        reflection                  ,
+        bytestring,
+        bloomfilter,
+        cassava,
+        containers,
+        vector,
+        array,
+        hyperloglog,
+        reflection,
 
         -- required for hyperloglog compatibility
-        semigroups                  ,
-        bytes                       ,
-        approximate                 ,
-        lens                        
+        semigroups,
+        bytes,
+        approximate,
+        lens                 
 
     default-language:
         Haskell2010
@@ -239,31 +229,10 @@ benchmark Vector
         -O2
         -funbox-strict-fields
         -fexcess-precision
-
---         -fliberate-case-threshold=100000
---         -fexpose-all-unfoldings
---         -fmax-simplifier-iterations=10
---         -fmax-worker-args=100
---         -fsimplifier-phases=5
---         -fspec-constr-count=50
-
-        -fllvm
+        -- awaiting https://github.com/travis-ci/travis-ci/issues/6120
+        -- -fllvm
         -optlo-O3
         -optlo-enable-fp-mad
         -optlo-enable-no-infs-fp-math
         -optlo-enable-no-nans-fp-math
         -optlo-enable-unsafe-fp-math
-
---         -ddump-to-file
---         -ddump-rule-firings
---         -ddump-rule-rewrites
---         -ddump-rules
---         -ddump-cmm
---         -ddump-simpl
---         -ddump-simpl-stats
---         -dppr-debug
---         -dsuppress-module-prefixes
---         -dsuppress-uniques
---         -dsuppress-idinfo
---         -dsuppress-coercions
---         -dsuppress-type-applications
