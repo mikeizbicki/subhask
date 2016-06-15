@@ -36,7 +36,7 @@ type ValidMatrix vect r =
 
 type instance Scalar (Matrix vect r m n) = Scalar r
 type instance Logic (Matrix vect r m n) = Logic r
-type instance Matrix vect r m n >< a = Matrix vect (r><a) m n 
+type instance Matrix vect r m n >< a = Matrix vect (r><a) m n
 type instance Index (Matrix vect r m n) = Int
 type instance Elem (Matrix vect r m n) = Scalar r
 type instance SetElem (Matrix vect r m n) b = Matrix vect b m n
@@ -205,7 +205,7 @@ instance
   {-# INLINE dim #-}
   dim m = colLength m * rowLength m
 
-  {-# INLINABLE unsafeToModule #-}
+--   {-# INLINABLE unsafeToModule #-}
   -- unsafeToModule xs = unsafeToModuleM r xs
 
 {-# INLINE row #-}

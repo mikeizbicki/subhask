@@ -1,5 +1,5 @@
 name:                subhask
-version:             0.1.1.0
+version:             0.2.0.0
 synopsis:            Type safe interface for programming in subcategories of Hask
 homepage:            http://github.com/mikeizbicki/subhask
 license:             BSD3
@@ -54,11 +54,11 @@ library
         SubHask.Category.Trans.Monotonic
 
         SubHask.Compatibility.Base
-        SubHask.Compatibility.BloomFilter
+--         SubHask.Compatibility.BloomFilter
         SubHask.Compatibility.ByteString
         SubHask.Compatibility.Cassava
         SubHask.Compatibility.Containers
-        SubHask.Compatibility.HyperLogLog
+--         SubHask.Compatibility.HyperLogLog
 
         SubHask.Monad
         SubHask.Mutable
@@ -94,11 +94,12 @@ library
         FunctionalDependencies,
         TupleSections,
         MultiWayIf,
-
         AutoDeriveTypeable,
         DeriveGeneric,
-        RebindableSyntax
+        RebindableSyntax,
 --         OverloadedLists
+
+        UndecidableSuperClasses
 
     hs-source-dirs:
         src
@@ -115,7 +116,7 @@ library
 
     build-depends:
         -- haskell language
-        base >= 4.8 && <4.9,
+        base >= 4.9 && <4.10,
         ghc-prim,
         template-haskell,
 
@@ -137,19 +138,19 @@ library
 
         -- compatibility data structures
         bytestring,
-        bloomfilter,
+--         bloomfilter,
         cassava,
         containers,
         vector,
         array,
-        hyperloglog,
-        reflection,
+        reflection
 
         -- required for hyperloglog compatibility
-        semigroups,
-        bytes,
-        approximate,
-        lens                 
+--         hyperloglog,
+--         semigroups,
+--         bytes,
+--         approximate,
+--         lens
 
     default-language:
         Haskell2010

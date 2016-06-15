@@ -9,8 +9,8 @@ language: c
 # The different configurations we want to test.
 matrix:
   include:
-  
-  - env: BUILD=stack ARGS="--resolver lts-6"
+
+  - env: BUILD=stack
     compiler: ": #stack 7.10.3"
     addons: {apt: {packages: [ghc-7.10.3, libblas-dev, liblapack-dev, g++-4.8], sources: [hvr-ghc, ubuntu-toolchain-r-test]}}
 

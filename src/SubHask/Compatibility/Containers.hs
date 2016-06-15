@@ -586,4 +586,3 @@ instance Monad Mon LexSet where
 instance Then LexSet where
     (LexSet a)>>(LexSet b) = LexSet b
 
-

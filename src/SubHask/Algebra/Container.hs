@@ -281,7 +281,7 @@ deriveHierarchy ''Lexical [ ''Eq_, ''Foldable, ''Constructible, ''Monoid ]
 -- deriveHierarchy ''Lexical [ ''Eq_, ''Monoid ]
 
 instance
-    (Logic a~Bool
+    ( Logic a~Bool
     , Ord (Elem a)
     , Foldable a
     , Eq_ a

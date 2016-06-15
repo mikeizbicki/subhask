@@ -255,10 +255,10 @@ embed2 f = undefined
 class
     ( Category cat
     , ValidCategory cat (TUnit cat)
-    ) => Monoidal cat
+    ) => Monoidal (cat :: * -> * -> *)
         where
 
-    type Tensor cat :: k -> k -> k
+    type Tensor cat :: * -> * -> *
     tensor ::
         ( ValidCategory cat a
         , ValidCategory cat b

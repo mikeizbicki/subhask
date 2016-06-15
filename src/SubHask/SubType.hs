@@ -2,7 +2,7 @@
 
 -- | This module defines the subtyping mechanisms used in subhask.
 module SubHask.SubType
-    ( (<:) (..)
+    ( type (<:) (..)
     , Sup
 
     -- **
@@ -176,6 +176,7 @@ stripForall (AppT t1 t2) = AppT (stripForall t1) (stripForall t2)
 -- FIXME: What if the type doesn't have kind *?
 mkSubtypeInstance :: Type -> Type -> Name -> Dec
 mkSubtypeInstance t1 t2 f = InstanceD
+    Nothing
     []
     ( AppT
         ( AppT
@@ -207,6 +208,6 @@ mkSubtypeInstance t1 t2 f = InstanceD
 --
 mkSup :: Type -> Type -> Type -> [Dec]
 mkSup t1 t2 t3 =
-    [ InstanceD [] (AppT (AppT (AppT (ConT $ mkName "Sup") t1) t2) t3) []
-    , InstanceD [] (AppT (AppT (AppT (ConT $ mkName "Sup") t2) t1) t3) []
+    [ InstanceD Nothing [] (AppT (AppT (AppT (ConT $ mkName "Sup") t1) t2) t3) []
+    , InstanceD Nothing [] (AppT (AppT (AppT (ConT $ mkName "Sup") t2) t1) t3) []
     ]

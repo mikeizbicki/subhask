@@ -2,8 +2,6 @@ flags: {}
 packages:
 - '.'
 extra-deps:
-    [ gamma-0.9.0.2
-    , continued-fractions-0.9.1.1
-    , converge-0.1.0.1
-    ]
-resolver: lts-6.3
+    []
+resolver: nightly-2016-06-15
+compiler: ghc-8.0.1
