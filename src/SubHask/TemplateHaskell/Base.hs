@@ -122,7 +122,6 @@ mkPreludeEq ctx qt = do
 --------------------------------------------------------------------------------
 -- monad hierarchy
 
-
 -- | Create a "Functor" instance from a "Prelude.Functor" instance.
 mkPreludeFunctor :: Cxt -> Q Type -> Q [Dec]
 mkPreludeFunctor ctx qt = do

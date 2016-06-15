@@ -74,7 +74,6 @@ instance (ValidLogic a, Ring a) => Ring (ProofOf Polynomial_ a) where
 
 provePolynomial :: (ValidLogic a, Ring a) => (ProofOf Polynomial_ a -> ProofOf Polynomial_ a) -> Polynomial_ a a
 provePolynomial f = unProofOf $ f $ ProofOf $ Polynomial_ [0,1]
----------------------------------------
 
 type instance Scalar (Polynomial_ a b) = Scalar b
 type instance Logic (Polynomial_ a b) = Logic b
@@ -121,8 +120,6 @@ sumList f [] ys = ys
 sumList f xs [] = xs
 sumList f (x:xs) (y:ys) = f x y:sumList f xs ys
 
----------------------------------------
-
 instance Category Polynomial_ where
     type ValidCategory Polynomial_ a = (ValidLogic a, Ring a)
     id = Polynomial_ [zero, one]
@@ -141,8 +138,6 @@ evalPolynomial_ :: Polynomial_ a b -> a -> b
 evalPolynomial_ (Polynomial_ xs) r = sum $ imap go xs
     where
         go i x = x*pow r i
-
--------------------------------------------------------------------------------
 
 -- FIXME:
 -- Polynomial_s should use the derivative interface from the Derivative module

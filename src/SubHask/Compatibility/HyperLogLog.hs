@@ -6,6 +6,7 @@ import SubHask.Category
 import SubHask.Internal.Prelude
 
 import qualified Data.HyperLogLog as H
+import qualified Data.Reflection as R
 import qualified Data.Semigroup as S
 import qualified Prelude as P
 
@@ -15,8 +16,6 @@ import qualified Data.Approximate as A
 import qualified Control.Lens as L
 
 type instance Scalar Int64 = Int64
-
---------------------------------------------------------------------------------
 
 newtype HyperLogLog p a = H (H.HyperLogLog p)
 
@@ -32,13 +31,13 @@ instance Semigroup (HyperLogLog p a) where
 instance Abelian (HyperLogLog p a)
 
 instance
-    ( H.ReifiesConfig p
+    ( R.Reifies p Integer
     ) => Normed (HyperLogLog p a)
         where
     size (H h) = P.fromIntegral $ L.view A.estimate (H.size h)
 
 instance
-    ( H.ReifiesConfig p
+    ( R.Reifies p Integer
     , S.Serial a
     ) => Constructible (HyperLogLog p a)
         where

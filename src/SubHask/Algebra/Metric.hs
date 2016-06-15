@@ -5,8 +5,6 @@ module SubHask.Algebra.Metric
 import SubHask.Category
 import SubHask.Algebra
 import SubHask.Algebra.Ord
--- import SubHask.Monad
--- import SubHask.Compatibility.Base
 import SubHask.Internal.Prelude
 import Control.Monad
 
@@ -93,13 +91,6 @@ instance (Eq v, HasScalar v) => Eq_ (Ball v) where
 
 instance (Metric v, HasScalar v, ClassicalLogic v) => Semigroup (Ball v) where
     b1+b2 = b1 { radius = radius b2 + radius b1 + distance (center b1) (center b2) }
---     b1+b2 = b1 { radius = radius b2 + max (radius b1) (distance (center b1) (center b2)) }
-
---     b1+b2 = b1' { radius = max (radius b1') (radius b2' + distance (center b1') (center b2')) }
---         where
---             (b1',b2') = if radius b1 > radius b2
---                 then (b1,b2)
---                 else (b2,b1)
 
 -- container
 

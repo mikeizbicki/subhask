@@ -12,8 +12,6 @@ import GHC.Exts
 
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
--- import SubHask.Category
--- import SubHask.Algebra
 
 -- | Ideally, this map would be generated automatically via template haskell.
 -- Due to bug <https://ghc.haskell.org/trac/ghc/ticket/9699 #9699>, however, we must enter these manually.
@@ -184,16 +182,11 @@ testMap = Map.fromList
         , "theorem_Constructible_cons"
         ] )
     , ( "Foldable",
---         [ "law_Foldable_sum"
         [ "theorem_Foldable_tofrom"
         , "defn_Foldable_foldr"
         , "defn_Foldable_foldr'"
         , "defn_Foldable_foldl"
         , "defn_Foldable_foldl'"
---         , "defn_Foldable_foldr1"
---         , "defn_Foldable_foldr1'"
---         , "defn_Foldable_foldl1"
---         , "defn_Foldable_foldl1'"
         ] )
     , ( "Partitionable",
         [ "law_Partitionable_length"
@@ -246,17 +239,6 @@ mkClassTests className = do
                         ( tests )
                     )
                     ( next )
---             (AppT _ _) -> do
---                 let specializedType = specializeType t (ConT ''Int)
---                 tests <- mkSpecializedClassTest specializedType className
---                 next <- go xs
---                 return $ AppE
---                     ( AppE
---                         ( ConE $ mkName ":" )
---                         ( tests )
---                     )
---                     ( next )
---             otherwise -> trace ("mkClassTests: skipping "++show ctx++" => "++show t) $ go xs
             otherwise -> go xs
 
 
@@ -353,5 +335,4 @@ listExp2Exp (x:xs) = AppE
 -- > test
 extractTestStr :: Name -> String
 extractTestStr name = nameBase name
--- extractTestStr name = last $ words $ map (\x -> if x=='_' then ' ' else x) $ nameBase name
 

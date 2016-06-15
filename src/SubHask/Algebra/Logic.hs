@@ -34,14 +34,10 @@ instance (OrdRing_ r, Arbitrary r) => Arbitrary (Goedel_ r) where
     arbitrary = fmap Goedel_ $ arbitrary `suchThat` ((>=0) && (<=1))
 
 instance OrdRing_ r => POrd_ (Goedel_ r) where
---     inf (Goedel_ r1) (Goedel_ r2) = Goedel_ $ max 0 (r1 + r2 - 1)
     inf (Goedel_ r1) (Goedel_ r2) = Goedel_ $ min r1 r2
---     inf (Goedel_ r1) (Goedel_ r2) = Goedel_ $ r1*r2
 
 instance OrdRing_ r => Lattice_ (Goedel_ r) where
---     sup (Goedel_ r1) (Goedel_ r2) = Goedel_ $ min 1 (r1 + r2)
     sup (Goedel_ r1) (Goedel_ r2) = Goedel_ $ max r1 r2
---     sup l1 l2 = not $ inf (not l1) (not l2)
 
 instance OrdRing_ r => Ord_ (Goedel_ r)
 
@@ -189,11 +185,9 @@ instance (IsMutable b, Boolean b, ValidLogic b) => Monoid (Boolean2Ring b) where
 
 instance (IsMutable b, Boolean b, ValidLogic b) => Cancellative (Boolean2Ring b) where
     (-)=(+)
---     b1-b2 = b1+negate b2
 
 instance (IsMutable b, Boolean b, ValidLogic b) => Group (Boolean2Ring b) where
     negate = id
---     negate (Boolean2Ring b) = Boolean2Ring $ not b
 
 instance (IsMutable b, Boolean b, ValidLogic b) => Rg (Boolean2Ring b) where
     (Boolean2Ring b1)*(Boolean2Ring b2) = Boolean2Ring $ b1 && b2

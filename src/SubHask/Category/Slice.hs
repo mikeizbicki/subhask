@@ -8,8 +8,6 @@ import SubHask.Category
 import SubHask.Algebra
 import SubHask.Internal.Prelude
 
--------------------------------------------------------------------------------
-
 data Comma cat1 cat2 cat3 a b = Comma (cat1 a b) (cat2 a b)
 
 instance
@@ -26,11 +24,6 @@ instance
 
     id = Comma id id
     (Comma f1 g1).(Comma f2 g2) = Comma (f1.f2) (g1.g2)
-
--- runComma :: ValidCategory (Comma cat1 cat2 cat3) a b =>
---     (Comma cat1 cat2 cat3) a b -> cat3 a b -> cat3 a b
-
--------------------------------------------------------------------------------
 
 data (cat / (obj :: *)) (a :: *) (b :: *) = Slice (cat a b)
 

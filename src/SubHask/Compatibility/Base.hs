@@ -49,12 +49,8 @@ dummy3 = undefined :: ReaderT s m a
 --------------------------------------------------------------------------------
 -- derive instances
 
--- forAllInScope ''Base.Eq             mkPreludeEq
 forAllInScope ''Base.Functor        mkPreludeFunctor
--- forAllInScope ''Base.Applicative    mkPreludeApplicative
 forAllInScope ''Base.Monad          mkPreludeMonad
-
---------------------------------------------------------------------------------
 
 -- FIXME:
 -- Similar instances are not valid for all monads.
@@ -69,8 +65,6 @@ instance Semigroup a => Semigroup (IO a) where
 
 instance Monoid a => Monoid (IO a) where
     zero = return zero
-
---------------------------------------------------------------------------------
 
 type instance Logic TypeRep = Bool
 
@@ -87,8 +81,6 @@ instance Lattice_ TypeRep where
         _  -> y
 instance Ord_ TypeRep where compare = Base.compare
 
----------
-
 mkMutable [t| forall a b. Either a b |]
 
 instance (Semigroup b) => Semigroup (Either a b) where
@@ -98,8 +90,6 @@ instance (Semigroup b) => Semigroup (Either a b) where
 
 instance (Monoid b) => Monoid (Either a b) where
     zero = Right zero
-
----------
 
 instance Base.Functor Maybe' where
     fmap = fmap

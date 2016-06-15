@@ -175,12 +175,7 @@ deriveSingleInstance typename classname = if show classname == "SubHask.Mutable.
                                 , PragmaD $ InlineP f Inline FunLike AllPhases
                                 ]
 
-    --                     trace ("classname="++show classname++"; typename="++show typename)
-    --                         $ trace ("  funcL="++show funcL)
-    --                         $ trace ("  decs="++show decs)
-    --                         $ return ()
                         return [ InstanceD
-    --                             ( ClassP classname [typeapp] : map (substitutePat varname typeapp) ctx )
                                 ( AppT (ConT classname) typeapp : map (substitutePat varname typeapp) ctx )
                                 ( AppT (ConT classname) $ apply2varlist (ConT typename) typekind )
                                 ( concat funcL )
@@ -202,10 +197,6 @@ substitutePat :: Name -> Type -> Pred -> Pred
 substitutePat n t (AppT (AppT EqualityT t1) t2)
     = AppT (AppT EqualityT (substituteVarE n t t1)) (substituteVarE n t t2)
 substitutePat n t (AppT classname x) = AppT classname $ substituteVarE n t x
--- substitutePat n t (AppT classname xs) = go $ classname : map (substituteVarE n t) xs
---     where
---         go (x:y:[]) = AppT x y
---         go (x:y:zs) = go $ AppT x y : zs
 
 substituteVarE :: Name -> Type -> Type -> Type
 substituteVarE varname vartype = go
