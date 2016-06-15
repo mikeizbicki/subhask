@@ -1,3 +1,6 @@
+-- |
+--
+-- See "Plausibility Measures: A User's Guide" from UAI 1995
 module SubHask.Algebra.Logic
     where
 
