@@ -266,10 +266,6 @@ module SubHask.Algebra
     , innerProductNorm
     , TensorAlgebra (..)
 
-    -- * Spatial programming
-    , Any (..)
-    , All
-
     -- * Helper functions
     , simpleMutableDefn
     , module SubHask.Mutable
@@ -2763,7 +2759,7 @@ class (ValidLogic s, Monoid s, ValidSetElem s{-, ValidSetIndex s-}) => IxContain
         Just _ -> true
 
     -- | FIXME: should the functions below be moved to other classes?
-    type ValidElem s e :: Constraint
+    type ValidElem s (e :: *) :: Constraint
     type ValidElem s e = ()
 
     imap :: (ValidElem s (Elem s), ValidElem s b) => (Index s -> Elem s -> b) -> s -> SetElem s b
@@ -3147,43 +3143,6 @@ instance Metric x => Metric (Labeled' x y) where
 
 instance Normed x => Normed (Labeled' x y) where
     size (Labeled' x _) = size x
-
-
---------------------------------------------------------------------------------
--- spatial programming
---
--- FIXME:
--- This is broken, partly due to type system limits.
--- It's being exported just for basic testing.
-
--- | The type of all containers satisfying the @cxt@ constraint with elements of type @x@.
-type All cxt x = forall xs. (cxt xs, Elem xs~x) => xs
-
-data Any cxt x where
-    Any :: forall cxt x xs. (cxt xs, Elem xs~x) => xs -> Any cxt x
---     Any :: All cxt x -> Any cxt x
-
-instance Show x => Show (Any Foldable x) where
-    show (Any xs) = show $ toList xs
-
-type instance Elem (Any cxt x) = x
-type instance Scalar (Any cxt x) = Int
-
-instance Semigroup (Any Foldable x) where
-    (Any x1)+(Any x2)=Any (x1+(fromList.toList)x2)
-
-instance Constructible (Any Foldable x) where
-
-instance Normed (Any Foldable x) where
-    size (Any xs) = size xs
-
-instance Monoid (Any Foldable x) where
-    zero = Any []
-
-instance Foldable (Any Foldable x) where
-    toList (Any xs) = toList xs
-
-mkMutable [t| forall cxt x. Any cxt x |]
 
 --------------------------------------------------------------------------------
 

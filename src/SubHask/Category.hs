@@ -264,7 +264,7 @@ class
         , ValidCategory cat b
         ) => cat a (cat b (Tensor cat a b))
 
-    type TUnit cat :: k
+    type TUnit cat :: *
     tunit :: proxy cat -> TUnit cat
 
 instance Monoidal (->) where

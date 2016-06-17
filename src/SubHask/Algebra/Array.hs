@@ -292,7 +292,7 @@ instance Unboxable e => Sliceable (UArray e) where
     slice i n (UArray v) = UArray $ VG.slice i n v
 
 instance Unboxable e => IxContainer (UArray e) where
-    type ValidElem (UArray e) e = Unboxable e
+    type ValidElem (UArray e) e' = (e~e', Unboxable e)
 
     lookup i (UArray v) = v VG.!? i
     (!) (UArray v) = VG.unsafeIndex v
