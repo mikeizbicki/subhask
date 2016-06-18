@@ -1,14 +1,7 @@
 module SubHask.Category.Product
     where
 
-import GHC.Prim
-import qualified Prelude as P
-
 import SubHask.Category
-import SubHask.Internal.Prelude
-import GHC.Exts
-
--------------------------------------------------------------------------------
 
 data (><) cat1 cat2 a b = Product (cat1 a b, cat2 a b)
 

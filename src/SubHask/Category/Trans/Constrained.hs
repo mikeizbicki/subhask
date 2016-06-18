@@ -12,7 +12,6 @@ module SubHask.Category.Trans.Constrained
     where
 
 import GHC.Prim
-import qualified Prelude as P
 
 import SubHask.Algebra
 import SubHask.Category

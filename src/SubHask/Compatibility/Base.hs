@@ -1,4 +1,8 @@
 {-# LANGUAGE NoRebindableSyntax #-}
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
 
 -- | This file contains a LOT of instance declarations for making Base code compatible with SubHask type classes.
 -- There's very little code in here though.
@@ -9,37 +13,20 @@ module SubHask.Compatibility.Base
 
 import Data.Typeable
 import qualified Prelude             as Base
-import qualified Control.Applicative as Base
 import qualified Control.Monad       as Base
-import Language.Haskell.TH
 
-import Control.Arrow
 import Control.Monad.Identity (Identity(..))
-import Control.Monad.Reader (Reader,ReaderT)
-import Control.Monad.State.Strict (State,StateT)
-import Control.Monad.Trans
-import Control.Monad.ST (ST)
-import GHC.Conc.Sync
-import GHC.GHCi
-import Text.ParserCombinators.ReadP
-import Text.ParserCombinators.ReadPrec
-
-import Control.Monad.Random
+import Control.Monad.Reader (ReaderT)
+import Control.Monad.State.Strict (StateT)
 
 import SubHask.Algebra
 import SubHask.Category
 import SubHask.Monad
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Base
-import SubHask.TemplateHaskell.Deriving
-
 
 --------------------------------------------------------------------------------
 -- bug fixes
-
--- required for GHCI to work because NoIO does not have a Base.Functor instance
-instance Functor Hask NoIO where fmap = Base.liftM
-
 -- these definitions are required for the corresponding types to be in scope in the TH code below;
 -- pretty sure this is a GHC bug
 dummy1 = undefined :: Identity a
@@ -98,11 +85,11 @@ instance Base.Applicative Maybe'
 
 instance Base.Monad Maybe' where
     return = Just'
-    Nothing' >>= f = Nothing'
+    Nothing' >>= _ = Nothing'
     (Just' a) >>= f = f a
 
 instance Functor Hask Maybe' where
-    fmap f Nothing' = Nothing'
+    fmap _ Nothing' = Nothing'
     fmap f (Just' a) = Just' $ f a
 
 instance Then Maybe' where

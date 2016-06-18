@@ -13,13 +13,14 @@ module SubHask.Category.Trans.Bijective
     , BijectiveT
     , proveBijective
     , unsafeProveBijective
+    , unInjectiveT
+    , unSurjectiveT
+    , unBijectiveT
     )
     where
 
 import SubHask.Category
-import SubHask.Algebra
 import SubHask.SubType
-import SubHask.Internal.Prelude
 
 -- | Injective (one-to-one) functions map every input to a unique output.  See
 -- <https://en.wikipedia.org/wiki/Injective_function wikipedia> for more detail.

@@ -11,8 +11,6 @@ import qualified Prelude as P
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Mutable
-import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module SubHask.Compatibility.Cassava
     ( decode_
     , decode

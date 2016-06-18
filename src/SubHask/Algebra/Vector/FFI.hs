@@ -1,4 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# OPTIONS_GHC -fno-warn-auto-orphans #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Importing this module will activate RULES that use the FFI for vector ops.
 module SubHask.Algebra.Vector.FFI
@@ -12,15 +14,10 @@ module SubHask.Algebra.Vector.FFI
     )
     where
 
-import qualified Prelude as P
 import Control.Monad.Primitive
 import Data.Primitive.ByteArray
-import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.ForeignPtr
-import Foreign.Marshal.Utils
-
-import System.IO.Unsafe
 import Unsafe.Coerce
 
 import SubHask.Algebra
