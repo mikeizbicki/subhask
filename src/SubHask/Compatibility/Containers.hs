@@ -82,7 +82,7 @@ instance Constructible (Seq a) where
 
     fromList1 x xs = Seq $ Seq.fromList (x:xs)
 
-instance ValidEq a => Foldable (Seq a) where
+instance Eq_ a => Foldable (Seq a) where
 
     {-# INLINE toList #-}
     toList (Seq a) = F.toList a
@@ -111,7 +111,7 @@ instance ValidEq a => Foldable (Seq a) where
     foldl'  f e (Seq a) = F.foldl'  f e a
     foldl1  f   (Seq a) = F.foldl1  f   a
 
-instance (ValidEq a) => Partitionable (Seq a) where
+instance (Eq_ a) => Partitionable (Seq a) where
     {-# INLINABLE partition #-}
     partition n (Seq xs) = go xs
         where

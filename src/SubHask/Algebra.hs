@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP,MagicHash,UnboxedTuples #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 -- | This module defines the algebraic type-classes used in subhask.
 -- The class hierarchies are significantly more general than those in the standard Prelude.
@@ -10,7 +12,7 @@ module SubHask.Algebra
     , ClassicalLogic
     , Eq_ (..)
     , Eq
-    , ValidEq
+    , Eq_
     , law_Eq_reflexive
     , law_Eq_symmetric
     , law_Eq_transitive
@@ -298,6 +300,7 @@ import SubHask.Category
 import SubHask.Mutable
 import SubHask.SubType
 
+-- import Homoiconic.Constrained
 
 -------------------------------------------------------------------------------
 -- Helper functions
@@ -352,14 +355,13 @@ type ClassicalLogic a = Logic a ~ Bool
 --
 -- See <https://en.wikipedia.org/wiki/Equivalence_class wikipedia>
 -- and <http://ncatlab.org/nlab/show/equivalence+class ncatlab> for more details.
-class Eq_ a where
+class (Logic (Logic a)~Logic a, Complemented (Logic a)) => Eq_ a where
 
     infix 4 ==
     (==) :: a -> a -> Logic a
 
     -- | In order to have the "not equals to" relation, your logic must have a notion of "not", and therefore must be "Boolean".
     {-# INLINE (/=) #-}
-    infix 4 /=
     (/=) :: ValidLogic a => a -> a -> Logic a
     (/=) = not (==)
 
@@ -395,13 +397,6 @@ instance Eq_ b => Eq_ (a -> b) where
     (f==g) a = f a == g a
 
 type Eq a = (Eq_ a, Logic a~Bool)
-type ValidEq a = (Eq_ a, ValidLogic a)
-
--- class (Eq_ a, Logic a ~ Bool) => Eq a
--- instance (Eq_ a, Logic a ~ Bool) => Eq a
---
--- class (Eq_ a, ValidLogic a) => ValidEq a
--- instance (Eq_ a, ValidLogic a) => ValidEq a
 
 --------------------
 
@@ -415,13 +410,10 @@ class Eq_ b => POrd_ b where
     b1 <= b2 = inf b1 b2 == b1
 
     {-# INLINE (<) #-}
-    infix 4 <
     (<) :: Complemented (Logic b) => b -> b -> Logic b
     b1 < b2 = inf b1 b2 == b1 && b1 /= b2
 
 type POrd a = (Eq a, POrd_ a)
--- class (Eq b, POrd_ b) => POrd b
--- instance (Eq b, POrd_ b) => POrd b
 
 law_POrd_commutative :: (Eq b, POrd_ b) => b -> b -> Bool
 law_POrd_commutative b1 b2 = inf b1 b2 == inf b2 b1
@@ -565,7 +557,6 @@ class POrd_ b => Lattice_ b where
     b1 >= b2 = sup b1 b2 == b1
 
     {-# INLINE (>) #-}
-    infix 4 >
     (>) :: Boolean (Logic b) => b -> b -> Logic b
     b1 > b2 = sup b1 b2 == b1 && b1 /= b2
 
@@ -1110,11 +1101,11 @@ class Semigroup g => Monoid g where
     zero :: g
 
 -- | FIXME: this should be in the Monoid class, but putting it there requires a lot of changes to Eq
-isZero :: (Monoid g, ValidEq g) => g -> Logic g
+isZero :: (Monoid g, Eq_ g) => g -> Logic g
 isZero = (==zero)
 
 -- | FIXME: this should be in the Monoid class, but putting it there requires a lot of changes to Eq
-notZero :: (Monoid g, ValidEq g) => g -> Logic g
+notZero :: (Monoid g, Eq_ g) => g -> Logic g
 notZero = (/=zero)
 
 law_Monoid_leftid :: (Monoid g, Eq g) => g -> Bool
@@ -1311,11 +1302,11 @@ class (Monoid r, Rg r) => Rig r where
     one :: r
 
 -- | FIXME: this should be in the Rig class, but putting it there requires a lot of changes to Eq
-isOne :: (Rig g, ValidEq g) => g -> Logic g
+isOne :: (Rig g, Eq_ g) => g -> Logic g
 isOne = (==one)
 
 -- | FIXME: this should be in the Rig class, but putting it there requires a lot of changes to Eq
-notOne :: (Rig g, ValidEq g) => g -> Logic g
+notOne :: (Rig g, Eq_ g) => g -> Logic g
 notOne = (/=one)
 
 law_Rig_multiplicativeId :: (Eq r, Rig r) => r -> Bool
@@ -1564,7 +1555,7 @@ instance Field b => Field (a -> b) where
 -- In particular, all finite fields and the complex numbers are NOT ordered fields.
 --
 -- See <http://en.wikipedia.org/wiki/Ordered_field wikipedia> for more details.
-class (Field r, Ord r, Normed r, IsScalar r) => OrdField r
+class (Field r, Ord r, IsScalar r) => OrdField r
 
 instance OrdField Float
 instance OrdField Double
@@ -1900,8 +1891,10 @@ class (Cancellative m, HasScalar m, Rig (Scalar m)) => Cone m where
 class
     ( Abelian v
     , Group v
-    , HasScalar v
-    , v ~ (v><Scalar v)
+    , Ring (Scalar v)
+    , Scalar (Scalar v) ~ Scalar v
+--     , HasScalar v
+--     , v ~ (v><Scalar v)
 --     , v ~ (Scalar v><v)
     ) => Module v
         where
@@ -2399,7 +2392,7 @@ empty :: (Monoid s, Constructible s) => s
 empty = zero
 
 -- | A slightly more suggestive name for checking if a container is empty
-isEmpty :: (ValidEq s, Monoid s, Constructible s) => s -> Logic s
+isEmpty :: (Eq_ s, Monoid s, Constructible s) => s -> Logic s
 isEmpty = isZero
 
 -- | This function needed for the OverloadedStrings language extension
@@ -2939,7 +2932,7 @@ type instance Elem [a] = a
 type instance SetElem [a] b = [b]
 type instance Index [a] = Int
 
-instance ValidEq a => Eq_ [a] where
+instance Eq_ a => Eq_ [a] where
     (x:xs)==(y:ys) = x==y && xs==ys
     (x:xs)==[]     = false
     []    ==(y:ts) = false
@@ -2964,7 +2957,7 @@ instance Semigroup [a] where
 instance Monoid [a] where
     zero = []
 
-instance ValidEq a => Container [a] where
+instance Eq_ a => Container [a] where
     elem _ []       = false
     elem x (y:ys)   = x==y || elem x ys
 
@@ -3011,7 +3004,7 @@ instance ValidLogic a => IxContainer [a] where
 type instance Scalar (Maybe a) = Scalar a
 type instance Logic (Maybe a) = Logic a
 
-instance ValidEq a => Eq_ (Maybe a) where
+instance Eq_ a => Eq_ (Maybe a) where
     Nothing   == Nothing   = true
     Nothing   == _         = false
     _         == Nothing   = false
@@ -3041,7 +3034,7 @@ instance NFData a => NFData (Maybe' a) where
     rnf Nothing' = ()
     rnf (Just' a) = rnf a
 
-instance ValidEq a => Eq_ (Maybe' a) where
+instance Eq_ a => Eq_ (Maybe' a) where
     (Just' a1) == (Just' a2) = a1==a2
     Nothing'   == Nothing'   = true
     _          == _          = false
@@ -3059,10 +3052,10 @@ instance Semigroup a => Monoid (Maybe' a) where
 type instance Logic (a,b) = Logic a
 type instance Logic (a,b,c) = Logic a
 
-instance (ValidEq a, ValidEq b, Logic a ~ Logic b) => Eq_ (a,b) where
+instance (Eq_ a, Eq_ b, Logic a ~ Logic b) => Eq_ (a,b) where
     (a1,b1)==(a2,b2) = a1==a2 && b1==b2
 
-instance (ValidEq a, ValidEq b, ValidEq c, Logic a ~ Logic b, Logic b~Logic c) => Eq_ (a,b,c) where
+instance (Eq_ a, Eq_ b, Eq_ c, Logic a ~ Logic b, Logic b~Logic c) => Eq_ (a,b,c) where
     (a1,b1,c1)==(a2,b2,c2) = a1==a2 && b1==b2 && c1==c2
 
 instance (Semigroup a, Semigroup b) => Semigroup (a,b) where
@@ -3154,3 +3147,41 @@ mkMutable [t| forall a. Maybe a |]
 mkMutable [t| forall a. Maybe' a |]
 mkMutable [t| forall a b. Labeled' a b |]
 
+{-
+mkTag ''Logic
+mkFAlgebra ''Eq_
+mkFAlgebra ''POrd_
+mkFAlgebra ''MinBound_
+mkFAlgebra ''Lattice_
+mkFAlgebra ''Boolean
+instance FAlgebra IsMutable
+instance IsMutable (Free (Sig alg) t a)
+instance Show (Sig IsMutable t a)
+mkTagFromCnst ''Scalar [t| forall a. Scalar (Scalar a) ~ Scalar a |]
+mkFAlgebra ''RationalField
+mkFAlgebra ''VectorSpace
+mkFAlgebra ''Normed
+-- mkFAlgebra ''Metric
+mkTag ''Elem
+mkFAlgebra ''Container
+-- mkFAlgebra ''FiniteModule
+type instance SetElem (Free (Sig alg') t a) (Free (Sig alg') (TElem : t) a) = Free (Sig alg') t a
+
+class
+--     ( Abelian v
+--     , Group v
+--     , Ring (Scalar v)
+    ( Scalar (Scalar v) ~ Scalar v
+--     , HasScalar v
+--     , v ~ (v><Scalar v)
+--     , v ~ (Scalar v><v)
+    ) => Mod v
+mkFAlgebra ''Mod
+
+type instance FreeConstraints t a
+    = ( AppTags (ConsTag TScalar t) a
+      ~ Scalar (AppTags t a)
+--       , AppTags (ConsTag TScalar (ConsTag TLogic (ConsTag TLogic t))) a
+--       ~ Scalar (AppTags (ConsTag_TLogic (ConsTag_TLogic t)) a)
+      )
+    -}

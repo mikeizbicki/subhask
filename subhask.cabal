@@ -123,6 +123,7 @@ library
         -msse3
 
     ghc-options:
+        -fprint-explicit-kinds
         -funbox-strict-fields
 
     build-depends:
@@ -132,6 +133,7 @@ library
         template-haskell,
 
         -- special functionality
+        homoiconic,
         parallel,
         deepseq,
         primitive,
