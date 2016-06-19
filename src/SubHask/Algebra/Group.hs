@@ -83,9 +83,10 @@ instance KnownNat n => Quotient Integer n
         mkQuotient i = Mod $ i `P.mod` (natVal (Proxy::Proxy n))
 
 -- | Extended Euclid's algorithm is used to calculate inverses in modular arithmetic
-extendedEuclid :: (Eq t, ClassicalLogic t, Integral t) => t -> t -> (t,t,t,t,t,t)
+extendedEuclid :: forall t. (Eq t, ClassicalLogic t, Integral t) => t -> t -> (t,t,t,t,t,t)
 extendedEuclid a b = go zero one one zero b a
     where
+        go :: t -> t -> t -> t -> t -> t -> (t,t,t,t,t,t)
         go s1 s0 t1 t0 r1 r0 = if r1==zero
             then (s1,s0,t1,t0,undefined,r0)
             else go s1' s0' t1' t0' r1' r0'

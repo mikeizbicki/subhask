@@ -132,9 +132,10 @@ instance
     distance (Hamming xs) (Hamming ys) =
         go (toList xs) (toList ys) 0
         where
-            go [] [] i = i
-            go xs' [] i = i + fromIntegral (size xs')
-            go [] ys' i = i + fromIntegral (size ys')
+            go :: [Elem a] -> [Elem a] -> Scalar a -> Scalar a
+            go []  []  i = i
+            go xs' []  i = i + fromIntegral (size xs')
+            go []  ys' i = i + fromIntegral (size ys')
             go (x:xs') (y:ys') i = go xs' ys' $ i + if x==y
                 then 0
                 else 1
@@ -156,6 +157,7 @@ instance
 
 ----------------------------------------
 
+{-
 -- | The Levenshtein distance is a type of edit distance, but it is often referred to as THE edit distance.
 --
 -- FIXME: The implementation could be made faster in a number of ways;
@@ -198,24 +200,31 @@ dist a b
             then lowers P.!! (lab - 1)
             else{- < 0 -}   uppers P.!! (-1 - lab))
     where
-        mainDiag = oneDiag a b (head uppers) (-1 : head lowers)
-        uppers = eachDiag a b (mainDiag : uppers) -- upper diagonals
-        lowers = eachDiag b a (mainDiag : lowers) -- lower diagonals
+        mainDiag = oneDiag a b (head uppers) (-1 : head lowers) :: [Int]
+        uppers = eachDiag a b (mainDiag : uppers) ::[[Int]] -- upper diagonals
+        lowers = eachDiag b a (mainDiag : lowers) ::[[Int]] -- lower diagonals
         eachDiag _ (_:bs) (lastDiag:diags) = oneDiag a bs nextDiag lastDiag : eachDiag a bs diags
             where
                 nextDiag = head (tail diags)
         eachDiag _ _ _ = []
-        oneDiag _ _ diagAbove diagBelow = thisdiag
+
+        oneDiag _ _ diagAbove diagBelow = thisdiag :: [[Int]]
             where
+                firstelt = 1 + head diagBelow
+
+                thisdiag = firstelt : doDiag a b firstelt diagAbove (tail diagBelow)
+
                 doDiag [] _ _ _ _ = []
                 doDiag _ [] _ _ _ = []
                 doDiag (ach:as) (bch:bs) nw n w = me : (doDiag as bs me (tail n) (tail w))
                     where
-                        me = if ach == bch then nw else 1 + min3 (head w) nw (head n)
-                firstelt = 1 + head diagBelow
-                thisdiag = firstelt : doDiag a b firstelt diagAbove (tail diagBelow)
+                        me = if ach == (bch::[Int]) then nw else 1 + min3 (head w) nw (head n)
+        lab :: Int
         lab = size a - size b
+
+        min3 :: Ord b => b -> b -> b -> b
         min3 x y z = if x < y then x else min y z
+-}
 
 ----------------------------------------
 
@@ -284,18 +293,20 @@ instance
     , ClassicalLogic (Elem a)
     ) => POrd (Lexical a)
         where
+
     inf a1 a2 = if a1<a2 then a1 else a2
 
     (Lexical a1)<(Lexical a2) = go (toList a1) (toList a2)
         where
+            go :: [Elem a] -> [Elem a] -> Logic a
             go (x:xs) (y:ys) = if x<y
-                then True
+                then true
                 else if x>y
-                    then False
+                    then false
                     else go xs ys
-            go [] [] = False
-            go [] _  = True
-            go _  [] = False
+            go [] [] = false
+            go [] _  = true
+            go _  [] = false
 
 instance (Logic a~Bool, ClassicalLogic (Elem a), Ord (Elem a), Foldable a, Eq a) => MinBound (Lexical a) where
     minBound = Lexical zero
@@ -305,14 +316,15 @@ instance (Logic a~Bool, ClassicalLogic (Elem a), Ord (Elem a), Foldable a, Eq a)
 
     (Lexical a1)>(Lexical a2) = go (toList a1) (toList a2)
         where
+            go :: [Elem a] -> [Elem a] -> Logic a
             go (x:xs) (y:ys) = if x>y
-                then True
+                then true
                 else if x<y
-                    then False
+                    then false
                     else go xs ys
-            go [] [] = False
-            go [] _  = False
-            go _  [] = True
+            go [] [] = false
+            go [] _  = false
+            go _  [] = true
 
 instance (Logic a~Bool, ClassicalLogic (Elem a), Ord (Elem a), Foldable a, Eq a) => Ord (Lexical a) where
 
@@ -332,6 +344,7 @@ instance (Boolean (Logic a), Logic (Elem a) ~ Logic a) => SimpleContainerLogic a
 instance (SimpleContainerLogic a, Eq a, POrd (Elem a), Foldable a) => POrd (ComponentWise a) where
     inf (ComponentWise a1) (ComponentWise a2) = fromList $ go (toList a1) (toList a2)
         where
+            go :: [Elem a] -> [Elem a] -> [Elem a]
             go (x:xs) (y:ys) = inf x y:go xs ys
             go _ _ = []
 
@@ -341,6 +354,7 @@ instance (SimpleContainerLogic a, Eq a, POrd (Elem a), Foldable a) => MinBound (
 instance (SimpleContainerLogic a, Eq a, Lattice (Elem a), Foldable a) => Lattice (ComponentWise a) where
     sup (ComponentWise a1) (ComponentWise a2) = fromList $ go (toList a1) (toList a2)
         where
+            go :: [Elem a] -> [Elem a] -> [Elem a]
             go (x:xs) (y:ys) = sup x y:go xs ys
             go xs [] = xs
             go [] ys = ys

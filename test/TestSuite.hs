@@ -82,7 +82,7 @@ main = defaultMainWithOpts
             [ $( mkSpecializedClassTests [t| Lexical        [Char] |] [''Ord,''MinBound] )
             , $( mkSpecializedClassTests [t| ComponentWise  [Char] |] [''Lattice,''MinBound] )
             , $( mkSpecializedClassTests [t| Hamming        [Char] |] [''Metric] )
-            , $( mkSpecializedClassTests [t| Levenshtein    [Char] |] [''Metric] )
+--             , $( mkSpecializedClassTests [t| Levenshtein    [Char] |] [''Metric] )
             ]
         , testGroup "metric"
 --             [ $( mkSpecializedClassTests [t| Ball Int                    |] [''Eq,''Container] )

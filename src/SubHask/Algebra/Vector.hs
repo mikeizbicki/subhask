@@ -1207,6 +1207,7 @@ instance (KnownNat n, Eq r, Eq r, ValidSVector n r) => Eq (SVector (n::Nat) r) w
         where
             n = nat2int (Proxy::Proxy n)
 
+            outer :: Ptr r -> Ptr r -> Int -> IO (Logic r)
             outer p1 p2 = go
                 where
                     go (-1) = return true

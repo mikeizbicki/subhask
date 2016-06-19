@@ -161,7 +161,8 @@ instance (Ord b, Eq a, ClassicalLogic b, ClassicalLogic a) => POrd (Map b a) whe
     {-# INLINE inf #-}
     inf (Map m1) (Map m2) = Map $ M.differenceWith go (M.intersection m1 m2) m2
         where
-            go v1 v2 = if v1==v2 then Just v1 else Nothing
+            go :: forall b. Eq b => b -> b -> Maybe b
+            go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (Ord b, POrd a, ClassicalLogic b, ClassicalLogic a) => MinBound (Map b a) where
     {-# INLINE minBound #-}
@@ -235,7 +236,8 @@ instance (Ord b, Eq a, ClassicalLogic a, ClassicalLogic b) => POrd (Map' b a) wh
     {-# INLINE inf #-}
     inf (Map' m1) (Map' m2) = Map' $ MS.differenceWith go (MS.intersection m1 m2) m2
         where
-            go v1 v2 = if v1==v2 then Just v1 else Nothing
+            go :: forall b. Eq b => b -> b -> Maybe b
+            go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (Ord b, POrd a, ClassicalLogic a, ClassicalLogic b) => MinBound (Map' b a) where
     {-# INLINE minBound #-}
@@ -309,7 +311,8 @@ instance (Eq a, ClassicalLogic a) => POrd (IntMap a) where
     {-# INLINE inf #-}
     inf (IntMap m1) (IntMap m2) = IntMap $ IM.differenceWith go (IM.intersection m1 m2) m2
         where
-            go v1 v2 = if v1==v2 then Just v1 else Nothing
+            go :: forall b. Eq b => b -> b -> Maybe b
+            go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (POrd a, ClassicalLogic a) => MinBound (IntMap a) where
     {-# INLINE minBound #-}
@@ -382,7 +385,8 @@ instance (Eq a, ClassicalLogic a) => POrd (IntMap' a) where
     {-# INLINE inf #-}
     inf (IntMap' m1) (IntMap' m2) = IntMap' $ IMS.differenceWith go (IMS.intersection m1 m2) m2
         where
-            go v1 v2 = if v1==v2 then Just v1 else Nothing
+            go :: forall b. Eq b => b -> b -> Maybe b
+            go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (POrd a, ClassicalLogic a) => MinBound (IntMap' a) where
     {-# INLINE minBound #-}

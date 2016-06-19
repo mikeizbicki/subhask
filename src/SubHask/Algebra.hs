@@ -12,6 +12,7 @@ module SubHask.Algebra
     -- * Comparisons
     Logic
     , ClassicalLogic
+    , Neighborhood (..)
     , Eq (..)
     , law_Eq_reflexive
     , law_Eq_symmetric
@@ -316,6 +317,33 @@ simpleMutableDefn mf f a b = unsafeRunMutableProperty $ do
 -------------------------------------------------------------------------------
 -- relational classes
 
+-- | Classical logic is implemented using the Prelude's Bool type.
+type ClassicalLogic a = Logic a ~ Bool
+
+class MinBound (Neighbor a) => Neighborhood a where
+    type Neighbor a
+    logic2indicator :: a -> (Neighbor a -> Bool)
+
+    ifThenElse :: a -> b -> b -> b
+    ifThenElse a b1 b2 = case logic2indicator a minBound of
+        True  -> b1
+        False -> b2
+
+instance Neighborhood Bool where
+    type Neighbor Bool = ()
+    logic2indicator True = \_ -> True
+    logic2indicator False = \_ -> False
+
+instance Neighborhood () where
+    type Neighbor () = ()
+    logic2indicator () = \_ -> True
+
+instance Neighborhood (a -> b) where
+    type Neighbor (a -> b) = ()
+-- instance Minbound (Neighbor b) => Neighborhood (a -> b) where
+--     type Neighbor (a -> b) = ([a], Neighbor b)
+--     logic2indicator = id
+
 -- | Every type has an associated logic.
 -- Most types use classical logic, which corresponds to the Bool type.
 -- But types can use any logical system they want.
@@ -325,45 +353,13 @@ simpleMutableDefn mf f a b = unsafeRunMutableProperty $ do
 -- See wikipedia's articles on <https://en.wikipedia.org/wiki/Algebraic_logic algebraic logic>,
 -- and <https://en.wikipedia.org/wiki/Infinitary_logic infinitary logic> for more details.
 type family Logic a :: *
-type instance Logic Bool = Bool
-type instance Logic Char = Bool
-type instance Logic Int = Bool
-type instance Logic Integer = Bool
-type instance Logic Rational = Bool
-type instance Logic Float = Bool
-type instance Logic Double = Bool
-type instance Logic (a->b) = a -> Logic b
-type instance Logic () = ()
-
--- | Classical logic is implemented using the Prelude's Bool type.
-type ClassicalLogic a = Logic a ~ Bool
-
--- class MinBound (Neighbor a) => Neighborhood a where
---     type Neighbor a
---     logic2indicator :: a -> (Neighbor a -> Bool)
---
---     ifThenElse :: a -> b -> b -> b
---     ifThenElse a b1 b2 = case logic2indicator a minBound of
---         True  -> b1
---         False -> b2
---
--- instance Neighborhood Bool where
---     type Neighbor Bool = ()
---     logic2indicator True = \_ -> True
---     logic2indicator False = \_ -> False
---
--- instance Neighborhood () where
---     type Neighbor () = ()
---     logic2indicator () = \_ -> True
---
--- instance Neighborhood (a -> b)
 
 -- | Defines equivalence classes over the type.
 -- The values need not have identical representations in the machine to be equal.
 --
 -- See <https://en.wikipedia.org/wiki/Equivalence_class wikipedia>
 -- and <http://ncatlab.org/nlab/show/equivalence+class ncatlab> for more details.
-class (Logic (Logic a)~Logic a, Boolean (Logic a)) => Eq a where
+class (Logic (Logic a)~Logic a, Neighborhood (Logic a), Boolean (Logic a)) => Eq a where
 
     infix 4 ==
     (==) :: a -> a -> Logic a
@@ -385,24 +381,30 @@ law_Eq_transitive a1 a2 a3 = (a1==a2&&a2==a3) ==> (a1==a3)
 defn_Eq_noteq :: Eq a => a -> a -> Logic a
 defn_Eq_noteq a1 a2 = (a1/=a2) == (not $ a1==a2)
 
-instance Eq () where
-    {-# INLINE (==) #-}
-    () == () = ()
+#define mkEq(x) \
+type instance Logic x = Bool; \
+instance Eq x where (==) = (P.==); (/=) = (P./=)
 
-    {-# INLINE (/=) #-}
+mkEq(Bool)
+mkEq(Char)
+mkEq(Int)
+mkEq(Integer)
+mkEq(Rational)
+mkEq(Float)
+mkEq(Double)
+
+type instance Logic () = ()
+instance Eq () where
+    () == () = ()
     () /= () = ()
 
-instance Eq Bool     where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq Char     where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq Int      where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq Integer  where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq Rational where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq Float    where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq Double   where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-
+-- type instance Logic (a -> b) = (Neighbor (a -> b) -> Bool)
+type instance Logic (a -> b) = a -> Logic b
 instance Eq b => Eq (a -> b) where
-    {-# INLINE (==) #-}
-    (f==g) a = f a == g a
+--     (==) f g (xs,nb) = go xs
+--         where
+--             go (x:xs) = (f x==g x) nb && go xs
+--             go []     = True
 
 --------------------
 
@@ -703,7 +705,8 @@ defn_Graded_predN i b
     | i < 0 = true
     | otherwise = go i b == predN i b
     where
-        go 0 b' = b'
+        go :: Graded b => Int -> b -> b
+        go 0  b' = b'
         go i' b' = go (i'-1) $ pred b'
 
 instance Graded Bool where

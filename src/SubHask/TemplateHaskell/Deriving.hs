@@ -37,6 +37,11 @@ import Data.List (nub)
 import Language.Haskell.TH.Syntax
 import Control.Monad
 
+ifThenElse :: Bool -> a -> a -> a
+ifThenElse a b c = case a of
+    True -> b
+    False -> c
+
 -- | This class provides an artificial hierarchy that defines all the classes that a "well behaved" data type should implement.
 -- All newtypes will derive them automatically.
 type BasicType t = (Show t, Read t, Arbitrary t, NFData t)

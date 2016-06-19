@@ -39,7 +39,6 @@ module SubHask.Internal.Prelude
 
     -- * subhask functions
     , assert
-    , ifThenElse
 
     -- * Modules
     , module Control.DeepSeq
@@ -68,12 +67,6 @@ import GHC.Int
 import Prelude
 import Test.QuickCheck.Arbitrary
 import Foreign.Storable
-
-{-# INLINE ifThenElse #-}
-ifThenElse :: Bool -> a -> a -> a
-ifThenElse a b c = case a of
-    True -> b
-    False -> c
 
 -- |
 --
