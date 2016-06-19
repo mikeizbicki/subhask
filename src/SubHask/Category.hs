@@ -1,4 +1,6 @@
 {-# LANGUAGE NoAutoDeriveTypeable #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+
 -- | SubHask supports two ways to encode categories in Haskell.
 --
 -- **Method 1**
@@ -49,6 +51,7 @@ module SubHask.Category
     Category (..)
     , (<<<)
     , (>>>)
+    , Cat
 
     -- * Hask
     , Hask
@@ -62,15 +65,15 @@ module SubHask.Category
     , snd
 
     -- * Special types of categories
-    , Concrete (..)
+    , Concrete
     , Monoidal (..)
---     , (><)
+    -- FIXME: conflict with SubHask.Algebra
+    -- , (><)
     , Braided (..)
-    , Symmetric (..)
+    , Symmetric
     , Cartesian (..)
     , const
     , const2
---     , duplicate
     , Closed (..)
 
     , Groupoid (..)
@@ -87,9 +90,6 @@ import GHC.Prim
 import SubHask.Internal.Prelude
 import SubHask.SubType
 import qualified Prelude as P
-
--- required for compilation because these are defined properly in the Algebra.hs file
-import GHC.Exts (fromListN,fromString)
 
 -------------------------------------------------------------------------------
 
@@ -241,7 +241,7 @@ withCategory _ f = embedType2 f
 
 -- | FIXME: This would be a useful function to have, but I'm not sure how to implement it yet!
 embed2 :: (subcat <: cat) => subcat a (subcat a b) -> cat a (cat a b)
-embed2 f = undefined
+embed2 _ = undefined
 
 -------------------------------------------------------------------------------
 
@@ -332,12 +332,12 @@ class Symmetric cat => Cartesian cat where
 -- | "fst" specialized to Hask to aid with type inference
 -- FIXME: this will not be needed with injective types
 fst :: (a,b) -> a
-fst (a,b) = a
+fst (a,_) = a
 
 -- | "snd" specialized to Hask to aid with type inference
 -- FIXME: this will not be needed with injective types
 snd :: (a,b) -> b
-snd (a,b) = b
+snd (_,b) = b
 
 -- | Creates an arrow that ignores its first parameter.
 const ::
@@ -358,9 +358,9 @@ const2 ::
 const2 a b = initial a . terminal b
 
 instance Cartesian ((->) :: * -> * -> *) where
-    fst_ (a,b) = a
-    snd_ (a,b) = b
-    terminal a _ = ()
+    fst_ (a,_) = a
+    snd_ (_,b) = b
+    terminal _ _ = ()
     initial a _ = a
 
 -- | Closed monoidal categories allow currying, and closed braided categories allow flipping.

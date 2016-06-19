@@ -4,10 +4,9 @@ module SubHask.Algebra.Metric
 
 import SubHask.Category
 import SubHask.Algebra
-import SubHask.Algebra.Ord
 import SubHask.Internal.Prelude
 import Control.Monad
-
+import GHC.Classes (Ord)
 import qualified Data.List as L
 import System.IO
 
@@ -24,6 +23,8 @@ printTriDistances m1 m2 m3 = do
 -- A metric is a tree metric iff two of these perfect matchings have the same weight.
 -- This is called the 4 points condition.
 -- printQuadDistances :: (Ord (Scalar m), Show (Scalar m), Metric m) => m -> m -> m -> m -> IO ()
+printQuadDistances :: (GHC.Classes.Ord (Scalar t), Show (Scalar t), Metric t) =>
+                      t -> t -> t -> t -> IO ()
 printQuadDistances m1 m2 m3 m4 = do
     forM_ xs $ \(match,dist) -> do
         putStrLn $ match ++ " = " ++ show dist
@@ -41,6 +42,7 @@ printQuadDistances m1 m2 m3 m4 = do
                 ]
             , distance n1 n2 + distance n3 n4
             )
+        mkMatching _ = undefined
 
 --------------------------------------------------------------------------------
 

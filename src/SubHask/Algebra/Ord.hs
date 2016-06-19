@@ -9,13 +9,10 @@ import qualified GHC.Arr as Arr
 import Data.Array.ST hiding (freeze,thaw)
 import Control.Monad
 import Control.Monad.Random
-import Control.Monad.ST
 import Prelude (take)
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Mutable
-import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
@@ -55,12 +52,12 @@ shuffle xs = do
     let l = length xs
     rands <- take l `liftM` getRandomRs (0, l-1)
     let ar = runSTArray ( do
-            ar <- Arr.thawSTArray (Arr.listArray (0, l-1) xs)
+            ar' <- Arr.thawSTArray (Arr.listArray (0, l-1) xs)
             forM_ (L.zip [0..(l-1)] rands) $ \(i, j) -> do
-                vi <- Arr.readSTArray ar i
-                vj <- Arr.readSTArray ar j
-                Arr.writeSTArray ar j vi
-                Arr.writeSTArray ar i vj
-            return ar
+                vi <- Arr.readSTArray ar' i
+                vj <- Arr.readSTArray ar' j
+                Arr.writeSTArray ar' j vi
+                Arr.writeSTArray ar' i vj
+            return ar'
             )
     return (Arr.elems ar)

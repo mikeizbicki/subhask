@@ -125,6 +125,7 @@ library
     ghc-options:
         -fprint-explicit-kinds
         -funbox-strict-fields
+        -Wall
 
     build-depends:
         -- haskell language
@@ -181,8 +182,31 @@ Test-Suite test
         test-framework
   if flag(dotestoptimise)
     ghc-options: -O2
---   if flag(llvmsupport)
---     ghc-options: -fllvm
+  if flag(llvmsupport)
+    ghc-options: -fllvm
+
+Test-Suite Example0001
+    default-language:   Haskell2010
+    type:               exitcode-stdio-1.0
+    hs-source-dirs:     examples
+    main-is:            example0001-polynomials.lhs
+    build-depends:      subhask, base
+
+Test-Suite Example0002
+    default-language:   Haskell2010
+    type:               exitcode-stdio-1.0
+    hs-source-dirs:     examples
+    main-is:            example0002-monad-instances-for-set.lhs
+    build-depends:      subhask, base
+
+Test-Suite Example0003
+    default-language:   Haskell2010
+    type:               exitcode-stdio-1.0
+    hs-source-dirs:     examples
+    main-is:            example0003-linear-algebra.lhs
+    build-depends:      subhask, base
+
+--------------------------------------------------------------------------------
 
 benchmark bench
     default-language: Haskell2010
@@ -208,20 +232,3 @@ benchmark bench
  if flag(llvmsupport)
     ghc-options: -fllvm
 
-executable Example0001
-    default-language:   Haskell2010
-    hs-source-dirs:     examples
-    main-is:            example0001-polynomials.lhs
-    build-depends:      subhask, base
-
-executable Example0002
-    default-language:   Haskell2010
-    hs-source-dirs:     examples
-    main-is:            example0002-monad-instances-for-set.lhs
-    build-depends:      subhask, base
-
-executable Example0003
-    default-language:   Haskell2010
-    hs-source-dirs:     examples
-    main-is:            example0003-linear-algebra.lhs
-    build-depends:      subhask, base

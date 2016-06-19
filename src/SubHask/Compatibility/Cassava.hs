@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module SubHask.Compatibility.Cassava
     ( decode_
     , decode
@@ -46,7 +48,7 @@ decode_ h (PartitionOnNewline (BSLC bs)) = case C.decode h bs of
 decode ::
     ( NFData a
     , FromRecord a
-    , Eq_ a
+    , Eq a
     ) => HasHeader
       -> ByteString Char
       -> Either String (BArray a)

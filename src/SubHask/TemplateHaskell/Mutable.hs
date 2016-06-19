@@ -9,7 +9,6 @@ module SubHask.TemplateHaskell.Mutable
 import SubHask.TemplateHaskell.Common
 
 import Prelude
-import Control.Monad
 import Language.Haskell.TH
 
 showtype :: Type -> String
@@ -60,7 +59,7 @@ mkMutableNewtype typename = do
 
     nameexists <- lookupValueName (show mutname)
     return $ case nameexists of
-        Just x -> []
+        Just _ -> []
         Nothing ->
             [ NewtypeInstD
                 [ ]
@@ -123,13 +122,13 @@ mkMutableNewtype typename = do
 mkMutablePrimRef :: Q Type -> Q [Dec]
 mkMutablePrimRef qt = do
     _t <- qt
-    let (cxt,t) = case _t of
-            (ForallT _ cxt t) -> (cxt,t)
+    let (cxt',t) = case _t of
+            (ForallT _ cxt'' t') -> (cxt'',t')
             _                 -> ([],_t)
 
     return $
         [ NewtypeInstD
-            cxt
+            cxt'
             ( mkName $ "Mutable" )
             [ VarT (mkName "m"), t ]
             Nothing
@@ -142,7 +141,7 @@ mkMutablePrimRef qt = do
             [ ]
         , InstanceD
             Nothing
-            cxt
+            cxt'
             ( AppT ( ConT $ mkName "IsMutable" ) t )
             [ FunD (mkName "freeze")
                 [ Clause

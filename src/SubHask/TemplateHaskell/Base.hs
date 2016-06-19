@@ -1,4 +1,6 @@
 {-# LANGUAGE NoRebindableSyntax #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | This file contains the template haskell code for deriving SubHask class instances from Base instances.
 -- All of the standard instances are created in "SubHask.Compatibility.Base".
@@ -17,10 +19,8 @@ module SubHask.TemplateHaskell.Base
     where
 
 import qualified Prelude             as Base
-import qualified Control.Applicative as Base
 import qualified Control.Monad       as Base
 import Language.Haskell.TH
-import System.IO
 
 import SubHask.Category
 import SubHask.Algebra
@@ -78,8 +78,8 @@ runIfNotInstance n t q = do
         else trace ("deriving instance: "++show n++" / "++show t) $ q
     where
         alreadyInstance :: Name -> Type -> Q Bool
-        alreadyInstance n t = do
-            info <- reify n
+        alreadyInstance n' _ = do
+            info <- reify n'
             Base.return $ case info of
                 ClassI _ xs -> or $ map (genericTypeEq t.rmInstanceD) xs
 
@@ -96,7 +96,7 @@ runIfNotInstance n t q = do
         genericTypeEq _ _ = false
 
 
-        rmInstanceD (InstanceD _ _ (AppT _ t) _) = t
+        rmInstanceD (InstanceD _ _ (AppT _ t') _) = t'
 
 --------------------------------------------------------------------------------
 -- comparison hierarchy
@@ -144,12 +144,12 @@ mkPreludeFunctor ctx qt = do
 
 -- | Create an "Applicative" instance from a "Prelude.Applicative" instance.
 mkPreludeApplicative :: Cxt -> Q Type -> Q [Dec]
-mkPreludeApplicative cxt qt = do
+mkPreludeApplicative cxt' qt = do
     t <- qt
     runIfNotInstance ''Applicative t $ Base.return
         [ InstanceD
             Nothing
-            cxt
+            cxt'
             ( AppT
                 ( AppT
                     ( ConT $ mkName "Applicative" )
@@ -167,7 +167,7 @@ mkPreludeApplicative cxt qt = do
 -- FIXME:
 -- Monad transformers still require their parameter monad to be an instance of "Prelude.Monad".
 mkPreludeMonad :: Cxt -> Q Type -> Q [Dec]
-mkPreludeMonad cxt qt = do
+mkPreludeMonad cxt' qt = do
     t <- qt
     -- can't call
     -- > runIfNotInstance ''Monad t $
@@ -177,7 +177,7 @@ mkPreludeMonad cxt qt = do
         else Base.return
             [ InstanceD
                 Nothing
-                cxt
+                cxt'
                 ( AppT
                     ( ConT $ mkName "Then" )
                     t
@@ -186,8 +186,7 @@ mkPreludeMonad cxt qt = do
                 ]
             , InstanceD
                 Nothing
---                 ( ClassP ''Functor [ ConT ''Hask , t ] : cxt )
-                ( AppT (AppT (ConT ''Functor) (ConT ''Hask)) t : cxt )
+                ( AppT (AppT (ConT ''Functor) (ConT ''Hask)) t : cxt' )
                 ( AppT
                     ( AppT
                         ( ConT $ mkName "Monad" )
@@ -206,10 +205,10 @@ mkPreludeMonad cxt qt = do
     where
         -- | This helper function "filters out" monads for which we can't automatically derive an implementation.
         -- This failure can be due to missing Functor instances or weird type errors.
-        cannotDeriveMonad t = elem (show $ getName t) badmonad
+        cannotDeriveMonad t' = elem (show $ getName t') badmonad
             where
                 getName :: Type -> Name
-                getName t = case t of
+                getName t'' = case t'' of
                     (ConT t) -> t
                     ListT -> mkName "[]"
                     (SigT t _) -> getName t

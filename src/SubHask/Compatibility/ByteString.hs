@@ -37,7 +37,7 @@ instance POrd (ByteString Char) where
     inf (BSLC b1) (BSLC b2) = fromList $ map fst $ P.takeWhile (\(a,b) -> a==b) $ BS.zip b1 b2
     (BSLC b1) < (BSLC b2) = BS.isPrefixOf b1 b2
 
-instance MinBound_ (ByteString Char) where
+instance MinBound (ByteString Char) where
     minBound = zero
 
 instance Semigroup (ByteString Char) where
@@ -60,7 +60,7 @@ instance Normed (ByteString Char) where
 instance Foldable (ByteString Char) where
     uncons (BSLC xs) = case BS.uncons xs of
         Nothing -> Nothing
-        Just (x,xs) -> Just (x,BSLC xs)
+        Just (x,xs') -> Just (x,BSLC xs')
 
     toList (BSLC xs) = BS.unpack xs
 
@@ -74,16 +74,16 @@ instance Foldable (ByteString Char) where
 instance Partitionable (ByteString Char) where
     partition n (BSLC xs) = go xs
         where
-            go xs = if BS.null xs
+            go xs' = if BS.null xs'
                 then []
                 else BSLC a:go b
                 where
-                    (a,b) = BS.splitAt len xs
+                    (a,b) = BS.splitAt len xs'
 
             n' = P.fromIntegral $ toInteger n
-            size = BS.length xs
-            len = size `P.div` n'
-              P.+ if size `P.rem` n' P.== (P.fromInteger 0) then P.fromInteger 0 else P.fromInteger 1
+            size' = BS.length xs
+            len = size' `P.div` n'
+              P.+ if size' `P.rem` n' P.== (P.fromInteger 0) then P.fromInteger 0 else P.fromInteger 1
 
 -- |
 --
@@ -104,7 +104,7 @@ instance (a~ByteString Char, Partitionable a) => Partitionable (PartitionOnNewli
         where
             go []  = []
             go [x] = [x]
-            go (x1:x2:xs) = (x1+BSLC a):go (BSLC b:xs)
+            go (x1:x2:xs') = (x1+BSLC a):go (BSLC b:xs')
                 where
                     (a,b) = BS.break (=='\n') $ unBSLC x2
 

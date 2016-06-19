@@ -2,6 +2,7 @@
 -- And if you believe that @NC /= P@, then every parallel algorithm is induced by a monoid in this manner.
 module SubHask.Algebra.Parallel
     ( parallel
+    , parallelN
     , disableMultithreading
     , Partitionable (..)
     , law_Partitionable_length
@@ -164,11 +165,11 @@ parfoldtree1 :: Monoid a => [a] -> a
 parfoldtree1 as = case go as of
     []  -> zero
     [a] -> a
-    as  -> parfoldtree1 as
+    as'  -> parfoldtree1 as'
     where
         go []  = []
         go [a] = [a]
-        go (a1:a2:as) = par a12 $ a12:go as
+        go (a1:a2:as'') = par a12 $ a12:go as''
             where
                 a12=a1+a2
 
@@ -184,22 +185,22 @@ partitionBlocked_list :: Int -> [a] -> [[a]]
 partitionBlocked_list n xs = go xs
     where
         go [] = []
-        go xs =  a:go b
+        go xs' =  a:go b
             where
-                (a,b) = P.splitAt len xs
+                (a,b) = P.splitAt len xs'
 
-        size = length xs
-        len = size `div` n
-            + if size `rem` n == 0 then 0 else 1
+        size' = length xs
+        len = size' `div` n
+            + if size' `rem` n == 0 then 0 else 1
 
 -- | This is an alternative definition for list partitioning.
 -- It should be faster on large lists because it only requires one traversal.
 -- But it also breaks parallelism for non-commutative operations.
 {-# INLINABLE partitionInterleaved_list #-}
 partitionInterleaved_list :: Int -> [a] -> [[a]]
-partitionInterleaved_list n xs = [map snd $ P.filter (\(i,x)->i `mod` n==j) ixs | j<-[0..n-1]]
+partitionInterleaved_list n xs = [map snd $ P.filter (\(i,_)->i `mod` n==j) ixs | j<-[0..n-1]]
     where
         ixs = addIndex 0 xs
-        addIndex i [] = []
-        addIndex i (x:xs) = (i,x):(addIndex (i+1) xs)
+        addIndex _ [] = []
+        addIndex i (x:xs') = (i,x):(addIndex (i+1) xs')
 

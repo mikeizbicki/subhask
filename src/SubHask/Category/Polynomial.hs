@@ -7,11 +7,7 @@ import qualified Prelude as P
 import SubHask.Internal.Prelude
 import SubHask.Category
 import SubHask.Algebra
-import SubHask.Monad
 import SubHask.SubType
-
--------------------------------------------------------------------------------
-
 
 -- | The type of polynomials over an arbitrary ring.
 --
@@ -25,7 +21,7 @@ type Polynomial a = Polynomial_ a a
 -- Can/Should we generalize this to allow polynomials between types?
 --
 data Polynomial_ a b where
-    Polynomial_ :: (Eq a, Ring a, a~b) => {-#UNPACK#-}![a] -> Polynomial_ a b
+    Polynomial_ :: (Eq a, Ring a, a~b) => ![a] -> Polynomial_ a b
 
 mkMutable [t| forall a b. Polynomial_ a b |]
 
@@ -98,7 +94,7 @@ instance (Ring r, Abelian r) => Abelian (Polynomial_ r r)
 instance (Eq r, Ring r) => Rg (Polynomial_ r r) where
     (Polynomial_ p1)*(Polynomial_ p2) = Polynomial_ $ P.foldl (sumList (+)) [] $ go p1 zero
         where
-            go []     i = []
+            go []     _ = []
             go (x:xs) i = (P.replicate i zero ++ P.map (*x) p2):go xs (i+one)
 
 instance (Eq r, Ring r) => Rig (Polynomial_ r r) where
@@ -116,8 +112,9 @@ instance IsScalar r => FreeModule (Polynomial_ r r) where
     (Polynomial_ xs) .*. (Polynomial_ ys) = Polynomial_ $ P.zipWith (*) xs ys
     ones = Polynomial_ $ P.repeat one
 
-sumList f [] ys = ys
-sumList f xs [] = xs
+sumList :: (t -> t -> t) -> [t] -> [t] -> [t]
+sumList _ [] ys = ys
+sumList _ xs [] = xs
 sumList f (x:xs) (y:ys) = f x y:sumList f xs ys
 
 instance Category Polynomial_ where

@@ -1,12 +1,7 @@
 module SubHask.Category.Slice
     where
 
-import GHC.Prim
-import qualified Prelude as P
-
 import SubHask.Category
-import SubHask.Algebra
-import SubHask.Internal.Prelude
 
 data Comma cat1 cat2 cat3 a b = Comma (cat1 a b) (cat2 a b)
 
