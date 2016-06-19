@@ -5,13 +5,10 @@ module SubHask.Algebra.Logic
     where
 
 import Control.Monad
-import qualified Prelude as P
 import Test.QuickCheck.Gen (suchThat,oneof)
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Compatibility.Base
-import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 

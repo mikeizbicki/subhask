@@ -2,7 +2,6 @@
 module SubHask.Monad
     where
 
-import qualified Prelude as P
 import Prelude (replicate, zipWith, unzip)
 
 import SubHask.Algebra
@@ -90,6 +89,7 @@ class (Then m, Functor cat m) => Monad cat m where
     (>=>) :: cat a (m b) -> cat b (m c) -> cat a (m c)
     (>=>) = flip (<=<)
 
+fail :: String -> a
 fail = error
 
 --------------------------------------------------------------------------------

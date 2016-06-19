@@ -35,7 +35,6 @@ import Prelude (($),(.))
 import Control.Monad
 import Control.Monad.Primitive
 import Control.Monad.ST
-import Data.Primitive
 import Data.PrimRef
 import System.IO.Unsafe
 

@@ -123,6 +123,7 @@ library
 
     ghc-options:
         -funbox-strict-fields
+        -Wall
 
     build-depends:
         -- haskell language

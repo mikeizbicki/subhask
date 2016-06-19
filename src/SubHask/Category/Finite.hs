@@ -29,8 +29,6 @@ module SubHask.Category.Finite
     )
     where
 
-import Control.Monad
-import GHC.Prim
 import GHC.TypeLits
 import Data.Proxy
 import qualified Data.Map as Map
@@ -41,7 +39,6 @@ import SubHask.Algebra
 import SubHask.Algebra.Group
 import SubHask.Category
 import SubHask.Internal.Prelude
-import SubHask.SubType
 import SubHask.TemplateHaskell.Deriving
 
 -------------------------------------------------------------------------------
@@ -62,7 +59,7 @@ instance KnownNat n => FiniteType (Z n) where
     enumerate = [ mkQuotient i | i <- [0..n - 1] ]
         where
             n = natVal (Proxy :: Proxy n)
-    getOrder z = natVal (Proxy :: Proxy n)
+    getOrder _ = natVal (Proxy :: Proxy n)
 
 -- | The 'ZIndex' class is a newtype wrapper around the natural numbers 'Z'.
 --
@@ -96,7 +93,7 @@ instance Category SparseFunction where
     (SparseFunction f1).(SparseFunction f2) = SparseFunction
         (Map.map (\a -> find a f1) f2)
         where
-            find k map = case Map.lookup k map of
+            find k map' = case Map.lookup k map' of
                 Just v -> v
                 Nothing -> swapZIndex k
 
@@ -119,6 +116,7 @@ list2sparseFunction ::
     ) => [Z (Order a)] -> SparseFunction a b
 list2sparseFunction xs = SparseFunction $ Map.fromList $ go xs
     where
+        go [] = undefined
         go (y:[]) = [(ZIndex y, ZIndex $ P.head xs)]
         go (y1:y2:ys) = (ZIndex y1,ZIndex y2):go (y2:ys)
 
@@ -145,7 +143,7 @@ instance Category SparseFunctionMonoid where
     (SparseFunctionMonoid f1).(SparseFunctionMonoid f2) = SparseFunctionMonoid
         (Map.map (\a -> find a f1) f2)
         where
-            find k map = case Map.lookup k map of
+            find k map' = case Map.lookup k map' of
                 Just v -> v
                 Nothing -> index zero
 

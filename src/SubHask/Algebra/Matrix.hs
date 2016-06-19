@@ -1,7 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-{-# OPTIONS_GHC -fno-warn-unused-binds #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module SubHask.Algebra.Matrix
     ( Matrix (..)
@@ -261,11 +258,11 @@ data Matrix' vect r (a::Symbol) (b::Symbol) where
 
     Id ::
         (ValidMatrix vect r) =>
-        {-#UNPACK#-}!(Scalar r) -> Matrix' vect r (a::Symbol) (a::Symbol)
+        !(Scalar r) -> Matrix' vect r (a::Symbol) (a::Symbol)
 
     Mat ::
         (ValidMatrix vect r) =>
-        {-#UNPACK#-}!(Matrix vect r (a::Symbol) (b::Symbol))
+        !(Matrix vect r (a::Symbol) (b::Symbol))
         -> Matrix' vect r (a::Symbol) (b::Symbol)
 
 type instance Scalar (Matrix' vect r (a::Symbol) (b::Symbol)) = Scalar r
