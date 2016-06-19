@@ -134,7 +134,7 @@ library
         template-haskell,
 
         -- special functionality
-        homoiconic,
+--         homoiconic,
         parallel,
         deepseq,
         primitive,
