@@ -1,9 +1,10 @@
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
+
 module SubHask.Algebra.Ring
     where
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Internal.Prelude
 
 --------------------------------------------------------------------------------
 

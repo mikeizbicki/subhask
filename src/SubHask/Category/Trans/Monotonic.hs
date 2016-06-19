@@ -1,5 +1,5 @@
 module SubHask.Category.Trans.Monotonic
-     ( Mon (..)
+     ( Mon
      , unsafeProveMon
 
      -- * The MonT transformer
@@ -9,15 +9,9 @@ module SubHask.Category.Trans.Monotonic
      )
     where
 
-import GHC.Prim
-import Data.Proxy
-import qualified Prelude as P
-
-import SubHask.Internal.Prelude
 import SubHask.Category
 import SubHask.Algebra
 import SubHask.SubType
-import SubHask.Category.Trans.Constrained
 
 data IncreasingT cat (a :: *) (b :: *) where
     IncreasingT :: (Ord_ a, Ord_ b) => cat a b -> IncreasingT cat a b

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
+
 module SubHask.TemplateHaskell.Test
     where
 
@@ -5,12 +7,8 @@ import Prelude
 import Control.Monad
 
 import qualified Data.Map as Map
-import Debug.Trace
 
 import Language.Haskell.TH
-import GHC.Exts
-
-import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
 -- | Ideally, this map would be generated automatically via template haskell.
@@ -220,7 +218,7 @@ mkClassTests className = do
     info <- reify className
     typeTests <- case info of
         ClassI _ xs -> go xs
-        otherwise -> error "mkClassTests called on something not a class"
+        _ -> error "mkClassTests called on something not a class"
     return $ AppE
         ( AppE
             ( VarE $ mkName "testGroup" )
@@ -229,7 +227,7 @@ mkClassTests className = do
         ( typeTests )
     where
         go [] = return $ ConE $ mkName "[]"
-        go ((InstanceD ctx (AppT _ t) _):xs) = case t of
+        go ((InstanceD _ (AppT _ t) _):xs) = case t of
             (ConT a) -> do
                 tests <- mkSpecializedClassTest (ConT a) className
                 next <- go xs
@@ -239,7 +237,7 @@ mkClassTests className = do
                         ( tests )
                     )
                     ( next )
-            otherwise -> go xs
+            _ -> go xs
 
 
 -- | Given a type and a class, searches "testMap" for all tests for the class;
@@ -281,7 +279,7 @@ specializeType
 specializeType t n = case t of
     VarT _ -> n
     AppT t1 t2 -> AppT (specializeType t1 n) (specializeType t2 n)
-    ForallT xs ctx t -> {-ForallT xs ctx $-} specializeType t n
+    ForallT _ _ t' -> {-ForallT xs ctx $-} specializeType t' n
 --     ForallT xs ctx t -> ForallT xs (specializeType ctx n) $ specializeType t n
     x -> x
 
@@ -293,7 +291,7 @@ specializeLaw typeName lawName = do
     lawInfo <- reify lawName
     let newType = case lawInfo of
             VarI _ t _ _ -> specializeType t typeName
-            otherwise -> error "mkTest lawName not a function"
+            _ -> error "mkTest lawName not a function"
     return $ SigE (VarE lawName) newType
 
 -- | creates an expression of the form:
