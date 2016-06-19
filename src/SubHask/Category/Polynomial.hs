@@ -25,11 +25,11 @@ type Polynomial a = Polynomial_ a a
 -- Can/Should we generalize this to allow polynomials between types?
 --
 data Polynomial_ a b where
-    Polynomial_ :: (ValidLogic a, Ring a, a~b) => {-#UNPACK#-}![a] -> Polynomial_ a b
+    Polynomial_ :: (Eq a, Ring a, a~b) => {-#UNPACK#-}![a] -> Polynomial_ a b
 
 mkMutable [t| forall a b. Polynomial_ a b |]
 
-instance (Eq r, Show r) => Show (Polynomial_ r r) where
+instance (Eq r, ClassicalLogic r, Show r) => Show (Polynomial_ r r) where
     show (Polynomial_ xs) = concat $ intersperse " + " $ filter (/=[]) $ reverse $ imap go xs
         where
             -- FIXME:
@@ -52,59 +52,59 @@ mkMutable [t| forall a. ProofOf Polynomial_ a |]
 instance Ring a => Semigroup (ProofOf Polynomial_ a) where
     (ProofOf p1)+(ProofOf p2) = ProofOf $ p1+p2
 
-instance (ValidLogic a, Ring a) => Cancellative (ProofOf Polynomial_ a) where
+instance (Eq a, Ring a) => Cancellative (ProofOf Polynomial_ a) where
     (ProofOf p1)-(ProofOf p2) = ProofOf $ p1-p2
 
-instance (ValidLogic a, Ring a) => Monoid (ProofOf Polynomial_ a) where
+instance (Eq a, Ring a) => Monoid (ProofOf Polynomial_ a) where
     zero = ProofOf zero
 
 instance (Ring a, Abelian a) => Abelian (ProofOf Polynomial_ a)
 
-instance (ValidLogic a, Ring a) => Group (ProofOf Polynomial_ a) where
+instance (Eq a, Ring a) => Group (ProofOf Polynomial_ a) where
     negate (ProofOf p) = ProofOf $ negate p
 
-instance (ValidLogic a, Ring a) => Rg (ProofOf Polynomial_ a) where
+instance (Eq a, Ring a) => Rg (ProofOf Polynomial_ a) where
     (ProofOf p1)*(ProofOf p2) = ProofOf $ p1*p2
 
-instance (ValidLogic a, Ring a) => Rig (ProofOf Polynomial_ a) where
+instance (Eq a, Ring a) => Rig (ProofOf Polynomial_ a) where
     one = ProofOf one
 
-instance (ValidLogic a, Ring a) => Ring (ProofOf Polynomial_ a) where
+instance (Eq a, Ring a) => Ring (ProofOf Polynomial_ a) where
     fromInteger i = ProofOf $ fromInteger i
 
-provePolynomial :: (ValidLogic a, Ring a) => (ProofOf Polynomial_ a -> ProofOf Polynomial_ a) -> Polynomial_ a a
+provePolynomial :: (Eq a, Ring a) => (ProofOf Polynomial_ a -> ProofOf Polynomial_ a) -> Polynomial_ a a
 provePolynomial f = unProofOf $ f $ ProofOf $ Polynomial_ [0,1]
 
 type instance Scalar (Polynomial_ a b) = Scalar b
 type instance Logic (Polynomial_ a b) = Logic b
 
-instance Eq b => Eq_ (Polynomial_ a b) where
+instance Eq b => Eq (Polynomial_ a b) where
     (Polynomial_ xs)==(Polynomial_ ys) = xs==ys
 
 instance Ring r => Semigroup (Polynomial_ r r) where
     (Polynomial_ p1)+(Polynomial_ p2) = Polynomial_ $ sumList (+) p1 p2
 
-instance (ValidLogic r, Ring r) => Monoid (Polynomial_ r r) where
+instance (Eq r, Ring r) => Monoid (Polynomial_ r r) where
     zero = Polynomial_ []
 
-instance (ValidLogic r, Ring r) => Cancellative (Polynomial_ r r) where
+instance (Eq r, Ring r) => Cancellative (Polynomial_ r r) where
     (Polynomial_ p1)-(Polynomial_ p2) = Polynomial_ $ sumList (-) p1 p2
 
-instance (ValidLogic r, Ring r) => Group (Polynomial_ r r) where
+instance (Eq r, Ring r) => Group (Polynomial_ r r) where
     negate (Polynomial_ p) = Polynomial_ $ P.map negate p
 
 instance (Ring r, Abelian r) => Abelian (Polynomial_ r r)
 
-instance (ValidLogic r, Ring r) => Rg (Polynomial_ r r) where
+instance (Eq r, Ring r) => Rg (Polynomial_ r r) where
     (Polynomial_ p1)*(Polynomial_ p2) = Polynomial_ $ P.foldl (sumList (+)) [] $ go p1 zero
         where
             go []     i = []
             go (x:xs) i = (P.replicate i zero ++ P.map (*x) p2):go xs (i+one)
 
-instance (ValidLogic r, Ring r) => Rig (Polynomial_ r r) where
+instance (Eq r, Ring r) => Rig (Polynomial_ r r) where
     one = Polynomial_ [one]
 
-instance (ValidLogic r, Ring r) => Ring (Polynomial_ r r) where
+instance (Eq r, Ring r) => Ring (Polynomial_ r r) where
     fromInteger i = Polynomial_ [fromInteger i]
 
 type instance Polynomial_ r r >< r = Polynomial_ r r
@@ -121,7 +121,7 @@ sumList f xs [] = xs
 sumList f (x:xs) (y:ys) = f x y:sumList f xs ys
 
 instance Category Polynomial_ where
-    type ValidCategory Polynomial_ a = (ValidLogic a, Ring a)
+    type ValidCategory Polynomial_ a = (Eq a, Ring a)
     id = Polynomial_ [zero, one]
     (Polynomial_ xs) . p2@(Polynomial_ _) = Polynomial_ (map (\x -> Polynomial_ [x]) xs) $ p2
 

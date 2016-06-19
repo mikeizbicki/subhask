@@ -84,7 +84,6 @@ ifThenElse a b c = case a of
 -- Move to a better spot
 -- Add rewrite rules to remove with optimization -O
 assert :: String -> Bool -> a -> a
-assert str b = if b
-    then id
-    else error $ "ASSERT FAILED: "++str
+assert str True = id
+assert str False = error $ "ASSERT FAILED: "++str
 

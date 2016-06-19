@@ -33,13 +33,13 @@ import Debug.Trace
 -- We need these instances to get anything done
 
 type instance Logic Name = Bool
-instance Eq_ Name where (==) = (Base.==)
+instance Eq Name where (==) = (Base.==)
 
 type instance Logic Dec = Bool
-instance Eq_ Dec where (==) = (Base.==)
+instance Eq Dec where (==) = (Base.==)
 
 type instance Logic Type = Bool
-instance Eq_ Type where (==) = (Base.==)
+instance Eq Type where (==) = (Base.==)
 
 --------------------------------------------------------------------------------
 -- generic helper functions
@@ -105,7 +105,7 @@ runIfNotInstance n t q = do
 mkPreludeEq :: Cxt -> Q Type -> Q [Dec]
 mkPreludeEq ctx qt = do
     t <- qt
-    runIfNotInstance ''Eq_ t $ Base.return
+    runIfNotInstance ''Eq t $ Base.return
         [ TySynInstD
             ( mkName "Logic" )
             ( TySynEqn
@@ -115,7 +115,7 @@ mkPreludeEq ctx qt = do
         , InstanceD
             Nothing
             ctx
-            ( AppT ( ConT $ mkName "Eq_" ) t )
+            ( AppT ( ConT $ mkName "Eq" ) t )
             [ FunD ( mkName "==" ) [ Clause [] (NormalB $ VarE $ mkName "Base.==") [] ]
             ]
         ]

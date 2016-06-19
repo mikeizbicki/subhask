@@ -288,7 +288,7 @@ instance (VectorSpace r, ValidUVector n r) => VectorSpace (UVector (n::Symbol) r
 ----------------------------------------
 -- container
 
-instance (Monoid r, ValidLogic r, Prim r, IsScalar r) => IxContainer (UVector (n::Symbol) r) where
+instance (Monoid r, Eq r, Prim r, IsScalar r) => IxContainer (UVector (n::Symbol) r) where
 
     {-# INLINE (!) #-}
     (!) (UVector_Dynamic arr off n) i = indexByteArray arr (off+i)
@@ -299,7 +299,7 @@ instance (Monoid r, ValidLogic r, Prim r, IsScalar r) => IxContainer (UVector (n
             go (-1) xs = xs
             go i xs = go (i-1) (indexByteArray arr (off+i) : xs)
 
-instance (FreeModule r, ValidUVector n r, ValidLogic r, IsScalar r) => FiniteModule (UVector (n::Symbol) r) where
+instance (FreeModule r, ValidUVector n r, Eq r, IsScalar r) => FiniteModule (UVector (n::Symbol) r) where
 
     {-# INLINE dim #-}
     dim (UVector_Dynamic _ _ n) = n
@@ -322,13 +322,13 @@ instance (FreeModule r, ValidUVector n r, ValidLogic r, IsScalar r) => FiniteMod
 ----------------------------------------
 -- comparison
 
-isConst :: (Prim r, Eq_ r, ValidLogic r) => UVector (n::Symbol) r -> r -> Logic r
+isConst :: (Prim r, Eq r, Eq r) => UVector (n::Symbol) r -> r -> Logic r
 isConst (UVector_Dynamic arr1 off1 n1) c = go (off1+n1-1)
     where
         go (-1) = true
         go i = indexByteArray arr1 i==c && go (i-1)
 
-instance (Eq r, Monoid r, Prim r) => Eq_ (UVector (n::Symbol) r) where
+instance (Eq r, Monoid r, Prim r) => Eq (UVector (n::Symbol) r) where
     {-# INLINE (==) #-}
     v1@(UVector_Dynamic arr1 off1 n1)==v2@(UVector_Dynamic arr2 off2 n2) = if
         | isZero n1 && isZero n2 -> true
@@ -349,7 +349,7 @@ instance
     ( Prim r
     , ExpField r
     , Normed r
-    , Ord_ r
+    , Ord r
     , Logic r~Bool
     , IsScalar r
     , VectorSpace r
@@ -770,7 +770,7 @@ instance (VectorSpace r, ValidSVector n r, IsScalar r) => VectorSpace (SVector (
 
 instance
     ( Monoid r
-    , ValidLogic r
+    , Eq r
     , ValidSVector n r
     , IsScalar r
     , FreeModule r
@@ -791,7 +791,7 @@ instance
 
     type ValidElem (SVector n r) e = (ClassicalLogic e, IsScalar e, FiniteModule e, ValidSVector n e)
 
-instance (FreeModule r, ValidLogic r, ValidSVector n r, IsScalar r) => FiniteModule (SVector (n::Symbol) r) where
+instance (FreeModule r, Eq r, ValidSVector n r, IsScalar r) => FiniteModule (SVector (n::Symbol) r) where
 
     {-# INLINE dim #-}
     dim (SVector_Dynamic _ _ n) = n
@@ -813,7 +813,7 @@ instance (FreeModule r, ValidLogic r, ValidSVector n r, IsScalar r) => FiniteMod
 ----------------------------------------
 -- comparison
 
-instance (Eq r, Monoid r, ValidSVector n r) => Eq_ (SVector (n::Symbol) r) where
+instance (Eq r, Monoid r, ClassicalLogic r, ValidSVector n r) => Eq (SVector (n::Symbol) r) where
     {-# INLINE (==) #-}
     (SVector_Dynamic fp1 off1 n1)==(SVector_Dynamic fp2 off2 n2) = unsafeInlineIO $ if
         | isNull fp1 && isNull fp2 -> return true
@@ -849,7 +849,7 @@ instance
     ( ValidSVector n r
     , ExpField r
     , Normed r
-    , Ord_ r
+    , Ord r
     , Logic r~Bool
     , IsScalar r
     , VectorSpace r
@@ -1153,7 +1153,7 @@ instance (KnownNat n, VectorSpace r, ValidSVector n r, IsScalar r) => VectorSpac
 instance
     ( KnownNat n
     , Monoid r
-    , ValidLogic r
+    , Eq r
     , ValidSVector n r
     , IsScalar r
     , FreeModule r
@@ -1177,7 +1177,7 @@ instance
 instance
     ( KnownNat n
     , FreeModule r
-    , ValidLogic r
+    , Eq r
     , ValidSVector n r
     , IsScalar r
     ) => FiniteModule (SVector (n::Nat) r)
@@ -1206,7 +1206,7 @@ instance
 ----------------------------------------
 -- comparison
 
-instance (KnownNat n, Eq_ r, ValidLogic r, ValidSVector n r) => Eq_ (SVector (n::Nat) r) where
+instance (KnownNat n, Eq r, Eq r, ValidSVector n r) => Eq (SVector (n::Nat) r) where
     {-# INLINE (==) #-}
     (SVector_Nat fp1)==(SVector_Nat fp2) = unsafeInlineIO $
         withForeignPtr fp1 $ \p1 ->
@@ -1232,7 +1232,7 @@ instance
     , ValidSVector n r
     , ExpField r
     , Normed r
-    , Ord_ r
+    , Ord r
     , Logic r~Bool
     , IsScalar r
     , VectorSpace r

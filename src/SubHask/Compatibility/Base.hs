@@ -68,18 +68,18 @@ instance Monoid a => Monoid (IO a) where
 
 type instance Logic TypeRep = Bool
 
-instance Eq_ TypeRep where
+instance Eq TypeRep where
     (==) = (Base.==)
 
-instance POrd_ TypeRep where
+instance POrd TypeRep where
     inf x y = case Base.compare x y of
         LT -> x
         _  -> y
-instance Lattice_ TypeRep where
+instance Lattice TypeRep where
     sup x y = case Base.compare x y of
         GT -> x
         _  -> y
-instance Ord_ TypeRep where compare = Base.compare
+instance Ord TypeRep where compare = Base.compare
 
 mkMutable [t| forall a b. Either a b |]
 

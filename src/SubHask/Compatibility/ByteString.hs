@@ -30,10 +30,10 @@ newtype instance ByteString Char = BSLC { unBSLC :: BS.ByteString }
 instance Arbitrary (ByteString Char) where
     arbitrary = fmap fromList arbitrary
 
-instance Eq_ (ByteString Char) where
+instance Eq (ByteString Char) where
     (BSLC b1)==(BSLC b2) = b1 P.== b2
 
-instance POrd_ (ByteString Char) where
+instance POrd (ByteString Char) where
     inf (BSLC b1) (BSLC b2) = fromList $ map fst $ P.takeWhile (\(a,b) -> a==b) $ BS.zip b1 b2
     (BSLC b1) < (BSLC b2) = BS.isPrefixOf b1 b2
 

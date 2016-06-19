@@ -69,13 +69,13 @@ instance Normed (BArray e) where
 ----------------------------------------
 -- comparison
 
-instance (ValidLogic e, Eq_ e) => Eq_ (BArray e) where
+instance (Eq e) => Eq (BArray e) where
     a1==a2 = toList a1==toList a2
 
-instance (ClassicalLogic e, POrd_ e) => POrd_ (BArray e) where
+instance (ClassicalLogic e, POrd e) => POrd (BArray e) where
     inf a1 a2 = fromList $ inf (toList a1) (toList a2)
 
-instance (ClassicalLogic e, POrd_ e) => MinBound_ (BArray e) where
+instance (ClassicalLogic e, POrd e) => MinBound (BArray e) where
     minBound = zero
 
 ----------------------------------------
@@ -84,7 +84,7 @@ instance (ClassicalLogic e, POrd_ e) => MinBound_ (BArray e) where
 instance Constructible (BArray e) where
     fromList1 x xs = BArray $ VG.fromList (x:xs)
 
-instance (ValidLogic e, Eq_ e) => Container (BArray e) where
+instance (Eq e) => Container (BArray e) where
     elem e arr = elem e $ toList arr
 
 instance Foldable (BArray e) where
@@ -122,17 +122,17 @@ instance Foldable (BArray e) where
     foldl1  f   (BArray v) = VG.foldl1  f   v
     foldl1' f   (BArray v) = VG.foldl1' f   v
 
-instance ValidLogic e => Sliceable (BArray e) where
+instance Eq e => Sliceable (BArray e) where
     slice i n (BArray v) = BArray $ VG.slice i n v
 
-instance ValidLogic e => IxContainer (BArray e) where
+instance Eq e => IxContainer (BArray e) where
     lookup i (BArray v) = v VG.!? i
     (!) (BArray v) = VG.unsafeIndex v
     indices (BArray v) = [0..VG.length v-1]
     values (BArray v) = VG.toList v
     imap f (BArray v) = BArray $ VG.imap f v
 
-instance ValidLogic e => Partitionable (BArray e) where
+instance Eq e => Partitionable (BArray e) where
     partition n arr = go 0
         where
             go i = if i>=length arr
@@ -195,13 +195,13 @@ instance Unbox e => Normed (UArray e) where
 ----------------------------------------
 -- comparison
 
-instance (Unboxable e, Eq_ e) => Eq_ (UArray e) where
+instance (Unboxable e, Eq e) => Eq (UArray e) where
     a1==a2 = toList a1==toList a2
 
-instance (Unboxable e, POrd_ e) => POrd_ (UArray e) where
+instance (Unboxable e, ClassicalLogic e, POrd e) => POrd (UArray e) where
     inf a1 a2 = fromList $ inf (toList a1) (toList a2)
 
-instance (Unboxable e, POrd_ e) => MinBound_ (UArray e) where
+instance (Unboxable e, ClassicalLogic e, POrd e) => MinBound (UArray e) where
     minBound = zero
 
 ----------------------------------------
@@ -221,7 +221,7 @@ mkConstructible(Bool)
 
 instance
     ( ClassicalLogic r
-    , Eq_ r
+    , Eq r
     , Unbox r
     , Prim r
     , FreeModule r
@@ -548,7 +548,7 @@ instance
 
 instance
     ( ClassicalLogic r
-    , Eq_ r
+    , Eq r
     , Unbox r
     , Prim r
     , FreeModule r

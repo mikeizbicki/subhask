@@ -153,7 +153,7 @@ law_Partitionable_length n t
     | n > 0 = length (partition n t) <= n
     | otherwise = True
 
-law_Partitionable_monoid :: (ClassicalLogic t, Eq_ t, Partitionable t) => Int -> t -> Bool
+law_Partitionable_monoid :: (ClassicalLogic t, Eq t, Partitionable t) => Int -> t -> Bool
 law_Partitionable_monoid n t
     | n > 0 = sum (partition n t) == t
     | otherwise = True

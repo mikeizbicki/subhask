@@ -20,12 +20,12 @@ import SubHask.SubType
 import SubHask.Category.Trans.Constrained
 
 data IncreasingT cat (a :: *) (b :: *) where
-    IncreasingT :: (Ord_ a, Ord_ b) => cat a b -> IncreasingT cat a b
+    IncreasingT :: (Ord a, Ord b) => cat a b -> IncreasingT cat a b
 
 mkMutable [t| forall cat a b. IncreasingT cat a b |]
 
 instance Category cat => Category (IncreasingT cat) where
-    type ValidCategory (IncreasingT cat) a = (ValidCategory cat a, Ord_ a)
+    type ValidCategory (IncreasingT cat) a = (ValidCategory cat a, Ord a)
     id = IncreasingT id
     (IncreasingT f).(IncreasingT g) = IncreasingT $ f.g
 
@@ -56,17 +56,17 @@ type family Increasing_ a where
     Increasing_ ( (cat :: * -> * -> *) a b) = IncreasingT cat a b
 
 proveIncreasing ::
-    ( Ord_ a
-    , Ord_ b
+    ( Ord a
+    , Ord b
     ) => (ProofOf (IncreasingT Hask) a -> ProofOf (IncreasingT Hask) b) -> Increasing (a -> b)
 proveIncreasing f = unsafeProveIncreasing $ \a -> unProofOf $ f $ ProofOf a
 
-instance (Ord_ a, Ord_ b) => Hask (ProofOf (IncreasingT Hask) a) (ProofOf (IncreasingT Hask) b) <: (IncreasingT Hask) a b where
+instance (Ord a, Ord b) => Hask (ProofOf (IncreasingT Hask) a) (ProofOf (IncreasingT Hask) b) <: (IncreasingT Hask) a b where
     embedType_ = Embed0 proveIncreasing
 
 unsafeProveIncreasing ::
-    ( Ord_ a
-    , Ord_ b
+    ( Ord a
+    , Ord b
     ) => (a -> b) -> Increasing (a -> b)
 unsafeProveIncreasing = IncreasingT
 

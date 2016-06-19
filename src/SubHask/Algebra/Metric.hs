@@ -83,7 +83,7 @@ instance (NFData v, NFData (Scalar v)) => NFData (Ball v) where
 
 -- comparison
 
-instance (Eq v, HasScalar v) => Eq_ (Ball v) where
+instance (Eq v, ClassicalLogic v, HasScalar v) => Eq (Ball v) where
     b1 == b2 = radius b1 == radius b2
             && center b1 == center b2
 

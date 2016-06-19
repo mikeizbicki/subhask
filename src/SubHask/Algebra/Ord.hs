@@ -31,13 +31,13 @@ instance Show a => Show (WithPreludeOrd a) where
 
 -- | FIXME: for some reason, our deriving mechanism doesn't work on Show here;
 -- It causes's Set's show to enter an infinite loop
-deriveHierarchyFiltered ''WithPreludeOrd [ ''Eq_, ''Enum, ''Boolean, ''Ring, ''Metric ] [ ''Show ]
+deriveHierarchyFiltered ''WithPreludeOrd [ ''Eq, ''Enum, ''Boolean, ''Ring, ''Metric ] [ ''Show ]
 
-instance Eq a => P.Eq (WithPreludeOrd a) where
+instance (Eq a, ClassicalLogic a) => P.Eq (WithPreludeOrd a) where
     {-# INLINE (==) #-}
     a==b = a==b
 
-instance Ord a => P.Ord (WithPreludeOrd a) where
+instance (Ord a, ClassicalLogic a) => P.Ord (WithPreludeOrd a) where
     {-# INLINE (<=) #-}
     a<=b = a<=b
 
@@ -46,11 +46,11 @@ instance Ord a => P.Ord (WithPreludeOrd a) where
 --
 -- FIXME:
 -- We should put this in the container hierarchy so we can sort any data type
-sort :: Ord a => [a] -> [a]
+sort :: (Ord a, ClassicalLogic a) => [a] -> [a]
 sort = map unWithPreludeOrd . L.sort . map WithPreludeOrd
 
 -- | Randomly shuffles a list in time O(n log n); see http://www.haskell.org/haskellwiki/Random_shuffle
-shuffle :: (Eq a, MonadRandom m) => [a] -> m [a]
+shuffle :: (Eq a, ClassicalLogic a, MonadRandom m) => [a] -> m [a]
 shuffle xs = do
     let l = length xs
     rands <- take l `liftM` getRandomRs (0, l-1)

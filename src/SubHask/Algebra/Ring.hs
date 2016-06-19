@@ -18,7 +18,7 @@ type instance SetElem (Componentwise v) v' = Componentwise v'
 
 instance IsMutable (Componentwise v)
 
-instance Eq_ v => Eq_ (Componentwise v) where
+instance Eq v => Eq (Componentwise v) where
     (Componentwise v1)==(Componentwise v2) = v1==v2
 
 instance Semigroup v => Semigroup (Componentwise v) where

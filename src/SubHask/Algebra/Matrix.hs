@@ -192,14 +192,14 @@ instance
 -- container
 
 instance
-  (ValidMatrix vect r, Monoid r, ValidLogic r, Prim r, IsScalar r)
+  (ValidMatrix vect r, Monoid r, Prim r, IsScalar r)
   => IxContainer (Matrix vect r (a::Symbol) (b::Symbol)) where
 
   {-# INLINE (!) #-}
   (!) m@(Matrix_Dynamic _ l) i = m!!(i `div` l, i `mod` l)
 
 instance
-  (Prim r, FreeModule r, ValidMatrix vect r, ValidLogic r, IsScalar r)
+  (Prim r, FreeModule r, ValidMatrix vect r, IsScalar r)
   => FiniteModule (Matrix vect r (a::Symbol) (b::Symbol)) where
 
   {-# INLINE dim #-}

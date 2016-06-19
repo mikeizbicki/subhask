@@ -181,8 +181,8 @@ Test-Suite test
         test-framework
   if flag(dotestoptimise)
     ghc-options: -O2
-  if flag(llvmsupport)
-    ghc-options: -fllvm
+--   if flag(llvmsupport)
+--     ghc-options: -fllvm
 
 benchmark bench
     default-language: Haskell2010

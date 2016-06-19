@@ -33,7 +33,6 @@ import Language.Haskell.TH.Syntax
 import Control.Monad
 import Debug.Trace
 
-
 -- | This class provides an artificial hierarchy that defines all the classes that a "well behaved" data type should implement.
 -- All newtypes will derive them automatically.
 type BasicType t = (Show t, Read t, Arbitrary t, NFData t)
