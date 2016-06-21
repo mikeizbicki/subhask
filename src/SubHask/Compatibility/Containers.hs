@@ -34,7 +34,6 @@ mkMutable [t| forall a. Seq a |]
 type instance Scalar (Seq a) = Int
 type instance Logic (Seq a) = Bool
 type instance Elem (Seq a) = a
-type instance SetElem (Seq a) b = Seq b
 
 instance (Eq a, Arbitrary a) => Arbitrary (Seq a) where
     arbitrary = P.fmap fromList arbitrary
@@ -144,7 +143,6 @@ type instance Logic (Map b a) = Bool
 type instance Index (Map b a) = b
 type instance SetIndex (Map b a) b' = Map b' a
 type instance Elem (Map b a) = a
-type instance SetElem (Map b a) a' = Map b a'
 
 -- misc classes
 
@@ -161,7 +159,7 @@ instance (Ord b, Eq a, ClassicalLogic b, ClassicalLogic a) => POrd (Map b a) whe
     {-# INLINE inf #-}
     inf (Map m1) (Map m2) = Map $ M.differenceWith go (M.intersection m1 m2) m2
         where
-            go :: forall b. Eq b => b -> b -> Maybe b
+            go :: forall b. (ClassicalLogic b, Eq b) => b -> b -> Maybe b
             go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (Ord b, POrd a, ClassicalLogic b, ClassicalLogic a) => MinBound (Map b a) where
@@ -219,7 +217,6 @@ type instance Logic (Map' b a) = Bool
 type instance Index (Map' b a) = b
 type instance SetIndex (Map' b a) b' = Map' b' a
 type instance Elem (Map' b a) = a
-type instance SetElem (Map' b a) a' = Map' b a'
 
 -- misc classes
 
@@ -236,7 +233,7 @@ instance (Ord b, Eq a, ClassicalLogic a, ClassicalLogic b) => POrd (Map' b a) wh
     {-# INLINE inf #-}
     inf (Map' m1) (Map' m2) = Map' $ MS.differenceWith go (MS.intersection m1 m2) m2
         where
-            go :: forall b. Eq b => b -> b -> Maybe b
+            go :: forall b. (ClassicalLogic b, Eq b) => b -> b -> Maybe b
             go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (Ord b, POrd a, ClassicalLogic a, ClassicalLogic b) => MinBound (Map' b a) where
@@ -293,7 +290,6 @@ type instance Scalar (IntMap a) = Int
 type instance Logic (IntMap a) = Bool
 type instance Index (IntMap a) = IM.Key
 type instance Elem (IntMap a) = a
-type instance SetElem (IntMap a) a' = IntMap a'
 
 -- misc classes
 
@@ -311,7 +307,7 @@ instance (Eq a, ClassicalLogic a) => POrd (IntMap a) where
     {-# INLINE inf #-}
     inf (IntMap m1) (IntMap m2) = IntMap $ IM.differenceWith go (IM.intersection m1 m2) m2
         where
-            go :: forall b. Eq b => b -> b -> Maybe b
+            go :: forall b. (ClassicalLogic b, Eq b) => b -> b -> Maybe b
             go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (POrd a, ClassicalLogic a) => MinBound (IntMap a) where
@@ -367,7 +363,6 @@ type instance Scalar (IntMap' a) = Int
 type instance Logic (IntMap' a) = Bool
 type instance Index (IntMap' a) = IMS.Key
 type instance Elem (IntMap' a) = a
-type instance SetElem (IntMap' a) a' = IntMap' a'
 
 -- misc classes
 
@@ -385,7 +380,7 @@ instance (Eq a, ClassicalLogic a) => POrd (IntMap' a) where
     {-# INLINE inf #-}
     inf (IntMap' m1) (IntMap' m2) = IntMap' $ IMS.differenceWith go (IMS.intersection m1 m2) m2
         where
-            go :: forall b. Eq b => b -> b -> Maybe b
+            go :: forall b. (ClassicalLogic b, Eq b) => b -> b -> Maybe b
             go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (POrd a, ClassicalLogic a) => MinBound (IntMap' a) where
@@ -444,7 +439,6 @@ instance (Ord a, Arbitrary a, ClassicalLogic a) => Arbitrary (Set a) where
 type instance Scalar (Set a) = Int
 type instance Logic (Set a) = Logic a
 type instance Elem (Set a) = a
-type instance SetElem (Set a) b = Set b
 
 instance Normed (Set a) where
     {-# INLINE size #-}
@@ -517,7 +511,6 @@ mkMutable [t| forall a. LexSet a |]
 type instance Scalar (LexSet a) = Int
 type instance Logic (LexSet a) = Bool
 type instance Elem (LexSet a) = a
-type instance SetElem (LexSet a) b = LexSet b
 
 instance Show a => Show (LexSet a) where
     show (LexSet s) = "LexSet "++show (toList s)

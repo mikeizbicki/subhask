@@ -35,7 +35,6 @@ type instance Index (BArray e) = Int
 type instance Logic (BArray e) = Logic e
 type instance Scalar (BArray e) = Int
 type instance Elem (BArray e) = e
-type instance SetElem (BArray e) e' = BArray e'
 
 ----------------------------------------
 -- mutability
@@ -156,7 +155,6 @@ type instance Index (UArray e) = Int
 type instance Logic (UArray e) = Logic e
 type instance Scalar (UArray e) = Int
 type instance Elem (UArray e) = e
-type instance SetElem (UArray e) e' = UArray e'
 
 ----------------------------------------
 -- mutability

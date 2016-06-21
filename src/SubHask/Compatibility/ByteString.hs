@@ -22,7 +22,6 @@ mkMutable [t| forall a. ByteString a |]
 type instance Scalar (ByteString b) = Int
 type instance Logic (ByteString b) = Bool
 type instance Elem (ByteString b) = b
-type instance SetElem (ByteString b) c = ByteString c
 
 newtype instance ByteString Char = BSLC { unBSLC :: BS.ByteString }
     deriving (NFData,Read,Show)

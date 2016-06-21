@@ -15,7 +15,6 @@ newtype Componentwise v = Componentwise { unComponentwise :: v }
 type instance Scalar (Componentwise v) = Scalar v
 type instance Logic (Componentwise v) = Logic v
 type instance Elem (Componentwise v) = Scalar v
-type instance SetElem (Componentwise v) v' = Componentwise v'
 
 instance IsMutable (Componentwise v)
 

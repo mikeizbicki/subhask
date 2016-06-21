@@ -96,7 +96,6 @@ type ValidUVector n r = ( (UVector n r><Scalar r)~UVector n r, Prim r)
 
 type instance Index (UVector n r) = Int
 type instance Elem (UVector n r) = Scalar r
-type instance SetElem (UVector n r) b = UVector n b
 
 --------------------------------------------------------------------------------
 
@@ -523,7 +522,6 @@ type ValidSVector n r = ( (SVector n r><Scalar r)~SVector n r, Storable r)
 
 type instance Index (SVector n r) = Int
 type instance Elem (SVector n r) = Scalar r
-type instance SetElem (SVector n r) b = SVector n b
 
 --------------------------------------------------------------------------------
 

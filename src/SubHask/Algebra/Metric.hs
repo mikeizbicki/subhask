@@ -66,7 +66,6 @@ invar_Ball_radius b = radius b >= 0
 type instance Scalar (Ball v) = Scalar v
 type instance Logic (Ball v) = Logic v
 type instance Elem (Ball v) = v
-type instance SetElem (Ball v) v' = Ball v'
 
 -- misc classes
 

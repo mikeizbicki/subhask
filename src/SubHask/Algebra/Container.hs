@@ -32,7 +32,6 @@ invar_Box_ordered b = largest b >= smallest b
 type instance Scalar (Box v) = Scalar v
 type instance Logic (Box v) = Logic v
 type instance Elem (Box v) = v
-type instance SetElem (Box v) v' = Box v'
 
 -- misc classes
 

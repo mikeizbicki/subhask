@@ -12,7 +12,9 @@ module SubHask.Algebra
     -- * Comparisons
     Logic
     , ClassicalLogic
-    , Neighborhood (..)
+    , Container (..)
+    , law_Container_preservation
+    , ifThenElse
     , Eq (..)
     , law_Eq_reflexive
     , law_Eq_symmetric
@@ -91,9 +93,8 @@ module SubHask.Algebra
     -- * Set-like
     , Elem
     , infDisjoint
-    , SetElem
     , Container (..)
-    , law_Container_preservation
+--     , law_Container_preservation
 
     , Constructible (..)
     , Constructible0
@@ -315,34 +316,37 @@ simpleMutableDefn mf f a b = unsafeRunMutableProperty $ do
     return $ a1==a2
 
 -------------------------------------------------------------------------------
--- relational classes
+-- comparison hierarchy
 
--- | Classical logic is implemented using the Prelude's Bool type.
-type ClassicalLogic a = Logic a ~ Bool
+-- | This is a generalization of a "set".
+-- We do not require a container to be a boolean algebra, just a semigroup.
+class Eq a => Container a where
+    {-# MINIMAL elem | notElem #-}
+    elem :: Elem a -> a -> Logic a
+    elem = not notElem
 
-class MinBound (Neighbor a) => Neighborhood a where
-    type Neighbor a
-    logic2indicator :: a -> (Neighbor a -> Bool)
+    notElem :: Elem a -> a -> Logic a
+    notElem = not elem
 
-    ifThenElse :: a -> b -> b -> b
-    ifThenElse a b1 b2 = case logic2indicator a minBound of
-        True  -> b1
-        False -> b2
+law_Container_preservation :: Container s => s -> s -> Elem s -> Logic s
+law_Container_preservation a1 a2 e = (a1==a2) ==> ((e `elem` a1) ==> (e `elem` a2))
 
-instance Neighborhood Bool where
-    type Neighbor Bool = ()
-    logic2indicator True = \_ -> True
-    logic2indicator False = \_ -> False
+type instance Elem Bool = ()
+instance Container Bool where
+    elem _ True  = True
+    elem _ False = False
 
-instance Neighborhood () where
-    type Neighbor () = ()
-    logic2indicator () = \_ -> True
+type instance Elem () = ()
+instance Container () where
+    elem () = \_ -> ()
 
-instance Neighborhood (a -> b) where
-    type Neighbor (a -> b) = ()
--- instance Minbound (Neighbor b) => Neighborhood (a -> b) where
---     type Neighbor (a -> b) = ([a], Neighbor b)
---     logic2indicator = id
+instance Eq b => Container (a -> b)
+
+ifThenElse :: Bool -> b -> b -> b
+ifThenElse True  b _ = b
+ifThenElse False _ b = b
+
+----------------------------------------
 
 -- | Every type has an associated logic.
 -- Most types use classical logic, which corresponds to the Bool type.
@@ -354,12 +358,16 @@ instance Neighborhood (a -> b) where
 -- and <https://en.wikipedia.org/wiki/Infinitary_logic infinitary logic> for more details.
 type family Logic a :: *
 
+type IdempLogic a = Logic (Logic a)~Logic a
+
+type ClassicalLogic a = Logic a ~Bool
+
 -- | Defines equivalence classes over the type.
 -- The values need not have identical representations in the machine to be equal.
 --
 -- See <https://en.wikipedia.org/wiki/Equivalence_class wikipedia>
 -- and <http://ncatlab.org/nlab/show/equivalence+class ncatlab> for more details.
-class (Logic (Logic a)~Logic a, Neighborhood (Logic a), Boolean (Logic a)) => Eq a where
+class (IdempLogic a, Container (Logic a), Boolean (Logic a)) => Eq a where
 
     infix 4 ==
     (==) :: a -> a -> Logic a
@@ -2003,7 +2011,6 @@ class
     , IxContainer v
     , Elem v~Scalar v
     , Index v~Int
-    , v ~ SetElem v (Elem v)
     ) => FiniteModule v
         where
     -- | Returns the dimension of the object.
@@ -2018,12 +2025,6 @@ type instance Elem Integer  = Integer
 type instance Elem Float    = Float
 type instance Elem Double   = Double
 type instance Elem Rational = Rational
-
-type instance SetElem Int      a = Int
-type instance SetElem Integer  a = Integer
-type instance SetElem Float    a = Float
-type instance SetElem Double   a = Double
-type instance SetElem Rational a = Rational
 
 type instance Index Int      = Int
 type instance Index Integer  = Int
@@ -2313,9 +2314,6 @@ instance CanError Double where
 -------------------------------------------------------------------------------
 -- set-like
 type family Elem s
-type family SetElem s t
-
-type ValidSetElem s = SetElem s (Elem s) ~ s
 
 -- | Two sets are disjoint if their infimum is the empty set.
 -- This function generalizes the notion of disjointness for any lower bounded lattice.
@@ -2371,6 +2369,12 @@ defn_Constructible_cons s e = cons e s == singleton e + s
 defn_Constructible_snoc :: (Eq s, Constructible s) => s -> Elem s -> Logic s
 defn_Constructible_snoc s e = snoc s e == s + singleton e
 
+law_Constructible_singleton :: (Constructible s, Container s) => s -> Elem s -> Logic s
+law_Constructible_singleton s e = elem e $ singleton e `asTypeOf` s
+
+theorem_Constructible_cons :: (Constructible s, Container s) => s -> Elem s -> Logic s
+theorem_Constructible_cons s e = elem e (cons e s)
+
 -- | A more suggestive name for inserting an element into a container that does not remember location
 insert :: Constructible s => Elem s -> s -> s
 insert = cons
@@ -2403,24 +2407,6 @@ generate :: (Monoid v, Constructible v) => Int -> (Int -> Elem v) -> v
 generate n f = if n <= 0
     then zero
     else fromList1N n (f 0) (map f [1..n-1])
-
--- | This is a generalization of a "set".
--- We do not require a container to be a boolean algebra, just a semigroup.
-class (Constructible s, Eq s, ValidSetElem s) => Container s where
-    elem :: Elem s -> s -> Logic s
-
-    notElem :: Elem s -> s -> Logic s
-    notElem = not elem
-
-law_Container_preservation :: (Heyting (Logic s), Container s) => s -> s -> Elem s -> Logic s
-law_Container_preservation s1 s2 e = (e `elem` s1 || e `elem` s2) ==> (e `elem` (s1+s2))
-
-law_Constructible_singleton :: Container s => s -> Elem s -> Logic s
-law_Constructible_singleton s e = elem e $ singleton e `asTypeOf` s
-
-theorem_Constructible_cons :: Container s => s -> Elem s -> Logic s
-theorem_Constructible_cons s e = elem e (cons e s)
-
 
 -- | The dual of a monoid, obtained by swapping the arguments of 'mappend'.
 newtype DualSG a = DualSG { getDualSG :: a }
@@ -2687,20 +2673,6 @@ lastMaybe = P.fmap snd . unsnoc
 initMaybe :: Foldable s => s -> Maybe s
 initMaybe = P.fmap fst . unsnoc
 
--- |
---
--- FIXME:
--- This is a correct definition of topologies, but is it useful?
--- How can this relate to continuous functions?
-class (Boolean (Logic s), Boolean s, Container s) => Topology s where
-    open :: s -> Logic s
-
-    closed :: s -> Logic s
-    closed s = open $ not s
-
-    clopen :: s -> Logic s
-    clopen = open && closed
-
 ----------------------------------------
 
 type family Index s
@@ -2714,7 +2686,7 @@ type family SetIndex s a
 --   2. Many regular containers are indexed containers, but not the other way around.
 --      So the class hierarchy is in a different order.
 --
-class (Monoid s, ValidSetElem s{-, ValidSetIndex s-}) => IxContainer s where
+class (Monoid s) => IxContainer s where
     lookup :: Index s -> s -> Maybe (Elem s)
 
     {-# INLINABLE (!) #-}
@@ -2739,7 +2711,7 @@ class (Monoid s, ValidSetElem s{-, ValidSetIndex s-}) => IxContainer s where
     type ValidElem s (e :: *) :: Constraint
     type ValidElem s e = ()
 
-    imap :: (ValidElem s (Elem s), ValidElem s b) => (Index s -> Elem s -> b) -> s -> SetElem s b
+    imap :: (Index s -> Elem s -> Elem s) -> s -> s
 
     toIxList :: s -> [(Index s, Elem s)]
 
@@ -2910,7 +2882,6 @@ insertAt = consAt
 type instance Scalar [a] = Int
 type instance Logic [a] = Logic a
 type instance Elem [a] = a
-type instance SetElem [a] b = [b]
 type instance Index [a] = Int
 
 instance Eq a => Eq [a] where

@@ -26,14 +26,14 @@ data Polynomial_ a b where
 mkMutable [t| forall a b. Polynomial_ a b |]
 
 instance (Eq r, ClassicalLogic r, Show r) => Show (Polynomial_ r r) where
-    show (Polynomial_ xs) = concat $ intersperse " + " $ filter (/=[]) $ reverse $ imap go xs
+    show (Polynomial_ xs) = concat $ intersperse " + " $ filter (/=[]) $ reverse $ P.map go $ P.zip [0..] xs
         where
             -- FIXME:
             -- The code below results in prettier output but incurs an "Eq" constraint that confuses ghci
-            go :: Int -> r -> String
-            go 0 x = when (zero/=x) $ show x
-            go 1 x = when (zero/=x) $ when (one/=x) (show x) ++ "x"
-            go i x = when (zero/=x) $ when (one/=x) (show x) ++ "x^" ++ show i
+            go :: (Int,r) -> String
+            go (0,x) = when (zero/=x) $ show x
+            go (1,x) = when (zero/=x) $ when (one/=x) (show x) ++ "x"
+            go (i,x) = when (zero/=x) $ when (one/=x) (show x) ++ "x^" ++ show i
 
             when :: Monoid a => Bool -> a -> a
             when cond x = if cond then x else zero
