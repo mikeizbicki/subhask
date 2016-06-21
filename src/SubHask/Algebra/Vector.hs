@@ -25,6 +25,7 @@ module SubHask.Algebra.Vector
     , type (+>)
     , SMatrix
     , unsafeMkSMatrix
+    , unsafeToModule
 
     -- * Debug
     , safeNewByteArray
@@ -1323,7 +1324,7 @@ instance
                 then tot
                 else goEach (tot+(v1!i * v2!i)) (i-1)
 
---------------------------------------------------------------------------------
+
 
 type MatrixField r =
     ( IsScalar r
@@ -1332,7 +1333,7 @@ type MatrixField r =
     , HM.Field r
     , HM.Container HM.Vector r
     , HM.Product r
-   )
+    )
 
 class ToFromVector a where
     toVector   :: a -> VS.Vector (Scalar a)

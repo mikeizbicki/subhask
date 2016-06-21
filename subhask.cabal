@@ -54,6 +54,10 @@ library
         SubHask.Algebra.Ring
         SubHask.Algebra.Vector
         SubHask.Algebra.Vector.FFI
+        SubHask.Algebra.Accelerate.AccelerateBackend
+        SubHask.Algebra.Accelerate.Vector
+        SubHask.Algebra.Accelerate.Matrix
+
 
         SubHask.Category
         SubHask.Category.Finite
@@ -142,6 +146,10 @@ library
         erf,
         gamma,
         hmatrix,
+        accelerate,
+        accelerate-cuda,
+        cuda,
+        accelerate-llvm,
 
         -- compatibility control flow
         mtl,
@@ -161,7 +169,7 @@ library
         semigroups,
         bytes,
         approximate,
-        lens                 
+        lens
 
     default-language:
         Haskell2010
