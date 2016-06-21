@@ -342,9 +342,25 @@ instance Container () where
 
 instance Eq b => Container (a -> b)
 
-ifThenElse :: Bool -> b -> b -> b
-ifThenElse True  b _ = b
-ifThenElse False _ b = b
+--------------------
+
+class
+    ( Monoid (Elem a)
+    , Container a
+    , IfThenElse (Logic a)
+    ) => IfThenElse a
+        where
+    ifThenElse :: a -> b -> b -> b
+    ifThenElse a b1 b2 = ifThenElse (zero `elem` a) b1 b2
+
+instance Semigroup Bool where (+) = (||)
+instance Monoid Bool where zero = False
+instance IfThenElse Bool where
+    ifThenElse True  b _ = b
+    ifThenElse False _ b = b
+
+instance IfThenElse () where
+    ifThenElse () b _ = b
 
 ----------------------------------------
 
