@@ -124,10 +124,16 @@ library
         -msse3
 
     ghc-options:
-        -fprint-explicit-kinds
         -funbox-strict-fields
         -Wall
         -Wno-simplifiable-class-constraints
+
+        -- FIXME:
+        -- SubHask often uses redundant constraints to maintain invariants.
+        -- GHC 8.0 does not yet let us specify at fine granularity which constraints are intentionally meant to be redundant.
+        -- So this warning must be temporarily disabled.
+        -- See: https://ghc.haskell.org/trac/ghc/ticket/10635
+        -Wno-redundant-constraints
 
     build-depends:
         -- haskell language

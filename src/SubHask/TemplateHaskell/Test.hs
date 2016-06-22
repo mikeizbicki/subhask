@@ -228,7 +228,7 @@ mkClassTests className = do
     where
         go :: [Dec] -> Q Exp
         go [] = return $ ConE $ mkName "[]"
-        go ((InstanceD _ cxt (AppT _ t) _):xs) = case t of
+        go ((InstanceD _ _ (AppT _ t) _):xs) = case t of
             (ConT a) -> do
                 tests <- mkSpecializedClassTest (ConT a) className
                 next <- go xs

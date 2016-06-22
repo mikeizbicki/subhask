@@ -86,7 +86,6 @@ module SubHask.Category
     , ProofOf
     ) where
 
-import GHC.Prim
 import SubHask.Internal.Prelude
 import SubHask.SubType
 import qualified Prelude as P
