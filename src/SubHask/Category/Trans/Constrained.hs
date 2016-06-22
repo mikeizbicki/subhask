@@ -11,8 +11,6 @@ module SubHask.Category.Trans.Constrained
     )
     where
 
-import GHC.Prim
-
 import SubHask.Algebra
 import SubHask.Category
 import SubHask.SubType

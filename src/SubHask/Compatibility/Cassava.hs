@@ -48,7 +48,6 @@ decode_ h (PartitionOnNewline (BSLC bs)) = case C.decode h bs of
 decode ::
     ( NFData a
     , FromRecord a
-    , Eq a
     ) => HasHeader
       -> ByteString Char
       -> Either String (BArray a)

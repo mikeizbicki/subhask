@@ -149,7 +149,7 @@ class (Monoid t, Foldable t, Constructible t) => Partitionable t where
     partitionInterleaved :: Int -> t -> [t]
     partitionInterleaved i t = map (\(x:xs) -> fromList1 x xs) $ partitionInterleaved_list i $ toList t
 
-law_Partitionable_length :: (ClassicalLogic t, Partitionable t) => Int -> t -> Bool
+law_Partitionable_length :: (Partitionable t) => Int -> t -> Bool
 law_Partitionable_length n t
     | n > 0 = length (partition n t) <= n
     | otherwise = True

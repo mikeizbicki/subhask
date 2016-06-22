@@ -167,7 +167,7 @@ mkMutable [t| forall e. UArray e |]
 instance (Unboxable e, Arbitrary e) => Arbitrary (UArray e) where
     arbitrary = fmap fromList arbitrary
 
-instance (NFData e) => NFData (UArray e) where
+instance NFData (UArray e) where
     rnf (UArray v) = rnf v
 --     rnf UArray_Zero = ()
 
@@ -414,8 +414,7 @@ instance
 -- Labeled'
 
 instance
-    ( Unbox y
-    , Prim y
+    ( Prim y
     , ClassicalLogic a
     , IsScalar a
     , Unbox a

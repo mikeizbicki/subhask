@@ -40,7 +40,7 @@ instance Sup b a c => Sup a (InjectiveT b) c
 instance (subcat <: cat) => InjectiveT subcat <: cat where
     embedType_ = Embed2 (\ (InjectiveT f) -> embedType2 f)
 
-unsafeProveInjective :: Concrete cat => cat a b -> InjectiveT cat a b
+unsafeProveInjective :: cat a b -> InjectiveT cat a b
 unsafeProveInjective = InjectiveT
 
 -- | Surjective (onto) functions can take on every value in the range.  See
@@ -61,7 +61,7 @@ instance Sup b a c => Sup a (SurjectiveT b) c
 instance (subcat <: cat) => SurjectiveT subcat <: cat where
     embedType_ = Embed2 (\ (SurjectiveT f) -> embedType2 f)
 
-unsafeProveSurjective :: Concrete cat => cat a b -> SurjectiveT cat a b
+unsafeProveSurjective :: cat a b -> SurjectiveT cat a b
 unsafeProveSurjective = SurjectiveT
 
 -- | Bijective functions are both injective and surjective.  See
@@ -87,5 +87,5 @@ instance (subcat <: cat) => BijectiveT subcat <: cat where
 proveBijective :: (Injective cat, Surjective cat) => cat a b -> BijectiveT cat a b
 proveBijective = BijectiveT
 
-unsafeProveBijective :: Concrete cat => cat a b -> BijectiveT cat a b
+unsafeProveBijective :: cat a b -> BijectiveT cat a b
 unsafeProveBijective = BijectiveT

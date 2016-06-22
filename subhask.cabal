@@ -127,6 +127,7 @@ library
         -fprint-explicit-kinds
         -funbox-strict-fields
         -Wall
+        -Wno-simplifiable-class-constraints
 
     build-depends:
         -- haskell language

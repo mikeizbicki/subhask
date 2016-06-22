@@ -47,7 +47,7 @@ sort :: (Ord a, ClassicalLogic a) => [a] -> [a]
 sort = map unWithPreludeOrd . L.sort . map WithPreludeOrd
 
 -- | Randomly shuffles a list in time O(n log n); see http://www.haskell.org/haskellwiki/Random_shuffle
-shuffle :: (Eq a, ClassicalLogic a, MonadRandom m) => [a] -> m [a]
+shuffle :: MonadRandom m => [a] -> m [a]
 shuffle xs = do
     let l = length xs
     rands <- take l `liftM` getRandomRs (0, l-1)

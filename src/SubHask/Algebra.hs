@@ -12,6 +12,7 @@ module SubHask.Algebra
     -- * Comparisons
     Logic
     , ClassicalLogic
+    , Elem
     , Container (..)
     , law_Container_preservation
     , ifThenElse
@@ -91,11 +92,6 @@ module SubHask.Algebra
     , or
 
     -- * Set-like
-    , Elem
-    , infDisjoint
-    , Container (..)
---     , law_Container_preservation
-
     , Constructible (..)
     , Constructible0
     , law_Constructible_singleton
@@ -111,6 +107,8 @@ module SubHask.Algebra
     , insert
     , empty
     , isEmpty
+    , infDisjoint
+    , sizeDisjoint
 
     , Foldable (..)
     , law_Foldable_sum
@@ -289,7 +287,6 @@ import Test.QuickCheck (frequency)
 
 import Control.Parallel.Strategies
 
-import GHC.Prim hiding (Any)
 import GHC.Types hiding (Module)
 
 import SubHask.Internal.Prelude
@@ -384,6 +381,7 @@ type ClassicalLogic a = Logic a ~Bool
 -- See <https://en.wikipedia.org/wiki/Equivalence_class wikipedia>
 -- and <http://ncatlab.org/nlab/show/equivalence+class ncatlab> for more details.
 class (IdempLogic a, Container (Logic a), Boolean (Logic a)) => Eq a where
+    {-# MINIMAL (==) | (/=) #-}
 
     infix 4 ==
     (==) :: a -> a -> Logic a
@@ -442,7 +440,7 @@ class Eq b => POrd b where
     b1 <= b2 = inf b1 b2 == b1
 
     {-# INLINE (<) #-}
-    (<) :: Complemented (Logic b) => b -> b -> Logic b
+    (<) :: b -> b -> Logic b
     b1 < b2 = inf b1 b2 == b1 && b1 /= b2
 
 law_POrd_commutative :: POrd b => b -> b -> Logic b
@@ -583,7 +581,7 @@ class POrd b => Lattice b where
     b1 >= b2 = sup b1 b2 == b1
 
     {-# INLINE (>) #-}
-    (>) :: Boolean (Logic b) => b -> b -> Logic b
+    (>) :: b -> b -> Logic b
     b1 > b2 = sup b1 b2 == b1 && b1 /= b2
 
     -- | This function does not make sense on non-classical logics
@@ -851,7 +849,7 @@ b1 >. b2 = b1 == succ b2
 --
 -- See https://en.wikipedia.org/wiki/Total_order
 class Lattice a => Ord a where
-    compare :: (Logic a~Bool, Ord a) => a -> a -> Ordering
+    compare :: ClassicalLogic a => a -> a -> Ordering
     compare a1 a2 = case pcompare a1 a2 of
         PLT -> LT
         PGT -> GT
@@ -1082,7 +1080,7 @@ class (IsMutable s, Semigroup (Actor s)) => Action s where
 law_Action_compatibility :: (Eq s, Action s) => Actor s -> Actor s -> s -> Logic s
 law_Action_compatibility a1 a2 s = (a1+a2) +. s == a1 +. a2 +. s
 
-defn_Action_dotplusequal :: (Eq s, Action s, Logic (Actor s)~Logic s) => s -> Actor s -> Logic s
+defn_Action_dotplusequal :: (Eq s, Action s) => s -> Actor s -> Logic s
 defn_Action_dotplusequal = simpleMutableDefn (.+=) (.+)
 
 -- | > s .+ a = a +. s
@@ -2026,7 +2024,6 @@ class
     ( FreeModule v
     , IxContainer v
     , Elem v~Scalar v
-    , Index v~Int
     ) => FiniteModule v
         where
     -- | Returns the dimension of the object.
@@ -2251,7 +2248,6 @@ isFartherThan s1 s2 b = distanceUB s1 s2 b > b
 {-# INLINE lb2distanceUB #-}
 lb2distanceUB ::
     ( Metric a
-    , ClassicalLogic a
     ) => (a -> a -> Scalar a)
       -> (a -> a -> Scalar a -> Scalar a)
 lb2distanceUB lb p q b = if lbpq > b
@@ -2392,7 +2388,7 @@ theorem_Constructible_cons :: (Constructible s, Container s) => s -> Elem s -> L
 theorem_Constructible_cons s e = elem e (cons e s)
 
 -- | A more suggestive name for inserting an element into a container that does not remember location
-insert :: Constructible s => Elem s -> s -> s
+insert :: (Abelian s, Constructible s) => Elem s -> s -> s
 insert = cons
 
 -- | A slightly more suggestive name for a container's monoid identity
@@ -2452,7 +2448,7 @@ class (Constructible s, Monoid s, Normed s, Scalar s~Int) => Foldable s where
     {-# MINIMAL foldMap | foldr #-}
 
     -- | Convert the container into a list.
-    toList :: Foldable s => s -> [Elem s]
+    toList :: s -> [Elem s]
     toList s = foldr (:) [] s
 
     -- | Remove an element from the left of the container.
@@ -2507,9 +2503,7 @@ class (Constructible s, Monoid s, Normed s, Scalar s~Int) => Foldable s where
 defn_Foldable_foldr ::
     ( Eq a
     , a~Elem s
-    , Logic a ~ Logic (Elem s)
     , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
     ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
 defn_Foldable_foldr f a s = foldr f a s == foldr f a (toList s)
@@ -2517,9 +2511,7 @@ defn_Foldable_foldr f a s = foldr f a s == foldr f a (toList s)
 defn_Foldable_foldr' ::
     ( Eq a
     , a~Elem s
-    , Logic a ~ Logic (Elem s)
     , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
     ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
 defn_Foldable_foldr' f a s = foldr' f a s == foldr' f a (toList s)
@@ -2527,9 +2519,7 @@ defn_Foldable_foldr' f a s = foldr' f a s == foldr' f a (toList s)
 defn_Foldable_foldl ::
     ( Eq a
     , a~Elem s
-    , Logic a ~ Logic (Elem s)
     , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
     ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
 defn_Foldable_foldl f a s = foldl f a s == foldl f a (toList s)
@@ -2537,42 +2527,36 @@ defn_Foldable_foldl f a s = foldl f a s == foldl f a (toList s)
 defn_Foldable_foldl' ::
     ( Eq a
     , a~Elem s
-    , Logic a ~ Logic (Elem s)
     , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
     ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
 defn_Foldable_foldl' f a s = foldl' f a s == foldl' f a (toList s)
 
 defn_Foldable_foldr1 ::
     ( Eq (Elem s)
-    , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
+    , ClassicalLogic (Elem s)
     ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
 defn_Foldable_foldr1 f s = (length s > 0) ==> (foldr1 f s == foldr1 f (toList s))
 
 defn_Foldable_foldr1' ::
     ( Eq (Elem s)
-    , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
+    , ClassicalLogic (Elem s)
     ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
 defn_Foldable_foldr1' f s = (length s > 0) ==> (foldr1' f s == foldr1' f (toList s))
 
 defn_Foldable_foldl1 ::
     ( Eq (Elem s)
-    , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
+    , ClassicalLogic (Elem s)
     ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
 defn_Foldable_foldl1 f s = (length s > 0) ==> (foldl1 f s == foldl1 f (toList s))
 
 defn_Foldable_foldl1' ::
     ( Eq (Elem s)
-    , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
+    , ClassicalLogic (Elem s)
     ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
 defn_Foldable_foldl1' f s = (length s > 0) ==> (foldl1' f s == foldl1' f (toList s))
 
@@ -2763,8 +2747,7 @@ defn_IxContainer_findWithDefault s i e = case s !? i of
     Just e' -> findWithDefault e i s == e'
 
 defn_IxContainer_hasIndex ::
-    ( Eq (Elem s)
-    , Complemented (Logic s)
+    ( Complemented (Logic s)
     , IxContainer s
     ) => s -> Index s -> Logic s
 defn_IxContainer_hasIndex s i = case s !? i of
@@ -2811,7 +2794,6 @@ law_Sliceable_restorable s i
 
 law_Sliceable_preservation ::
     ( Eq (Elem s)
-    , Eq s
     , Sliceable s
     , Logic s ~ Logic (Elem s)
     ) => s -> s -> Index s -> Logic s
@@ -2875,7 +2857,6 @@ defn_IxConstructible_fromIxList t es
 theorem_IxConstructible_preservation ::
     ( Eq (Elem s)
     , IxContainer s
-    , Scalar s ~ Int
     , Logic s ~ Logic (Elem s)
     ) => s -> s -> Index s -> Logic s
 theorem_IxConstructible_preservation s1 s2 i = case s1 !? i of

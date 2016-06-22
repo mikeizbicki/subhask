@@ -104,7 +104,7 @@ data instance UVector (n::Symbol) r = UVector_Dynamic
     {-#UNPACK#-}!Int -- offset
     {-#UNPACK#-}!Int -- length
 
-instance (Show r, Monoid r, Prim r) => Show (UVector (n::Symbol) r) where
+instance (Show r, Prim r) => Show (UVector (n::Symbol) r) where
     show (UVector_Dynamic arr off n) = if isZero n
         then "zero"
         else show $ go (extendDimensions n-1) []
@@ -120,10 +120,10 @@ instance (Arbitrary r, ValidUVector n r, FreeModule r, IsScalar r) => Arbitrary 
         , (9,fmap unsafeToModule $ replicateM 27 arbitrary)
         ]
 
-instance (Show r, Monoid r, Prim r) => CoArbitrary (UVector (n::Symbol) r) where
+instance (Show r, Prim r) => CoArbitrary (UVector (n::Symbol) r) where
     coarbitrary = coarbitraryShow
 
-instance (NFData r, Prim r) => NFData (UVector (n::Symbol) r) where
+instance NFData (UVector (n::Symbol) r) where
     rnf (UVector_Dynamic arr _ _) = seq arr ()
 
 instance (FromField r, ValidUVector n r, IsScalar r, FreeModule r) => FromRecord (UVector (n::Symbol) r) where
@@ -265,7 +265,7 @@ instance (Module r, ValidUVector n r) => Module (UVector (n::Symbol) r) where
 
 type instance Actor (UVector n r) = Actor r
 
-instance (Action r, Semigroup r, Prim r) => Action (UVector (n::Symbol) r) where
+instance (Action r, Prim r) => Action (UVector (n::Symbol) r) where
   {-# INLINE (.+)   #-}
   (.+) v r = monopDynUV (.+r) v
 
@@ -313,7 +313,7 @@ instance (FreeModule r, ValidUVector n r, Eq r, IsScalar r) => FiniteModule (UVe
 ----------------------------------------
 -- comparison
 
-isConst :: (Prim r, Eq r, Eq r) => UVector (n::Symbol) r -> r -> Logic r
+isConst :: (Prim r, Eq r) => UVector (n::Symbol) r -> r -> Logic r
 isConst (UVector_Dynamic arr1 off1 n1) c = go (off1+n1-1)
     where
         go (-1) = true
@@ -414,7 +414,6 @@ instance
     , ValidUVector n r
     , IsScalar r
     , ExpField r
-    , Real r
     ) => Banach (UVector (n::Symbol) r)
 
 instance
@@ -530,7 +529,7 @@ data instance SVector (n::Symbol) r = SVector_Dynamic
     {-#UNPACK#-}!Int -- offset
     {-#UNPACK#-}!Int -- length
 
-instance (Show r, Monoid r, ValidSVector n r) => Show (SVector (n::Symbol) r) where
+instance (Show r, ValidSVector n r) => Show (SVector (n::Symbol) r) where
     show (SVector_Dynamic fp off n) = if isNull fp
         then "zero"
         else show $ unsafeInlineIO $ go (n-1) []
@@ -546,7 +545,7 @@ instance (Arbitrary r, ValidSVector n r, FreeModule r, IsScalar r) => Arbitrary 
         , (9,fmap unsafeToModule $ replicateM 27 arbitrary)
         ]
 
-instance (NFData r, ValidSVector n r) => NFData (SVector (n::Symbol) r) where
+instance NFData (SVector (n::Symbol) r) where
     rnf (SVector_Dynamic fp _ _) = seq fp ()
 
 instance (FromField r, ValidSVector n r, IsScalar r, FreeModule r) => FromRecord (SVector (n::Symbol) r) where
@@ -909,7 +908,6 @@ instance
     , ValidSVector n r
     , IsScalar r
     , ExpField r
-    , Real r
     ) => Banach (SVector (n::Symbol) r)
 
 instance
@@ -973,7 +971,7 @@ instance
         where
             n = nat2int (Proxy::Proxy n)
 
-instance (NFData r, ValidSVector n r) => NFData (SVector (n::Nat) r) where
+instance ValidSVector n r => NFData (SVector (n::Nat) r) where
     rnf (SVector_Nat fp) = seq fp ()
 
 static2dynamic :: forall n m r. KnownNat n => SVector (n::Nat) r -> SVector (m::Symbol) r
@@ -1286,7 +1284,6 @@ instance
     , ValidSVector n r
     , IsScalar r
     , ExpField r
-    , Real r
     , ValidSVector "dyn" r
     ) => Banach (SVector (n::Nat) r)
 

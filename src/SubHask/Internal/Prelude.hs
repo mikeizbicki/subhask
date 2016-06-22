@@ -74,6 +74,6 @@ import Foreign.Storable
 -- Move to a better spot
 -- Add rewrite rules to remove with optimization -O
 assert :: String -> Bool -> a -> a
-assert str True = id
+assert _   True  = id
 assert str False = error $ "ASSERT FAILED: "++str
 

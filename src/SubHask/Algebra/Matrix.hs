@@ -26,6 +26,7 @@ data family Matrix vect r (a::k) (b::k)
 type ValidMatrix vect r =
   ( FiniteModule vect
   , r ~ Scalar (Elem vect)
+  , Index vect ~ Int
   , Hilbert vect
   , VectorSpace r
   , Prim r
@@ -112,7 +113,6 @@ monopDyn f m@(Matrix_Dynamic vect l) = if l==0
 {-# INLINE binopDyn #-}
 binopDyn :: forall vect r (a::Symbol) (b::Symbol).
     ( ValidMatrix vect r
-    , Monoid r
     )
     => (r -> r -> r)
     -> Matrix vect r (a::Symbol) (b::Symbol)
@@ -131,17 +131,17 @@ binopDyn f m1@(Matrix_Dynamic vect1 l1) m2@(Matrix_Dynamic vect2 l2) = if
 
 -- algebra
 instance
-  (Prim r, Monoid r, ValidMatrix vect r) =>
+  (Monoid r, ValidMatrix vect r) =>
   Semigroup (Matrix vect r (a::Symbol) (b::Symbol)) where
     {-# INLINE (+)  #-} ; (+)  = binopDyn  (+)
 
 instance
-  (Monoid r, Cancellative r, Prim r, ValidMatrix vect r)
+  (Monoid r, Cancellative r, ValidMatrix vect r)
   => Cancellative (Matrix vect r (a::Symbol) (b::Symbol)) where
     {-# INLINE (-)  #-} ; (-)  = binopDyn  (-)
 
 instance
-  (Monoid r, Prim r, ValidMatrix vect r) =>
+  (Monoid r, ValidMatrix vect r) =>
   Monoid (Matrix vect r (a::Symbol) (b::Symbol)) where
     {-# INLINE zero #-}
     zero = unsafeInlineIO $ do
@@ -149,24 +149,24 @@ instance
         return $ Matrix_Dynamic vect 0
 
 instance
-  (Group r, Prim r, ValidMatrix vect r) =>
+  (Group r, ValidMatrix vect r) =>
   Group (Matrix vect r (a::Symbol) (b::Symbol)) where
     {-# INLINE negate #-}
     negate v = monopDyn negate v
 
 instance
-  (Monoid r, Abelian r, Prim r, ValidMatrix vect r) =>
+  (Monoid r, Abelian r, ValidMatrix vect r) =>
   Abelian (Matrix vect r (a::Symbol) (b::Symbol))
 
 instance
-  (Module r, Prim r, ValidMatrix vect r) =>
+  (Module r, ValidMatrix vect r) =>
   Module (Matrix vect r (a::Symbol) (b::Symbol)) where
     {-# INLINE (.*)   #-} ;  (.*)  v r = monopDyn  (.*r) v
 
 type instance Actor (Matrix vect r (a::Symbol) (b::Symbol)) = Actor r
 
 instance
-  (Action r, Semigroup r, Prim r, ValidMatrix vect r) =>
+  (Action r, ValidMatrix vect r) =>
   Action (Matrix vect r (a::Symbol) (b::Symbol)) where
     {-# INLINE (.+) #-}
     (.+) v r = monopDyn (.+r) v
@@ -179,7 +179,7 @@ instance
     ones = undefined
 
 instance
-  (VectorSpace r, Prim r, ValidMatrix vect r) =>
+  (VectorSpace r, ValidMatrix vect r) =>
   VectorSpace (Matrix vect r (a::Symbol) (b::Symbol)) where
     {-# INLINE (./) #-} ;  (./)  v r = monopDyn  (./r) v
     {-# INLINE (./.) #-} ;  (./.)     = binopDyn  (./.)
@@ -188,14 +188,14 @@ instance
 -- container
 
 instance
-  (ValidMatrix vect r, Monoid r, Prim r, IsScalar r)
+  (ValidMatrix vect r, Monoid r, IsScalar r)
   => IxContainer (Matrix vect r (a::Symbol) (b::Symbol)) where
 
   {-# INLINE (!) #-}
   (!) m@(Matrix_Dynamic _ l) i = m!!(i `div` l, i `mod` l)
 
 instance
-  (Prim r, FreeModule r, ValidMatrix vect r, IsScalar r)
+  (FreeModule r, ValidMatrix vect r, IsScalar r)
   => FiniteModule (Matrix vect r (a::Symbol) (b::Symbol)) where
 
   {-# INLINE dim #-}

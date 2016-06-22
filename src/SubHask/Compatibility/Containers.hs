@@ -146,7 +146,7 @@ type instance Elem (Map b a) = a
 
 -- misc classes
 
-instance (Eq a, Ord b, Semigroup a, Arbitrary b, Arbitrary a, ClassicalLogic a, ClassicalLogic b) => Arbitrary (Map b a) where
+instance (Eq a, Ord b, Arbitrary b, Arbitrary a, ClassicalLogic a, ClassicalLogic b) => Arbitrary (Map b a) where
     arbitrary = P.fmap fromIxList arbitrary
 
 -- comparisons
@@ -159,7 +159,7 @@ instance (Ord b, Eq a, ClassicalLogic b, ClassicalLogic a) => POrd (Map b a) whe
     {-# INLINE inf #-}
     inf (Map m1) (Map m2) = Map $ M.differenceWith go (M.intersection m1 m2) m2
         where
-            go :: forall b. (ClassicalLogic b, Eq b) => b -> b -> Maybe b
+            go :: forall b'. (ClassicalLogic b', Eq b') => b' -> b' -> Maybe b'
             go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (Ord b, POrd a, ClassicalLogic b, ClassicalLogic a) => MinBound (Map b a) where
@@ -220,7 +220,7 @@ type instance Elem (Map' b a) = a
 
 -- misc classes
 
-instance (Eq a, Ord b, Semigroup a, Arbitrary b, Arbitrary a, ClassicalLogic a, ClassicalLogic b) => Arbitrary (Map' b a) where
+instance (Eq a, Ord b, Arbitrary b, Arbitrary a, ClassicalLogic a, ClassicalLogic b) => Arbitrary (Map' b a) where
     arbitrary = P.fmap fromIxList arbitrary
 
 -- comparisons
@@ -233,7 +233,7 @@ instance (Ord b, Eq a, ClassicalLogic a, ClassicalLogic b) => POrd (Map' b a) wh
     {-# INLINE inf #-}
     inf (Map' m1) (Map' m2) = Map' $ MS.differenceWith go (MS.intersection m1 m2) m2
         where
-            go :: forall b. (ClassicalLogic b, Eq b) => b -> b -> Maybe b
+            go :: forall b'. (ClassicalLogic b', Eq b') => b' -> b' -> Maybe b'
             go a1 a2 = if a1==a2 then Just a1 else Nothing
 
 instance (Ord b, POrd a, ClassicalLogic a, ClassicalLogic b) => MinBound (Map' b a) where
@@ -293,7 +293,7 @@ type instance Elem (IntMap a) = a
 
 -- misc classes
 
-instance (Eq a, Semigroup a, Arbitrary a, ClassicalLogic a) => Arbitrary (IntMap a) where
+instance (Eq a, Arbitrary a, ClassicalLogic a) => Arbitrary (IntMap a) where
     {-# INLINABLE arbitrary #-}
     arbitrary = P.fmap fromIxList arbitrary
 
@@ -366,7 +366,7 @@ type instance Elem (IntMap' a) = a
 
 -- misc classes
 
-instance (Eq a, Semigroup a, Arbitrary a, ClassicalLogic a) => Arbitrary (IntMap' a) where
+instance (Eq a, Arbitrary a, ClassicalLogic a) => Arbitrary (IntMap' a) where
     {-# INLINABLE arbitrary #-}
     arbitrary = P.fmap fromIxList arbitrary
 
@@ -493,10 +493,10 @@ instance (Ord a, ClassicalLogic a) => Foldable (Set a) where
     {-# INLINE foldl' #-}
     {-# INLINE foldr #-}
     {-# INLINE foldr' #-}
-    foldl   f a (Set s) = Set.foldl   (\a' (WithPreludeOrd a) -> f a' a) a s
-    foldl'  f a (Set s) = Set.foldl'  (\a' (WithPreludeOrd a) -> f a' a) a s
-    foldr  f a (Set s) = Set.foldr  (\(WithPreludeOrd a) a' -> f a a') a s
-    foldr' f a (Set s) = Set.foldr' (\(WithPreludeOrd a) a' -> f a a') a s
+    foldl  f a (Set s) = Set.foldl  (\a1 (WithPreludeOrd a2) -> f a1 a2) a s
+    foldl' f a (Set s) = Set.foldl' (\a1 (WithPreludeOrd a2) -> f a1 a2) a s
+    foldr  f a (Set s) = Set.foldr  (\(WithPreludeOrd a1) a2 -> f a1 a2) a s
+    foldr' f a (Set s) = Set.foldr' (\(WithPreludeOrd a1) a2 -> f a1 a2) a s
 
 -- |
 --

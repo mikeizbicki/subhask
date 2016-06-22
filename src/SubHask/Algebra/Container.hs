@@ -5,8 +5,6 @@ module SubHask.Algebra.Container
     where
 
 import Control.Monad
-import qualified Prelude as P
-import Prelude (tail,head,last)
 
 import SubHask.Algebra
 import SubHask.Category
@@ -26,7 +24,7 @@ data Box v = Box
 
 mkMutable [t| forall v. Box v |]
 
-invar_Box_ordered :: (Lattice v, HasScalar v) => Box v -> Logic v
+invar_Box_ordered :: Lattice v => Box v -> Logic v
 invar_Box_ordered b = largest b >= smallest b
 
 type instance Scalar (Box v) = Scalar v

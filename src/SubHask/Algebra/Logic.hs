@@ -169,9 +169,6 @@ newtype Boolean2Ring b = Boolean2Ring b
 
 deriveHierarchy ''Boolean2Ring [ ''Boolean ]
 
-mkBoolean2Ring :: Boolean b => b -> Boolean2Ring b
-mkBoolean2Ring = Boolean2Ring
-
 instance (IsMutable b, Boolean b, Eq b) => Semigroup (Boolean2Ring b) where
     (Boolean2Ring b1)+(Boolean2Ring b2) = Boolean2Ring $ (b1 || b2) && not (b1 && b2)
 
