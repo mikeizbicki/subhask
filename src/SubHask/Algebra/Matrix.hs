@@ -25,16 +25,15 @@ data family Matrix vect r (a::k) (b::k)
 
 type ValidMatrix vect r =
   ( FiniteModule vect
+  , Hilbert vect
   , r ~ Scalar (Elem vect)
   , Index vect ~ Int
-  , Hilbert vect
   , VectorSpace r
   , Prim r
   )
 
 type instance Scalar (Matrix vect r m n) = Scalar r
 type instance Logic (Matrix vect r m n) = Logic r
-type instance Matrix vect r m n >< a = Matrix vect (r><a) m n
 type instance Index (Matrix vect r m n) = Int
 type instance Elem (Matrix vect r m n) = Scalar r
 
@@ -188,14 +187,14 @@ instance
 -- container
 
 instance
-  (ValidMatrix vect r, Monoid r, IsScalar r)
+  (ValidMatrix vect r, Monoid r, ValidScalar r)
   => IxContainer (Matrix vect r (a::Symbol) (b::Symbol)) where
 
   {-# INLINE (!) #-}
   (!) m@(Matrix_Dynamic _ l) i = m!!(i `div` l, i `mod` l)
 
 instance
-  (FreeModule r, ValidMatrix vect r, IsScalar r)
+  (FreeModule r, ValidMatrix vect r, ValidScalar r)
   => FiniteModule (Matrix vect r (a::Symbol) (b::Symbol)) where
 
   {-# INLINE dim #-}
@@ -266,12 +265,6 @@ data Matrix' vect r (a::Symbol) (b::Symbol) where
 
 type instance Scalar (Matrix' vect r (a::Symbol) (b::Symbol)) = Scalar r
 type instance Logic (Matrix' vect r (a::Symbol) (b::Symbol)) = Bool
-
-type instance Matrix' vect r (a::Symbol) (b::Symbol) >< a =
-  Tensor_Linear (Matrix' vect r (a::Symbol) (b::Symbol)) a
-type family Tensor_Linear a b where
-    Tensor_Linear (Matrix' vect r (a::Symbol) (b::Symbol)) c =
-      Matrix' vect r (a::Symbol) (b::Symbol)
 
 deriving instance ( ValidMatrix vect (Scalar r), Show (Scalar r) ) =>
   Show (Matrix' vect r (a::Symbol) (b::Symbol))

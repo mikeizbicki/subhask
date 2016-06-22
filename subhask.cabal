@@ -135,6 +135,10 @@ library
         -- See: https://ghc.haskell.org/trac/ghc/ticket/10635
         -Wno-redundant-constraints
 
+        -- FIXME:
+        -- The template haskell code in the homoiconic library generates lots of spurious warnings.
+        -Wno-unused-matches
+
     build-depends:
         -- haskell language
         base >= 4.9 && <4.10,
@@ -142,7 +146,7 @@ library
         template-haskell,
 
         -- special functionality
---         homoiconic,
+        homoiconic,
         parallel,
         deepseq,
         primitive,

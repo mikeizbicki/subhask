@@ -71,6 +71,11 @@ instance Field a => Field (Forward a) where
 
 ---------
 
+-- | FIXME:
+-- This represents the tensor product;
+-- it doesn't belong here!
+type family (><) a b
+
 proveC1 :: (a ~ (a><a), Rig a) => (Forward a -> Forward a) -> C1 (a -> a)
 proveC1 f = Diffn (\a -> val $ f $ Forward a one) $ Diff0 $ \a -> val' $ f $ Forward a one
 
@@ -151,8 +156,8 @@ unsafeProveC1
     -> C1 (a -> b)
 unsafeProveC1 f f' = Diffn f $ unsafeProveC0 f'
 
-unsafeProveC2
-    :: (a -> b)         -- ^ f(x)
+unsafeProveC2 :: ( ((a><a)><b) ~ (a><(a><b)) )
+    => (a -> b)         -- ^ f(x)
     -> (a -> a><b)      -- ^ f'(x)
     -> (a -> a><a><b)   -- ^ f''(x)
     -> C2 (a -> b)
@@ -182,7 +187,13 @@ instance Semigroup b => Semigroup (Diff 0 a b) where
 instance (Semigroup b, Semigroup (a><b)) => Semigroup (Diff 1 a b) where
     (Diffn f1 f1')+(Diffn f2 f2') = Diffn (f1+f2) (f1'+f2')
 
-instance (Semigroup b, Semigroup (a><b), Semigroup (a><a><b)) => Semigroup (Diff 2 a b) where
+instance
+    ( Semigroup b
+    , Semigroup (a><b)
+    , Semigroup (a><a><b)
+    , ((a><a)><b) ~ (a><(a><b))
+    ) => Semigroup (Diff 2 a b)
+        where
     (Diffn f1 f1')+(Diffn f2 f2') = Diffn (f1+f2) (f1'+f2')
 
 instance Monoid b => Monoid (Diff 0 a b) where
@@ -191,7 +202,13 @@ instance Monoid b => Monoid (Diff 0 a b) where
 instance (Monoid b, Monoid (a><b)) => Monoid (Diff 1 a b) where
     zero = Diffn zero zero
 
-instance (Monoid b, Monoid (a><b), Monoid (a><a><b)) => Monoid (Diff 2 a b) where
+instance
+    ( Monoid b
+    , Monoid (a><b)
+    , Monoid (a><a><b)
+    , ((a><a)><b) ~ (a><(a><b))
+    ) => Monoid (Diff 2 a b)
+        where
     zero = Diffn zero zero
 
 --------------------------------------------------------------------------------

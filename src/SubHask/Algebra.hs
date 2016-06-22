@@ -11,8 +11,10 @@ module SubHask.Algebra
     (
     -- * Comparisons
     Logic
+    , TLogic
     , ClassicalLogic
     , Elem
+    , TElem
     , Container (..)
     , law_Container_preservation
     , ifThenElse
@@ -240,9 +242,9 @@ module SubHask.Algebra
 
     -- ** Linear algebra
     , Scalar
-    , IsScalar
+    , TScalar
+    , ValidScalar
     , HasScalar
-    , type (><)
     , Cone (..)
     , Module (..)
     , law_Module_multiplication
@@ -263,10 +265,10 @@ module SubHask.Algebra
     , law_Banach_distance
     , law_Banach_size
     , Hilbert (..)
+    , TSquare
     , squaredInnerProductNorm
     , innerProductDistance
     , innerProductNorm
-    , TensorAlgebra (..)
 
     -- * Helper functions
     , simpleMutableDefn
@@ -293,7 +295,7 @@ import SubHask.Internal.Prelude
 import SubHask.Category
 import SubHask.Mutable
 
--- import Homoiconic.Constrained
+import Homoiconic.Constrained
 
 -------------------------------------------------------------------------------
 -- Helper functions
@@ -1020,7 +1022,7 @@ class IsMutable g => Semigroup g where
 
     {-# INLINE (+=) #-}
     infixr 5 +=
-    (+=) :: (PrimBase m) => Mutable m g -> g -> m ()
+    (+=) :: PrimBase m => Mutable m g -> g -> m ()
     (+=) = immutable2mutable (+)
 
 law_Semigroup_associativity :: (Eq g, Semigroup g) => g -> g -> g -> Logic g
@@ -1568,7 +1570,7 @@ instance Field b => Field (a -> b) where
 -- In particular, all finite fields and the complex numbers are NOT ordered fields.
 --
 -- See <http://en.wikipedia.org/wiki/Ordered_field wikipedia> for more details.
-class (Field r, Ord r, IsScalar r) => OrdField r
+class (Field r, Ord r, ValidScalar r) => OrdField r
 
 instance OrdField Float
 instance OrdField Double
@@ -1816,25 +1818,11 @@ instance Real Double where
 
 type family Scalar m
 
-infixr 8 ><
-type family (><) (a::k1) (b::k2) :: *
-type instance Int       >< Int        = Int
-type instance Integer   >< Integer    = Integer
-type instance Float     >< Float      = Float
-type instance Double    >< Double     = Double
-type instance Rational  >< Rational   = Rational
-
--- type instance (a,b)     >< Scalar b   = (a,b)
--- type instance (a,b,c)   >< Scalar b   = (a,b,c)
-
-type instance (a -> b)  >< c          = a -> (b><c)
--- type instance c         >< (a -> b)   = a -> (c><b)
-
 -- | A synonym that covers everything we intuitively thing scalar variables should have.
-type IsScalar r = (Ring r, Ord r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r))
+type ValidScalar r = (Ring r, Ord r, Scalar r~r, Normed r)
 
--- | A (sometimes) more convenient version of "IsScalar".
-type HasScalar a = IsScalar (Scalar a)
+-- | A (sometimes) more convenient version of "ValidScalar".
+type HasScalar a = ValidScalar (Scalar a)
 
 type instance Scalar Int      = Int
 type instance Scalar Integer  = Integer
@@ -1865,7 +1853,7 @@ class
         where
             s = size g
 
-abs :: IsScalar g => g -> g
+abs :: ValidScalar g => g -> g
 abs = size
 
 instance Normed Int       where size = P.abs
@@ -1906,9 +1894,6 @@ class
     , Group v
     , Ring (Scalar v)
     , Scalar (Scalar v) ~ Scalar v
---     , HasScalar v
---     , v ~ (v><Scalar v)
---     , v ~ (Scalar v><v)
     ) => Module v
         where
 
@@ -2119,7 +2104,7 @@ class (VectorSpace v, Normed v, Metric v) => Banach v where
 law_Banach_distance :: Banach v => v -> v -> Logic (Scalar v)
 law_Banach_distance v1 v2 = size (v1 - v2) == distance v1 v2
 
-law_Banach_size :: Banach v => v -> Logic (Scalar v)
+law_Banach_size :: (Banach v, Logic v~Logic (Scalar v)) => v -> Logic (Scalar v)
 law_Banach_size v
     = isZero v
    || size (normalize v) == 1
@@ -2130,21 +2115,53 @@ instance Banach Rational
 
 ---------------------------------------
 
--- | Hilbert spaces are a natural generalization of Euclidean space that allows for infinite dimension.
+-- | Hilbert spaces generalize Euclidean space by allowing infinite dimensions.
 --
 -- See <http://en.wikipedia.org/wiki/Hilbert_space wikipedia> for more details.
---
--- FIXME:
--- The result of a dot product must always be an ordered field.
--- This is true even when the Hilbert space is over a non-ordered field like the complex numbers.
--- But the "OrdField" constraint currently prevents us from doing scalar multiplication on Complex Hilbert spaces.
--- See <http://math.stackexchange.com/questions/49348/inner-product-spaces-over-finite-fields> and <http://math.stackexchange.com/questions/47916/banach-spaces-over-fields-other-than-mathbbc> for some technical details.
-class ( Banach v , TensorAlgebra v , Real (Scalar v), OrdField (Scalar v) ) => Hilbert v where
+class Banach v => Hilbert v where
+
+    -- | The type of the tensor product of a vector with itself.
+    -- That is, the "square" of a type with respect to the tensor product.
+    --
+    -- FIXME:
+    -- Tensors are actually much more general.
+    -- For example, they can be the product of two vectors of different types.
+    -- To capture this generality requires using the monoidal structure of the Vect category.
+    type Square v
+
+    -- | The outer product
+    (><) :: v -> v -> Square v
+
+    -- | "left multiplication" of a square matrix
+    vXm :: v -> Square v -> v
+
+    -- | "right multiplication" of a square matrix
+    mXv :: Square v -> v -> v
+
+    -- | The inner product
     infix 8 <>
     (<>) :: v -> v -> Scalar v
 
-instance Hilbert Float    where (<>) = (*)
-instance Hilbert Double   where (<>) = (*)
+instance Hilbert Float where
+    type Square Float = Float
+    (><) = (*)
+    vXm  = (*)
+    mXv  = (*)
+    (<>) = (*)
+
+instance Hilbert Double where
+    type Square Double = Double
+    (><) = (*)
+    vXm  = (*)
+    mXv  = (*)
+    (<>) = (*)
+
+instance Hilbert Rational where
+    type Square Rational = Rational
+    (><) = (*)
+    vXm  = (*)
+    mXv  = (*)
+    (<>) = (*)
 
 {-# INLINE squaredInnerProductNorm #-}
 squaredInnerProductNorm :: Hilbert v => v -> Scalar v
@@ -2160,62 +2177,6 @@ innerProductDistance _ _ = undefined --innerProductNorm $ v1-v2
 
 ---------------------------------------
 
--- | Tensor algebras generalize the outer product of vectors to construct a matrix.
---
--- See <https://en.wikipedia.org/wiki/Tensor_algebra wikipedia> for details.
---
--- FIXME:
--- This needs to be replaced by the Tensor product in the Monoidal category Vect
-class
-    ( VectorSpace v
-    , VectorSpace (v><v)
-    , Scalar (v><v) ~ Scalar v
-    , Normed (v><v)     -- the size represents the determinant
-    , Field (v><v)
-    ) => TensorAlgebra v
-        where
-
-    -- | Take the tensor product of two vectors
-    (><) :: v -> v -> (v><v)
-
-    -- | "left multiplication" of a square matrix
-    vXm :: v -> (v><v) -> v
-
-    -- | "right multiplication" of a square matrix
-    mXv :: (v><v) -> v -> v
-
-instance TensorAlgebra Float    where  (><) = (*); vXm = (*);  mXv = (*)
-instance TensorAlgebra Double   where  (><) = (*); vXm = (*);  mXv = (*)
-instance TensorAlgebra Rational where  (><) = (*); vXm = (*);  mXv = (*)
-
----------------------------------------
-
-{-
--- | Bregman divergences generalize the squared Euclidean distance and the KL-divergence.
--- They are closely related to exponential family distributions.
---
--- Mark Reid has a <http://mark.reid.name/blog/meet-the-bregman-divergences.html good tutorial>.
---
--- FIXME:
--- The definition of divergence requires taking the derivative.
--- How should this relate to categories?
-class
-    ( Hilbert v
-    ) => Bregman v
-        where
-
-    divergence :: v -> v -> Scalar v
-    divergence v1 v2 = f v1 - f v2 - (derivative f v2 <> v1 - v2)
-        where
-            f = bregmanFunction
-
-    bregmanFunction :: v -> Scalar v
-
-law_Bregman_nonnegativity :: v -> v -> Logic v
-law_Bregman_nonnegativity v1 v2 = divergence v1 v2 > 0
-
-law_Bregman_triangle ::
--}
 
 ---------------------------------------
 
@@ -2226,7 +2187,6 @@ class
     ( HasScalar v
     , Eq v
     , Boolean (Logic v)
-    , Logic (Scalar v) ~ Logic v
     ) => Metric v
         where
 
@@ -2241,13 +2201,14 @@ class
 
 -- | Calling this function will be faster on some 'Metric's than manually checking if distance is greater than the bound.
 {-# INLINE isFartherThan #-}
-isFartherThan :: Metric v => v -> v -> Scalar v -> Logic v
+isFartherThan :: Metric v => v -> v -> Scalar v -> Logic (Scalar v)
 isFartherThan s1 s2 b = distanceUB s1 s2 b > b
 
 -- | This function constructs an efficient default implementation for 'distanceUB' given a function that lower bounds the distance metric.
 {-# INLINE lb2distanceUB #-}
 lb2distanceUB ::
     ( Metric a
+    , IfThenElse (Logic (Scalar a))
     ) => (a -> a -> Scalar a)
       -> (a -> a -> Scalar a -> Scalar a)
 lb2distanceUB lb p q b = if lbpq > b
@@ -2255,18 +2216,18 @@ lb2distanceUB lb p q b = if lbpq > b
     else distance p q
     where
         lbpq = lb p q
-law_Metric_nonnegativity :: Metric v => v -> v -> Logic v
+law_Metric_nonnegativity :: Metric v => v -> v -> Logic (Scalar v)
 law_Metric_nonnegativity v1 v2 = distance v1 v2 >= 0
 
-law_Metric_indiscernables :: (ClassicalLogic v, Metric v) => v -> v -> Logic v
+law_Metric_indiscernables :: (Metric v, IfThenElse (Logic v)) => v -> v -> Logic (Scalar v)
 law_Metric_indiscernables v1 v2 = if v1 == v2
     then distance v1 v2 == 0
     else distance v1 v2 > 0
 
-law_Metric_symmetry :: Metric v => v -> v -> Logic v
+law_Metric_symmetry :: Metric v => v -> v -> Logic (Scalar v)
 law_Metric_symmetry v1 v2 = distance v1 v2 == distance v2 v1
 
-law_Metric_triangle :: Metric v => v -> v -> v -> Logic v
+law_Metric_triangle :: Metric v => v -> v -> v -> Logic (Scalar v)
 law_Metric_triangle m1 m2 m3
     = distance m1 m2 <= distance m1 m3 + distance m2 m3
    && distance m1 m3 <= distance m1 m2 + distance m2 m3
@@ -2786,11 +2747,12 @@ class (IxContainer s, Scalar s~Index s, HasScalar s, Normed s) => Sliceable s wh
 law_Sliceable_restorable ::
     ( Sliceable s
     , Eq s
-    , ClassicalLogic s
+    , Logic (Index s) ~ Logic s
+    , IfThenElse (Logic s)
     ) => s -> Index s -> Logic s
-law_Sliceable_restorable s i
-    | i >= 0 && i < length s = slice 0 i s + slice i (length s-i) s == s
-    | otherwise = True
+law_Sliceable_restorable s i = if i >= 0 && i < length s
+    then slice 0 i s + slice i (length s-i) s == s
+    else true
 
 law_Sliceable_preservation ::
     ( Eq (Elem s)
@@ -3096,36 +3058,22 @@ mkMutable [t| forall a. Maybe a |]
 mkMutable [t| forall a. Maybe' a |]
 mkMutable [t| forall a b. Labeled' a b |]
 
-{-
-mkTag ''Logic
+instance FAlgebra IfThenElse
+instance FAlgebra IsMutable
+instance IsMutable (Free (Sig alg) t a)
+instance Show (Sig IsMutable t a)
+mkTagFromCnst ''Logic [t| forall a. IdempLogic a |]
+mkTag ''Elem
 mkFAlgebra ''Eq
 mkFAlgebra ''POrd
 mkFAlgebra ''MinBound
 mkFAlgebra ''Lattice
 mkFAlgebra ''Boolean
-instance FAlgebra IsMutable
-instance IsMutable (Free (Sig alg) t a)
-instance Show (Sig IsMutable t a)
 mkTagFromCnst ''Scalar [t| forall a. Scalar (Scalar a) ~ Scalar a |]
 mkFAlgebra ''RationalField
 mkFAlgebra ''VectorSpace
 mkFAlgebra ''Normed
--- mkFAlgebra ''Metric
-mkTag ''Elem
-mkFAlgebra ''Container
--- mkFAlgebra ''FiniteModule
-type instance SetElem (Free (Sig alg') t a) (Free (Sig alg') (TElem : t) a) = Free (Sig alg') t a
-
-class
---     ( Abelian v
---     , Group v
---     , Ring (Scalar v)
-    ( Scalar (Scalar v) ~ Scalar v
---     , HasScalar v
---     , v ~ (v><Scalar v)
---     , v ~ (Scalar v><v)
-    ) => Mod v
-mkFAlgebra ''Mod
+mkFAlgebra ''Hilbert
 
 type instance FreeConstraints t a
     = ( AppTags (ConsTag TScalar t) a
@@ -3133,4 +3081,8 @@ type instance FreeConstraints t a
 --       , AppTags (ConsTag TScalar (ConsTag TLogic (ConsTag TLogic t))) a
 --       ~ Scalar (AppTags (ConsTag_TLogic (ConsTag_TLogic t)) a)
       )
-    -}
+
+--------------------------------------------------------------------------------
+
+class FAlgebra alg => Variety alg where
+

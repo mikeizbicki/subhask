@@ -223,7 +223,7 @@ instance
     , Unbox r
     , Prim r
     , FreeModule r
-    , IsScalar r
+    , ValidScalar r
     , ValidUVector s r
     ) => Constructible (UArray (UVector (s::Symbol) r))
         where
@@ -314,7 +314,7 @@ instance Unboxable e => Partitionable (UArray e) where
 -- UVector
 
 instance
-    ( IsScalar elem
+    ( ValidScalar elem
     , ClassicalLogic elem
     , Unbox elem
     , Prim elem
@@ -327,9 +327,10 @@ data instance VU.Vector (UVector (n::Symbol) elem) = UArray_UVector
     {-#UNPACK#-}!Int -- length of element vectors
 
 instance
-    ( IsScalar elem
+    ( ValidScalar elem
     , Unbox elem
     , Prim elem
+    , ClassicalLogic elem
     ) => VG.Vector VU.Vector (UVector (n::Symbol) elem)
         where
 
@@ -361,7 +362,7 @@ data instance VUM.MVector s (UVector (n::Symbol) elem) = UArray_MUVector
 
 instance
     ( ClassicalLogic elem
-    , IsScalar elem
+    , ValidScalar elem
     , Unbox elem
     , Prim elem
     ) => VGM.MVector VUM.MVector (UVector (n::Symbol) elem)
@@ -416,7 +417,7 @@ instance
 instance
     ( Prim y
     , ClassicalLogic a
-    , IsScalar a
+    , ValidScalar a
     , Unbox a
     , Prim a
     ) => Unbox (Labeled' (UVector (s::Symbol) a) y)
@@ -429,7 +430,7 @@ data instance VUM.MVector s (Labeled' (UVector (n::Symbol) elem) y) = UArray_Lab
 
 instance
     ( ClassicalLogic elem
-    , IsScalar elem
+    , ValidScalar elem
     , Unbox elem
     , Prim elem
     , Prim y
@@ -506,10 +507,11 @@ data instance VU.Vector (Labeled' (UVector (n::Symbol) elem) y) = UArray_Labeled
     {-#UNPACK#-}!Int -- length of element vectors
 
 instance
-    ( IsScalar elem
+    ( ValidScalar elem
     , Unbox elem
     , Prim elem
     , Prim y
+    , ClassicalLogic elem
     ) => VG.Vector VU.Vector (Labeled' (UVector (n::Symbol) elem) y)
         where
 
@@ -534,7 +536,6 @@ instance
 
     {-# INLINE basicUnsafeIndexM #-}
     basicUnsafeIndexM (UArray_Labeled'_UVector arr off _ size') i =
---         trace ("off'="+show off') $
         return $ Labeled' x y
         where
             off' = off+i*(size'+ysize)
@@ -549,7 +550,7 @@ instance
     , Unbox r
     , Prim r
     , FreeModule r
-    , IsScalar r
+    , ValidScalar r
     , Prim y
     , Unbox y
     , ValidUVector s r

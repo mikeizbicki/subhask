@@ -103,12 +103,10 @@ instance (Eq r, Ring r) => Rig (Polynomial_ r r) where
 instance (Eq r, Ring r) => Ring (Polynomial_ r r) where
     fromInteger i = Polynomial_ [fromInteger i]
 
-type instance Polynomial_ r r >< r = Polynomial_ r r
-
-instance IsScalar r => Module (Polynomial_ r r) where
+instance ValidScalar r => Module (Polynomial_ r r) where
     (Polynomial_ xs) .*  r               = Polynomial_ $ P.map (*r) xs
 
-instance IsScalar r => FreeModule (Polynomial_ r r) where
+instance ValidScalar r => FreeModule (Polynomial_ r r) where
     (Polynomial_ xs) .*. (Polynomial_ ys) = Polynomial_ $ P.zipWith (*) xs ys
     ones = Polynomial_ $ P.repeat one
 

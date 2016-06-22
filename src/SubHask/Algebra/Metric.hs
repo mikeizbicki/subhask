@@ -84,21 +84,21 @@ instance (NFData v, NFData (Scalar v)) => NFData (Ball v) where
 
 -- comparison
 
-instance (Eq v, ClassicalLogic v, HasScalar v) => Eq (Ball v) where
+instance (Metric v, Logic (Scalar v)~Logic v) => Eq (Ball v) where
     b1 == b2 = radius b1 == radius b2
             && center b1 == center b2
 
 -- algebra
 
-instance (Metric v, HasScalar v, ClassicalLogic v) => Semigroup (Ball v) where
+instance (Metric v, Logic (Scalar v)~Logic v) => Semigroup (Ball v) where
     b1+b2 = b1 { radius = radius b2 + radius b1 + distance (center b1) (center b2) }
 
 -- container
 
-instance (Metric v, HasScalar v, ClassicalLogic v) => Constructible (Ball v) where
+instance (Metric v, Logic (Scalar v)~Logic v) => Constructible (Ball v) where
     singleton v = Ball 0 v
 
-instance (Metric v, HasScalar v, ClassicalLogic v) => Container (Ball v) where
+instance (Metric v, Logic (Scalar v)~Logic v) => Container (Ball v) where
     elem v b = not $ isFartherThan v (center b) (radius b)
 
 --------------------------------------------------------------------------------
