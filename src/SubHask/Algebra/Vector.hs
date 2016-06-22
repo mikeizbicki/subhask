@@ -18,6 +18,7 @@ module SubHask.Algebra.Vector
     ( SVector (..)
     , UVector (..)
     , ValidUVector
+    , ValidSVector
     , Unbox
     , type (+>)
     , SMatrix

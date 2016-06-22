@@ -4,6 +4,7 @@ module SubHask.Algebra.Accelerate.AccelerateBackend
 )
 where
 
+
 data Backend
     = Interpreter
     | CUDA

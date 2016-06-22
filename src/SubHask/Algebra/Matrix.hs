@@ -12,6 +12,7 @@ module SubHask.Algebra.Matrix
     , row
     , col
     , (!!)
+    , colLength
     , Matrix'(..)
     )
     where

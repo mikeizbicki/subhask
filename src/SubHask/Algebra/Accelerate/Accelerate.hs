@@ -1,17 +1,41 @@
-module SubHask.Algebra.Accelerate.AccelerateBackend
+module SubHask.Algebra.Accelerate.Accelerate
 (
   ValidBackend(..)
   , mkAccVector
   , mkAccVectorFromList
   , mkAccMatrixFromList
   , mkAccMatrixFromMatrix
-  , acc2SVector
+  --, acc2SVector
 )
 where
 
-import SubHask.Algebra.Accelerate.AccelerateBackend (Backend(..))
 
--- import qualified Data.Array.Accelerate.LLVM as LLVM
+import Control.Monad.Primitive
+import Control.Monad
+import SubHask.Algebra.Accelerate.AccelerateBackend (Backend, inAccLand)
+import SubHask.Algebra.Accelerate.Vector
+import SubHask.Algebra.Accelerate.Matrix
+import qualified Data.Array.Accelerate as A
+import qualified Data.Array.Accelerate.LLVM.Array.Data as LLVM
+import qualified Data.Array.Accelerate.CUDA as CUDA
+import qualified Data.Array.Accelerate.Interpreter as I
+import SubHask.Category
+import SubHask.Compatibility.Base
+import SubHask.Internal.Prelude
+import SubHask.SubType
+
+import Foreign.Ptr
+import Foreign.ForeignPtr
+import Foreign.Marshal.Utils
+
+import System.IO.Unsafe
+import Unsafe.Coerce
+
+import SubHask.Algebra
+import SubHask.Algebra.Vector
+import SubHask.Algebra.Matrix
+import qualified Prelude as P
+
 --FIXME:  Replace all intermediary lists with correct use of acclerate-io
 mkAccVectorFromList :: A.Elt a => [a] -> ACCVector bknd (n::Symbol) a
 mkAccVectorFromList l = let
@@ -27,16 +51,13 @@ mkAccVector v @(SVector_Dynamic fp off n) = let
       go (i-1) (x:xs)
   in ACCVector (A.use arr)
 
---needs to reside in the vector module but also needs acces to ValidBackend
-acc2SVector :: ValidACCVector (b::Backend) n a => ACCVector (b::Backend) n a  -> SVector n a
-acc2SVector (ACCVector v) = unsafeToModule $ A.toList (ACCVector (runAccVector v)) :: SVector n a
-
-
+-- acc2SVector :: ValidACCVector (b::Backend) n a => ACCVector (b::Backend) n a  -> SVector n a
+-- acc2SVector (ACCVector v) = unsafeToModule $ (runAccVector v) :: SVector n a
 
 
 class ValidBackend (b::Backend) where
     runAccVector :: (ValidACCVector (b::Backend) n a, A.IsScalar a) => ACCVector (b::Backend) n a -> [a]
-    runAccMatrix :: (ValidACCMatrix (b::Backend) v m n r, A.IsScalar a, A.Elt a) => ACCMatrix (b::Backend) v n m a -> [a]
+    runAccMatrix :: (ValidACCMatrix (b::Backend) v r, A.IsScalar a, A.Elt a) => ACCMatrix (b::Backend) v n m a -> [a]
 
 instance ValidBackend Interpreter where
     runAccVector (ACCVector a) =  A.toList (I.run a)
@@ -47,9 +68,5 @@ instance ValidBackend CUDA where
     runAccMatrix (ACCMatrix a) = A.toList (CUDA.run a)
 
 -- instance ValidBackend LLVM where
---     runAccVector (ACCVector a) = A.toList (LLVM.run a)
---     runAccMatrix (ACCMatrix a) = A.toList (LLVM.run a)
-
--- instance ValidBackend Repa where
---     runAccVector (ACCVector a) = A.toList (Repa.run a)
---     runAccMatrix (ACCMatrix a) = A.toList (Repa.run a)
+--     runAccVector (ACCVector a) = A.toList (LLVM.runArray a)
+--     runAccMatrix (ACCMatrix a) = A.toList (LLVM.runArray a)
