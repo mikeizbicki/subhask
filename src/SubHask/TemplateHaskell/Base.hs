@@ -27,8 +27,6 @@ import SubHask.Algebra
 import SubHask.Monad
 import SubHask.Internal.Prelude
 
-import Debug.Trace
-
 --------------------------------------------------------------------------------
 -- We need these instances to get anything done
 
@@ -74,8 +72,8 @@ runIfNotInstance :: Name -> Type -> Q [Dec] -> Q [Dec]
 runIfNotInstance n t q = do
     inst <- alreadyInstance n t
     if inst
-        then trace ("skipping instance: "++show n++" / "++show t) $ Base.return []
-        else trace ("deriving instance: "++show n++" / "++show t) $ q
+        then {-trace ("skipping instance: "++show n++" / "++show t) $-} Base.return []
+        else {-trace ("deriving instance: "++show n++" / "++show t) $-} q
     where
         alreadyInstance :: Name -> Type -> Q Bool
         alreadyInstance n' _ = do
@@ -172,7 +170,7 @@ mkPreludeMonad cxt' qt = do
     -- can't call
     -- > runIfNotInstance ''Monad t $
     -- due to lack of TH support for type families
-    trace ("deriving instance: Monad / "++show t) $ if cannotDeriveMonad t
+    if cannotDeriveMonad t
         then Base.return []
         else Base.return
             [ InstanceD
