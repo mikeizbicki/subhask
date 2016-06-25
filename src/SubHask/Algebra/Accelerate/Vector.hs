@@ -40,20 +40,23 @@ import Unsafe.Coerce
 newtype ACCVector (bknd::Backend) (n::k) a = ACCVector (A.Acc (A.Array A.DIM1 a))
 
 type instance Scalar (ACCVector bknd n r) = A.Exp r--Scalar r
-type instance Logic (ACCVector bknd n r) = A.Exp Bool--Logic r
+type instance Logic (ACCVector bknd n r) = A.Exp r--Logic r
 
 type instance ACCVector bknd m a >< b = Tensor_ACCVector (ACCVector bknd m a) b
 type family Tensor_ACCVector a b where
     Tensor_ACCVector (ACCVector bknd n r1) (ACCVector bknd m r2) = ACCVector bknd n r1 +> ACCVector bknd m r2
     Tensor_ACCVector (ACCVector bknd n r1) r1 = ACCVector bknd n r1 -- (r1><r2)
 
+type IsExpScalar r = (Ring (A.Exp r), Ord_ (A.Exp r), Scalar (A.Exp r)~(A.Exp r), Normed (A.Exp r),(A.Exp r)~((A.Exp r)><(A.Exp r)))
+
 type ValidACCVector bknd n a = ((ACCVector (bknd::Backend) n a><a)
                                 ~ACCVector (bknd::Backend) n a
                                 -- , (ACCVector (bknd::Backend) n a><Scalar (A.Exp a))
                                   -- ~ACCVector (bknd::Backend) n a
-                                , (A.Exp a >< A.Exp a) ~ A.Exp a
+                                -- , (A.Exp a >< A.Exp a) ~ A.Exp a
                                 -- , ACCVector (bknd::Backend) n a ~ ACCVector (bknd::Backend) n (A.Exp a)
                                 , Prim a
+                                , IsExpScalar a
                                 , A.Elt a
                                 --, Elem a ~ A.Exp a
                                 --, A.IsNum a
@@ -66,21 +69,21 @@ type ValidACCVector bknd n a = ((ACCVector (bknd::Backend) n a><a)
                                 , P.Num (A.Exp a)
                                 --, P.Floating (A.Exp a)
                                 --, A.IsFloating a
-                                , Scalar (Scalar (A.Exp a)) ~ A.Exp a
-                                -- , Scalar a ~ Scalar (Scalar a)
+                                -- , Scalar (Scalar (A.Exp a)) ~ A.Exp a
+                                , a ~ Scalar (Scalar a)
                                 -- , Scalar a ~ a
                                 -- , Scalar (A.Exp a) ~ Scalar (Scalar (A.Exp a))
                                 -- , Scalar (A.Exp a) ~ (A.Exp a)
-                                --, Logic (A.Exp Bool) ~ A.Exp Bool
+                                -- , Logic (A.Exp Bool) ~ A.Exp Bool
                                 --, Logic (A.Exp a) ~ A.Exp Bool
                                 -- , Logic (A.Exp a) ~ Bool
-                                , Normed (A.Exp a)
-                                , Ord (A.Exp a)
-                                , Ring (A.Exp a)
-                                , Field (A.Exp a)
+                                --, Normed (A.Exp a)
+                                -- , Ord_ (A.Exp a)
+                                --, Ring (A.Exp a)
+                                -- , Field (A.Exp a)
                                 , P.Fractional (A.Exp a)
                                 , P.Floating (A.Exp a)
-                                , Actor a ~ A.Exp a
+                                -- , Actor a ~ A.Exp a
                                 , A.Eq (A.Array A.DIM1 a)
                                 , A.Lift A.Exp (A.Acc (A.Array A.DIM1 a))
                                 --, P.Floating (A.Acc (A.Scalar a))
@@ -120,15 +123,15 @@ instance (KnownNat n, Group r, ValidACCVector bknd n r) => Group (ACCVector (bkn
 
 instance (KnownNat n, Monoid r, Abelian r, ValidACCVector bknd n r) => Abelian (ACCVector (bknd::Backend)  (n::Nat) r)
 
-instance (KnownNat n, FreeModule r, ValidACCVector bknd n r, IsScalar r) => FreeModule (ACCVector (bknd::Backend)  (n::Nat) r) where
+instance (KnownNat n, FreeModule r, ValidACCVector bknd n r, IsExpScalar r) => FreeModule (ACCVector (bknd::Backend)  (n::Nat) r) where
     {-# INLINE (.*.)   #-}
     (.*.) (ACCVector a1) (ACCVector a2) = ACCVector( A.zipWith (P.*) a1 a2)
 
-instance (KnownNat n, Module r, ValidACCVector bknd n r, IsScalar r) => Module (ACCVector (bknd::Backend) (n::Nat) r) where
+instance (KnownNat n, Module r, ValidACCVector bknd n r) => Module (ACCVector (bknd::Backend) (n::Nat) r) where
     {-# INLINE (.*)   #-}
     (.*) (ACCVector  v) r = ACCVector (A.map (P.* r) v)
 
-instance (KnownNat n, VectorSpace r, ValidACCVector bknd n r, IsScalar r) => VectorSpace (ACCVector (bknd::Backend) (n::Nat) r) where
+instance (KnownNat n, VectorSpace r, ValidACCVector bknd n r) => VectorSpace (ACCVector (bknd::Backend) (n::Nat) r) where
     {-# INLINE (./)   #-}
     (./) (ACCVector  v) r = ACCVector (A.map (P./ r) v)
 
@@ -138,7 +141,7 @@ instance (KnownNat n, VectorSpace r, ValidACCVector bknd n r, IsScalar r) => Vec
 -- Could not deduce (r ~ Elem r)
 -- In the instance declaration for ‘FiniteModule (ACCVector b n r)’
 
-instance (KnownNat n, FreeModule r, ValidLogic r, ValidACCVector b n r, IsScalar r) => FiniteModule (ACCVector b (n::Nat) r)
+instance (KnownNat n, FreeModule r, ValidLogic r, ValidACCVector b n r) => FiniteModule (ACCVector b (n::Nat) r)
 --Couldn't match expected type ‘Int’ with actual type ‘A.Exp Int’
   where
     --dim :: ACCVector b (n::Nat) r -> Index(A.Exp Int)
@@ -151,7 +154,7 @@ instance
     ( Monoid r
     , ValidLogic r
     , ValidACCVector b n r
-    --, IsScalar r
+    , IsExpScalar r
     , KnownNat n
     , FreeModule r
     ) => IxContainer (ACCVector b (n::Nat) r)
@@ -165,9 +168,9 @@ instance
       mpd = A.imap (\x i -> f i x) v
       in ACCVector mpd
 
-    type ValidElem (ACCVector b n r) e = (IsScalar e, FiniteModule e, ValidACCVector b n e)
+    type ValidElem (ACCVector b n r) e = (FiniteModule e, ValidACCVector b n e)
 
-instance (A.Eq r, KnownNat n, Eq r, Monoid r, ValidACCVector b n r) => Eq_ (ACCVector b (n::Nat) r) where
+instance (A.Eq r, KnownNat n, Eq_ r, Monoid r, ValidACCVector b n r) => Eq_ (ACCVector b (n::Nat) r) where
     --(==) :: ACCVector b n r -> ACCVector b n r -> A.Acc (A.Scalar Bool)
     {-# INLINE (==) #-}
     (ACCVector v2) == (ACCVector v1) = let
@@ -181,7 +184,7 @@ instance
     , ExpField r
     --, Normed r
     , Ord_ r
-    , IsScalar r
+    , IsExpScalar r
     , VectorSpace r
     , KnownNat n
     ) => Metric (ACCVector b (n::Nat) r)
@@ -194,7 +197,7 @@ instance
       drt = A.sqrt (A.sum dsq)
       in A.the drt
 
-instance (P.Floating (A.Acc (A.Array A.DIM0 r)), KnownNat n, VectorSpace r, ValidACCVector b n r, IsScalar r, ExpField r) => Normed (ACCVector b (n::Nat) r) where
+instance (P.Floating (A.Acc (A.Array A.DIM0 r)), KnownNat n, VectorSpace r, ValidACCVector b n r, ExpField r) => Normed (ACCVector b (n::Nat) r) where
     {-# INLINE size #-}
     --Could not deduce (r ~ A.Exp r)
     size :: ACCVector b (n::Nat) r -> A.Exp r
@@ -205,12 +208,12 @@ instance (P.Floating (A.Acc (A.Array A.DIM0 r)), KnownNat n, VectorSpace r, Vali
       in A.the srt :: A.Exp r
 
 
--- -- Couldn't match type ‘A.Acc (Scalar Bool)’ with ‘Bool’
+-- -- Couldn't match type ‘A.Exp Bool’ with ‘Bool’
 
 instance
     ( VectorSpace r
     , ValidACCVector b n r
-    , IsScalar r
+    , IsExpScalar r
     , ExpField r
     , Real r
     , KnownNat n
@@ -234,7 +237,7 @@ instance
 instance
     ( VectorSpace r
     , ValidACCVector b n r
-    , IsScalar r
+    , IsExpScalar r
     , ExpField r
     , Real r
     , OrdField r
@@ -251,7 +254,7 @@ instance
 -- In Alegebra.Vector.hs this is defined in terms of HMatrix
 -- recreated here to satisfy constraints
 type MatrixField r =
-    ( IsScalar r
+    ( IsExpScalar r
     , VectorSpace r
     , Field r
     )

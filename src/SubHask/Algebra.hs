@@ -1568,7 +1568,7 @@ instance Field b => Field (a -> b) where
 -- In particular, all finite fields and the complex numbers are NOT ordered fields.
 --
 -- See <http://en.wikipedia.org/wiki/Ordered_field wikipedia> for more details.
-class (Field r, Ord r, Normed r, IsScalar r) => OrdField r
+class (Field r, Ord_ r, Normed r, IsScalar r) => OrdField r
 
 instance OrdField Float
 instance OrdField Double
@@ -1831,7 +1831,7 @@ type instance (a -> b)  >< c          = a -> (b><c)
 -- type instance c         >< (a -> b)   = a -> (c><b)
 
 -- | A synonym that covers everything we intuitively thing scalar variables should have.
-type IsScalar r = (Ring r, Ord_ r, Scalar r~r, Normed r, ClassicalLogic r, r~(r><r))
+type IsScalar r = (Ring r, Ord_ r, Scalar r~r, Normed r, Logic r ~ r, r~(r><r)) -- Replaced Classicallogic with logic
 
 -- | A (sometimes) more convenient version of "IsScalar".
 type HasScalar a = IsScalar (Scalar a)
@@ -2022,14 +2022,14 @@ class
     ( FreeModule v
     , IxContainer v
     , Elem v~Scalar v
-    , Index v~Int
+    --, Index v~Int -- Disabled to accomodate Acclerate Exp Int
     , v ~ SetElem v (Elem v)
     ) => FiniteModule v
         where
     -- | Returns the dimension of the object.
     -- For some objects, this may be known statically, and so the parameter will not be "seq"ed.
     -- But for others, this may not be known statically, and so the parameter will be "seq"ed.
-    dim :: v -> Int
+    dim :: v -> Index v-- Set to index to accommodate Acclerate Exp Int
 
     unsafeToModule :: [Scalar v] -> v
 
@@ -2231,7 +2231,7 @@ law_Bregman_triangle ::
 class
     ( HasScalar v
     , Eq_ v
-    , Boolean (Logic v)
+    --, Boolean (Logic v) --Disabled for accelerqte Exp v
     , Logic (Scalar v) ~ Logic v
     ) => Metric v
         where
@@ -3244,4 +3244,3 @@ mkMutable [t| forall a. DualSG a |]
 mkMutable [t| forall a. Maybe a |]
 mkMutable [t| forall a. Maybe' a |]
 mkMutable [t| forall a b. Labeled' a b |]
-

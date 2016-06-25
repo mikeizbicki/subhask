@@ -33,6 +33,7 @@ type ValidMatrix vect r =
   , Hilbert vect
   , VectorSpace r
   , Prim r
+  , Index vect ~ Int
   )
 
 type instance Scalar (Matrix vect r m n) = Scalar r

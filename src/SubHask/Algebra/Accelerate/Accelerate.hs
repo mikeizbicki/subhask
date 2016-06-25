@@ -16,7 +16,7 @@ import SubHask.Algebra.Accelerate.AccelerateBackend (Backend, inAccLand)
 import SubHask.Algebra.Accelerate.Vector
 import SubHask.Algebra.Accelerate.Matrix
 import qualified Data.Array.Accelerate as A
-import qualified Data.Array.Accelerate.LLVM.Array.Data as LLVM
+-- import qualified Data.Array.Accelerate.LLVM.Array.Data as LLVM
 import qualified Data.Array.Accelerate.CUDA as CUDA
 import qualified Data.Array.Accelerate.Interpreter as I
 import SubHask.Category
