@@ -11,8 +11,6 @@ import qualified Prelude as P
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Mutable
-import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
@@ -23,68 +21,12 @@ newtype NonNegative t = NonNegative { unNonNegative :: t }
 
 deriveHierarchy ''NonNegative [ ''Enum, ''Boolean, ''Rig, ''Metric ]
 
-instance (Ord t, Group t) => Cancellative (NonNegative t) where
+instance (Ord t, ClassicalLogic t, Group t) => Cancellative (NonNegative t) where
     (NonNegative t1)-(NonNegative t2) = if diff>zero
         then NonNegative diff
         else NonNegative zero
         where
             diff=t1-t2
-
--------------------
-
-{-
-newtype a +> b = HomHask { unHomHask :: a -> b }
-infixr +>
-
-unsafeHomHask2 :: (a -> b -> c) -> (a +> b +> c)
-unsafeHomHask2 f = HomHask (\a -> HomHask $ \b -> f a b)
-
-instance Category (+>) where
-    type ValidCategory (+>) a = ()
-    id = HomHask id
-    (HomHask a).(HomHask b) = HomHask $ a.b
-
-instance Sup (+>) (->) (->)
-instance Sup (->) (+>) (->)
-instance (+>) <: (->) where
-    embedType_ = Embed2 unHomHask
-
-instance Monoidal (+>) where
-    type Tensor (+>) = (,)
-    tensor = unsafeHomHask2 $ \a b -> (a,b)
-
-instance Braided (+>) where
-    braid  = HomHask $ \(a,b) -> (b,a)
-    unbraid = braid
-
-instance Closed (+>) where
-    curry (HomHask f) = HomHask $ \ a -> HomHask $ \b -> f (a,b)
-    uncurry (HomHask f) = HomHask $ \ (a,b) -> unHomHask (f a) b
-
-mkSubtype [t|Int|] [t|Integer|] 'toInteger
-
-[subhask|
-poop :: (Semigroup' g, Ring g) => g +> g
-poop = (+:1)
-|]
-
-class Semigroup' a where
-    (+:) :: a +> a +> a
-
-instance Semigroup' Int where (+:) = unsafeHomHask2 (+)
-
-instance Semigroup' [a] where (+:) = unsafeHomHask2 (+)
-
-f :: Integer +> Integer
-f = HomHask $ \i -> i+1
-
-n1 = NonNegative 5 :: NonNegative Int
-n2 = NonNegative 3 :: NonNegative Int
-i1 = 5 :: Int
-i2 = 3 :: Int
-j1 = 5 :: Integer
-j2 = 3 :: Integer
--}
 
 -------------------------------------------------------------------------------
 -- integers modulo n
@@ -96,14 +38,10 @@ class Quotient a (b::k) where
 -- | The type of equivalence classes created by a mod b.
 newtype (/) (a :: *) (b :: k) = Mod a
 
--- mkDefaultMutable [t| forall a b. a/b |]
-
--- newtype instance Mutable m (a/b) = Mutable_Mod (Mutable m a)
-
 instance (Quotient a b, Arbitrary a) => Arbitrary (a/b) where
     arbitrary = liftM mkQuotient arbitrary
 
-deriveHierarchyFiltered ''(/) [ ''Eq_, ''P.Ord ] [''Arbitrary]
+deriveHierarchyFiltered ''(/) [ ''Eq, ''P.Ord ] [''Arbitrary]
 
 instance (Semigroup a, Quotient a b) => Semigroup (a/b) where
     (Mod z1) + (Mod z2) = mkQuotient $ z1 + z2
@@ -128,8 +66,6 @@ instance (Rig a, Quotient a b) => Rig (a/b) where
 instance (Ring a, Quotient a b) => Ring (a/b) where
     fromInteger i = mkQuotient $ fromInteger i
 
-type instance ((a/b)><c) = (a><c)/b
-
 instance (Module a, Quotient a b) => Module (a/b) where
     (Mod a) .*  r       = mkQuotient $ a .*  r
 
@@ -145,9 +81,10 @@ instance KnownNat n => Quotient Integer n
         mkQuotient i = Mod $ i `P.mod` (natVal (Proxy::Proxy n))
 
 -- | Extended Euclid's algorithm is used to calculate inverses in modular arithmetic
-extendedEuclid :: (Eq t, Integral t) => t -> t -> (t,t,t,t,t,t)
+extendedEuclid :: forall t. (Eq t, ClassicalLogic t, Integral t) => t -> t -> (t,t,t,t,t,t)
 extendedEuclid a b = go zero one one zero b a
     where
+        go :: t -> t -> t -> t -> t -> t -> (t,t,t,t,t,t)
         go s1 s0 t1 t0 r1 r0 = if r1==zero
             then (s1,s0,t1,t0,undefined,r0)
             else go s1' s0' t1' t0' r1' r0'
@@ -169,9 +106,7 @@ extendedEuclid a b = go zero one one zero b a
 -- See <http://en.wikipedia.org/wiki/Finite_field_arithmetic>.
 newtype Galois (p::Nat) (k::Nat) = Galois (Z (p^k))
 
-type instance Galois p k >< Integer = Galois p k
-
-deriveHierarchy ''Galois [''Eq_,''Ring]
+deriveHierarchy ''Galois [''Eq,''Ring]
 
 instance KnownNat (p^k) => Module  (Galois p k) where
     z  .*   i = Galois (Mod i) * z
@@ -231,7 +166,7 @@ data GrothendieckGroup g where
 -- See <https://en.wikipedia.org/wiki/Vedic_square wikipedia> for more detail.
 newtype VedicSquare (n::Nat) = VedicSquare (Z n)
 
-deriveHierarchy ''VedicSquare [''Eq_]
+deriveHierarchy ''VedicSquare [''Eq]
 
 instance KnownNat n => Semigroup (VedicSquare n) where
     (VedicSquare v1)+(VedicSquare v2) = VedicSquare $ v1*v2

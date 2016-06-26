@@ -11,24 +11,17 @@ module SubHask.Category.Trans.Constrained
     )
     where
 
-import GHC.Prim
-import qualified Prelude as P
-
 import SubHask.Algebra
 import SubHask.Category
 import SubHask.SubType
 import SubHask.Internal.Prelude
 
--------------------------------------------------------------------------------
-
-type EqHask  = ConstrainedT '[Eq_ ] Hask
-type OrdHask = ConstrainedT '[Ord_] Hask
+type EqHask  = ConstrainedT '[Eq ] Hask
+type OrdHask = ConstrainedT '[Ord] Hask
 
 type family AppConstraints (f :: [* -> Constraint]) (a :: *) :: Constraint
 type instance AppConstraints '[] a = (ClassicalLogic a)
 type instance AppConstraints (x ': xs) a = (x a, AppConstraints xs a)
-
----------
 
 data ConstrainedT (xs :: [* -> Constraint]) cat (a :: *) (b :: *) where
     ConstrainedT ::
@@ -44,13 +37,11 @@ proveConstrained ::
     ) => cat a b -> ConstrainedT xs cat a b
 proveConstrained = ConstrainedT
 
-proveEqHask :: (Eq a, Eq b) => (a -> b) -> (a `EqHask` b)
+proveEqHask :: (ClassicalLogic a, ClassicalLogic b, Eq a, Eq b) => (a -> b) -> (a `EqHask` b)
 proveEqHask = proveConstrained
 
-proveOrdHask :: (Ord a, Ord b) => (a -> b) -> (a `OrdHask` b)
+proveOrdHask :: (ClassicalLogic a, ClassicalLogic b, Ord a, Ord b) => (a -> b) -> (a `OrdHask` b)
 proveOrdHask = proveConstrained
-
----------
 
 instance Category cat => Category (ConstrainedT xs cat) where
 
@@ -74,17 +65,3 @@ instance (AppConstraints xs (TUnit cat), Monoidal cat) => Monoidal (ConstrainedT
 
     type TUnit (ConstrainedT xs cat) = TUnit cat
     tunit _ = tunit (Proxy::Proxy cat)
-
--- instance (AppConstraints xs (TUnit cat), Braided cat) => Braided (ConstrainedT xs cat) where
---     braid   = braid   (Proxy :: Proxy cat)
---     unbraid = unbraid (Proxy :: Proxy cat)
-
--- instance (AppConstraints xs (TUnit cat), Symmetric cat) => Symmetric (ConstrainedT xs cat)
-
--- instance (AppConstraints xs (TUnit cat), Cartesian cat) => Cartesian (ConstrainedT xs cat) where
---     fst = ConstrainedT fst
---     snd = ConstrainedT snd
---
---     terminal a = ConstrainedT $ terminal a
---     initial a = ConstrainedT $ initial a
-

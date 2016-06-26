@@ -1,5 +1,5 @@
 name:                subhask
-version:             0.1.1.0
+version:             0.2.0.0
 synopsis:            Type safe interface for programming in subcategories of Hask
 homepage:            http://github.com/mikeizbicki/subhask
 license:             BSD3
@@ -18,13 +18,25 @@ description:
     For example, the category <http://ncatlab.org/nlab/show/Vect Vect> of linear functions is a subcategory of Hask, and SubHask exploits this fact to give a nice interface for linear algebra.
     To achieve this goal, almost every class hierarchy is redefined to be more general.
 
-    I recommend reading the <http://github.com/mikeizbicki/subhask/blob/master/README.md README> file and the <http://github.com/mikeizbicki/subhask/blob/master/examples examples> before looking at the documetation here.
+    I recommend reading the <http://github.com/mikeizbicki/subhask/blob/master/README.md README> file and the <http://github.com/mikeizbicki/subhask/blob/master/examples examples> before looking at the documentation here.
 
 source-repository head
     type: git
     location: http://github.com/mikeizbicki/subhask
 
 --------------------------------------------------------------------------------
+
+Flag LlvmSupport
+      Description: whether to -fllvm
+      Default: True
+      -- needed to be turned off in travis.
+      -- see https://github.com/travis-ci/travis-ci/issues/6120
+
+Flag DoTestOptimise
+      Description: whether to -O2 test
+      Default: False
+      -- full optimised compilation takes a bit, and is turned off by default for the test suite.
+      -- Note: still on for the bench suite, where it doesn't take long.
 
 library
     exposed-modules:
@@ -59,11 +71,11 @@ library
         SubHask.Category.Trans.Monotonic
 
         SubHask.Compatibility.Base
-        SubHask.Compatibility.BloomFilter
+--         SubHask.Compatibility.BloomFilter
         SubHask.Compatibility.ByteString
         SubHask.Compatibility.Cassava
         SubHask.Compatibility.Containers
-        SubHask.Compatibility.HyperLogLog
+--         SubHask.Compatibility.HyperLogLog
 
         SubHask.Monad
         SubHask.Mutable
@@ -99,11 +111,12 @@ library
         FunctionalDependencies,
         TupleSections,
         MultiWayIf,
-
         AutoDeriveTypeable,
         DeriveGeneric,
-        RebindableSyntax
---         OverloadedLists
+        RebindableSyntax,
+        DefaultSignatures,
+
+        UndecidableSuperClasses
 
     hs-source-dirs:
         src
@@ -112,34 +125,38 @@ library
         cbits/Lebesgue.c
 
     cc-options:
---         -O3
         -ffast-math
         -msse3
 
     ghc-options:
---         -O2
---         -O
         -funbox-strict-fields
+        -Wall
+        -Wno-simplifiable-class-constraints
+
+        -- FIXME:
+        -- SubHask often uses redundant constraints to maintain invariants.
+        -- GHC 8.0 does not yet let us specify at fine granularity which constraints are intentionally meant to be redundant.
+        -- So this warning must be temporarily disabled.
+        -- See: https://ghc.haskell.org/trac/ghc/ticket/10635
+        -Wno-redundant-constraints
+
+        -- FIXME:
+        -- The template haskell code in the homoiconic library generates lots of spurious warnings.
+        -Wno-unused-matches
 
     build-depends:
-        -- NOTE:
-        -- We specify the *exact* versions of all non-base libraries to ensure that we get reproducible builds.
-        -- This helps prevent performance regressions.
-        -- The downside of exact version dependencies is that the user probably doesn't have these versions installed.
-        -- This can result in significantly longer build times and build conflicts.
-        -- But since subhask is designed as an alternative to base, this is an acceptable tradeoff.
-
         -- haskell language
-        base                        >= 4.8 && <4.9,
-        ghc-prim                    ,
-        template-haskell            ,
+        base >= 4.9 && <4.10,
+        ghc-prim,
+        template-haskell,
 
         -- special functionality
-        parallel                    ,
-        deepseq                     ,
-        primitive                   ,
-        monad-primitive             ,
-        QuickCheck                  ,
+        homoiconic,
+        parallel,
+        deepseq,
+        primitive,
+        monad-primitive,
+        QuickCheck,
 
         -- math
         erf                         ,
@@ -151,8 +168,8 @@ library
         -- accelerate-llvm             ,
 
         -- compatibility control flow
-        mtl                         ,
-        MonadRandom                 ,
+        mtl,
+        MonadRandom,
 
         -- compatibility data structures
         bytestring                  ,
@@ -165,50 +182,30 @@ library
         reflection                  ,
 
         -- required for hyperloglog compatibility
-        semigroups                  ,
-        bytes                       ,
-        approximate                 ,
-        lens
+--         hyperloglog,
+--         semigroups,
+--         bytes,
+--         approximate,
+--         lens
 
     default-language:
         Haskell2010
 
 --------------------------------------------------------------------------------
 
-Test-Suite TestSuite-Unoptimized
+Test-Suite test
     default-language:   Haskell2010
     type:               exitcode-stdio-1.0
     hs-source-dirs:     test
     main-is:            TestSuite.hs
-
-    ghc-options:
-        -O0
-
     build-depends:
         subhask,
         test-framework-quickcheck2,
         test-framework
-
--- FIXME:
--- The test below takes a long time to compile.
--- The slow builds are causing travis tests to fail.
---
--- Test-Suite TestSuite-Optimized
---     default-language:   Haskell2010
---     type:               exitcode-stdio-1.0
---     hs-source-dirs:     test
---     main-is:            TestSuite.hs
---
---     build-depends:
---         subhask,
---         test-framework-quickcheck2  >= 0.3.0,
---         test-framework              >= 0.8.0
---
---     ghc-options:
---         -O2
---         -fllvm
-
---------------------
+  if flag(dotestoptimise)
+    ghc-options: -O2
+  if flag(llvmsupport)
+    ghc-options: -fllvm
 
 Test-Suite Example0001
     default-language:   Haskell2010
@@ -233,7 +230,7 @@ Test-Suite Example0003
 
 --------------------------------------------------------------------------------
 
-benchmark Vector
+benchmark bench
     default-language: Haskell2010
     type:             exitcode-stdio-1.0
     hs-source-dirs:   bench
@@ -248,31 +245,12 @@ benchmark Vector
         -O2
         -funbox-strict-fields
         -fexcess-precision
-
---         -fliberate-case-threshold=100000
---         -fexpose-all-unfoldings
---         -fmax-simplifier-iterations=10
---         -fmax-worker-args=100
---         -fsimplifier-phases=5
---         -fspec-constr-count=50
-
-        -fllvm
         -optlo-O3
         -optlo-enable-fp-mad
         -optlo-enable-no-infs-fp-math
         -optlo-enable-no-nans-fp-math
         -optlo-enable-unsafe-fp-math
 
---         -ddump-to-file
---         -ddump-rule-firings
---         -ddump-rule-rewrites
---         -ddump-rules
---         -ddump-cmm
---         -ddump-simpl
---         -ddump-simpl-stats
---         -dppr-debug
---         -dsuppress-module-prefixes
---         -dsuppress-uniques
---         -dsuppress-idinfo
---         -dsuppress-coercions
---         -dsuppress-type-applications
+ if flag(llvmsupport)
+    ghc-options: -fllvm
+

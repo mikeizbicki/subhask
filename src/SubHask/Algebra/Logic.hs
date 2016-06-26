@@ -1,14 +1,14 @@
+-- |
+--
+-- See "Plausibility Measures: A User's Guide" from UAI 1995
 module SubHask.Algebra.Logic
     where
 
 import Control.Monad
-import qualified Prelude as P
 import Test.QuickCheck.Gen (suchThat,oneof)
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Compatibility.Base
-import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
@@ -25,30 +25,26 @@ type Goedel = Goedel_ Rational
 
 newtype Goedel_ r = Goedel_ r
 
-deriveHierarchyFiltered ''Goedel_ [ ''Eq_ ] [ ''Arbitrary ]
+deriveHierarchyFiltered ''Goedel_ [ ''Eq ] [ ''Arbitrary ]
 
-instance (OrdRing_ r, Arbitrary r) => Arbitrary (Goedel_ r) where
+instance (OrdRing_ r, ClassicalLogic r, Arbitrary r) => Arbitrary (Goedel_ r) where
     arbitrary = fmap Goedel_ $ arbitrary `suchThat` ((>=0) && (<=1))
 
-instance OrdRing_ r => POrd_ (Goedel_ r) where
---     inf (Goedel_ r1) (Goedel_ r2) = Goedel_ $ max 0 (r1 + r2 - 1)
+instance OrdRing_ r => POrd (Goedel_ r) where
     inf (Goedel_ r1) (Goedel_ r2) = Goedel_ $ min r1 r2
---     inf (Goedel_ r1) (Goedel_ r2) = Goedel_ $ r1*r2
 
-instance OrdRing_ r => Lattice_ (Goedel_ r) where
---     sup (Goedel_ r1) (Goedel_ r2) = Goedel_ $ min 1 (r1 + r2)
+instance OrdRing_ r => Lattice (Goedel_ r) where
     sup (Goedel_ r1) (Goedel_ r2) = Goedel_ $ max r1 r2
---     sup l1 l2 = not $ inf (not l1) (not l2)
 
-instance OrdRing_ r => Ord_ (Goedel_ r)
+instance OrdRing_ r => Ord (Goedel_ r)
 
-instance OrdRing_ r => MinBound_  (Goedel_ r) where
+instance OrdRing_ r => MinBound  (Goedel_ r) where
     minBound = Goedel_ 0
 
 instance OrdRing_ r => Bounded  (Goedel_ r) where
     maxBound = Goedel_ 1
 
-instance OrdRing_ r => Heyting (Goedel_ r) where
+instance (OrdRing_ r, ClassicalLogic r) => Heyting (Goedel_ r) where
 --     (Goedel_ r1)==>(Goedel_ r2) = if r1 <= r2 then Goedel_ 1 else Goedel_ (1 - r1 + r2)
     (Goedel_ r1)==>(Goedel_ r2) = if r1 <= r2 then Goedel_ 1 else Goedel_ r2
 
@@ -75,29 +71,29 @@ instance Arbitrary H3 where
 
 type instance Logic H3 = Bool
 
-instance Eq_ H3 where
+instance Eq H3 where
     HTrue    == HTrue    = True
     HFalse   == HFalse   = True
     HUnknown == HUnknown = True
     _        == _        = False
 
-instance POrd_ H3 where
+instance POrd H3 where
     inf HTrue    HTrue    = HTrue
     inf HTrue    HUnknown = HUnknown
     inf HUnknown HTrue    = HUnknown
     inf HUnknown HUnknown = HUnknown
     inf _        _        = HFalse
 
-instance Lattice_ H3 where
+instance Lattice H3 where
     sup HFalse    HFalse   = HFalse
     sup HFalse    HUnknown = HUnknown
     sup HUnknown  HFalse   = HUnknown
     sup HUnknown  HUnknown = HUnknown
     sup _         _        = HTrue
 
-instance Ord_ H3
+instance Ord H3
 
-instance MinBound_ H3 where
+instance MinBound H3 where
     minBound = HFalse
 
 instance Bounded H3 where
@@ -136,29 +132,29 @@ instance Arbitrary K3 where
 
 type instance Logic K3 = Bool
 
-instance Eq_ K3 where
+instance Eq K3 where
     KTrue    == KTrue    = True
     KFalse   == KFalse   = True
     KUnknown == KUnknown = True
     _        == _        = False
 
-instance POrd_ K3 where
+instance POrd K3 where
     inf KTrue    KTrue    = KTrue
     inf KTrue    KUnknown = KUnknown
     inf KUnknown KTrue    = KUnknown
     inf KUnknown KUnknown = KUnknown
     inf _        _        = KFalse
 
-instance Lattice_ K3 where
+instance Lattice K3 where
     sup KFalse    KFalse   = KFalse
     sup KFalse    KUnknown = KUnknown
     sup KUnknown  KFalse   = KUnknown
     sup KUnknown  KUnknown = KUnknown
     sup _         _        = KTrue
 
-instance Ord_ K3
+instance Ord K3
 
-instance MinBound_ K3 where
+instance MinBound K3 where
     minBound = KFalse
 
 instance Bounded K3 where
@@ -173,29 +169,24 @@ newtype Boolean2Ring b = Boolean2Ring b
 
 deriveHierarchy ''Boolean2Ring [ ''Boolean ]
 
-mkBoolean2Ring :: Boolean b => b -> Boolean2Ring b
-mkBoolean2Ring = Boolean2Ring
-
-instance (IsMutable b, Boolean b, ValidLogic b) => Semigroup (Boolean2Ring b) where
+instance (IsMutable b, Boolean b, Eq b) => Semigroup (Boolean2Ring b) where
     (Boolean2Ring b1)+(Boolean2Ring b2) = Boolean2Ring $ (b1 || b2) && not (b1 && b2)
 
-instance (IsMutable b, Boolean b, ValidLogic b) => Abelian (Boolean2Ring b)
+instance (IsMutable b, Boolean b, Eq b) => Abelian (Boolean2Ring b)
 
-instance (IsMutable b, Boolean b, ValidLogic b) => Monoid (Boolean2Ring b) where
+instance (IsMutable b, Boolean b, Eq b) => Monoid (Boolean2Ring b) where
     zero = Boolean2Ring $ false
 
-instance (IsMutable b, Boolean b, ValidLogic b) => Cancellative (Boolean2Ring b) where
+instance (IsMutable b, Boolean b, Eq b) => Cancellative (Boolean2Ring b) where
     (-)=(+)
---     b1-b2 = b1+negate b2
 
-instance (IsMutable b, Boolean b, ValidLogic b) => Group (Boolean2Ring b) where
+instance (IsMutable b, Boolean b, Eq b) => Group (Boolean2Ring b) where
     negate = id
---     negate (Boolean2Ring b) = Boolean2Ring $ not b
 
-instance (IsMutable b, Boolean b, ValidLogic b) => Rg (Boolean2Ring b) where
+instance (IsMutable b, Boolean b, Eq b) => Rg (Boolean2Ring b) where
     (Boolean2Ring b1)*(Boolean2Ring b2) = Boolean2Ring $ b1 && b2
 
-instance (IsMutable b, Boolean b, ValidLogic b) => Rig (Boolean2Ring b) where
+instance (IsMutable b, Boolean b, Eq b) => Rig (Boolean2Ring b) where
     one = Boolean2Ring $ true
 
-instance (IsMutable b, Boolean b, ValidLogic b) => Ring (Boolean2Ring b)
+instance (IsMutable b, Boolean b, Eq b) => Ring (Boolean2Ring b)

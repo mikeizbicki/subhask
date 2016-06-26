@@ -47,7 +47,7 @@ The type signatures below are not mandatory, just added for clarity.
 >       fxs = fmap (proveOrdHask f) $ xs
 >
 >   -- g is not monotonic
->   let g :: (Eq a, Integral a) => a -> a
+>   let g :: (Eq a, Integral a, ClassicalLogic a) => a -> a
 >       g x = if x`mod`2 == 0 then x else -x
 >
 >       gxs :: LexSet Int
@@ -93,18 +93,18 @@ The type signatures are provided only to aide reading.
 >   let oddneg :: Int `OrdHask` (LexSet Int)
 >       oddneg = proveConstrained f
 >         where
->             f :: (Integral a, Ord a) => a -> LexSet a
+>             f :: (Integral a, Ord a, ClassicalLogic a) => a -> LexSet a
 >             f i = if i `mod` 2 == 0
 >                 then [i]
 >                 else [-i]
 >
->   let times3 :: (Ord a, Ring a) => a `OrdHask` (LexSet a)
+>   let times3 :: (Ord a, Ring a, ClassicalLogic a) => a `OrdHask` (LexSet a)
 >       times3 = proveConstrained f
 >         where
->             f :: (Ord a, Ring a) => a -> LexSet a
+>             f :: (Ord a, Ring a, ClassicalLogic a) => a -> LexSet a
 >             f a = [a,2*a,3*a]
 >
->   let times3mon :: (Ord a, Ring a) => a `Mon` (LexSet a)
+>   let times3mon :: (Ord a, Ring a, ClassicalLogic a) => a `Mon` (LexSet a)
 >       times3mon = unsafeProveMon (times3 $)
 >
 >   putStrLn ""

@@ -29,8 +29,6 @@ module SubHask.Category.Finite
     )
     where
 
-import Control.Monad
-import GHC.Prim
 import GHC.TypeLits
 import Data.Proxy
 import qualified Data.Map as Map
@@ -41,7 +39,6 @@ import SubHask.Algebra
 import SubHask.Algebra.Group
 import SubHask.Category
 import SubHask.Internal.Prelude
-import SubHask.SubType
 import SubHask.TemplateHaskell.Deriving
 
 -------------------------------------------------------------------------------
@@ -59,10 +56,10 @@ instance KnownNat n => FiniteType (Z n) where
     type Order (Z n) = n
     index i = ZIndex i
     deZIndex (ZIndex i) = i
-    enumerate = [ mkQuotient i | i <- [0..n - 1] ]
+    enumerate = map mkQuotient [0..n-1]
         where
             n = natVal (Proxy :: Proxy n)
-    getOrder z = natVal (Proxy :: Proxy n)
+    getOrder _ = natVal (Proxy :: Proxy n)
 
 -- | The 'ZIndex' class is a newtype wrapper around the natural numbers 'Z'.
 --
@@ -70,7 +67,7 @@ instance KnownNat n => FiniteType (Z n) where
 --
 newtype ZIndex a = ZIndex (Z (Order a))
 
-deriveHierarchy ''ZIndex [ ''Eq_, ''P.Ord ]
+deriveHierarchy ''ZIndex [ ''Eq, ''P.Ord ]
 
 -- | Swap the phantom type between two indices.
 swapZIndex :: Order a ~ Order b => ZIndex a -> ZIndex b
@@ -96,18 +93,9 @@ instance Category SparseFunction where
     (SparseFunction f1).(SparseFunction f2) = SparseFunction
         (Map.map (\a -> find a f1) f2)
         where
-            find k map = case Map.lookup k map of
+            find k map' = case Map.lookup k map' of
                 Just v -> v
                 Nothing -> swapZIndex k
-
--- instance Sup SparseFunction (->) (->)
--- instance Sup (->) SparseFunction (->)
--- instance SparseFunction <: (->) where
---     embedType_ = Embed2 $ map2function f
---         where
---             map2function map k = case Map.lookup (index k) map of
---                 Just v -> deZIndex v
---                 Nothing -> deZIndex $ swapZIndex $ index k
 
 -- | Generates a sparse representation of a 'Hask' function.
 -- This proof will always succeed, although it may be computationally expensive if the 'Order' of a and b is large.
@@ -128,10 +116,9 @@ list2sparseFunction ::
     ) => [Z (Order a)] -> SparseFunction a b
 list2sparseFunction xs = SparseFunction $ Map.fromList $ go xs
     where
+        go [] = undefined
         go (y:[]) = [(ZIndex y, ZIndex $ P.head xs)]
         go (y1:y2:ys) = (ZIndex y1,ZIndex y2):go (y2:ys)
-
--------------------------------------------------------------------------------
 
 data SparseFunctionMonoid a b where
     SparseFunctionMonoid ::
@@ -156,54 +143,9 @@ instance Category SparseFunctionMonoid where
     (SparseFunctionMonoid f1).(SparseFunctionMonoid f2) = SparseFunctionMonoid
         (Map.map (\a -> find a f1) f2)
         where
-            find k map = case Map.lookup k map of
+            find k map' = case Map.lookup k map' of
                 Just v -> v
                 Nothing -> index zero
-
--- instance Sup SparseFunctionMonoid (->) (->)
--- instance Sup (->) SparseFunctionMonoid (->)
--- instance (SparseFunctionMonoid <: (->)) where
---     embedType_ = Embed2 $ map2function f
---         where
---             map2function map k = case Map.lookup (index k) map of
---                 Just v -> deZIndex v
---                 Nothing -> zero
-
----------------------------------------
-
-{-
-instance (FiniteType b, Semigroup b) => Semigroup (SparseFunctionMonoid a b) where
-    (SparseFunctionMonoid f1)+(SparseFunctionMonoid f2) = SparseFunctionMonoid $ Map.unionWith go f1 f2
-        where
-            go b1 b2 = index $ deZIndex b1 + deZIndex b2
-
-instance
-    ( FiniteType a
-    , FiniteType b
-    , Monoid a
-    , Monoid b
-    , Order a ~ Order b
-    ) => Monoid (SparseFunctionMonoid a b) where
-    zero = SparseFunctionMonoid $ Map.empty
-
-instance
-    ( FiniteType b
-    , Abelian b
-    ) => Abelian (SparseFunctionMonoid a b)
-
-instance (FiniteType b, Group b) => Group (SparseFunctionMonoid a b) where
-    negate (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.negate.deZIndex) f
-
-type instance Scalar (SparseFunctionMonoid a b) = Scalar b
-
-instance (FiniteType b, Module b) => Module (SparseFunctionMonoid a b) where
-    r *. (SparseFunctionMonoid f) = SparseFunctionMonoid $ Map.map (index.(r*.).deZIndex) f
-
-instance (FiniteType b, VectorSpace b) => VectorSpace (SparseFunctionMonoid a b) where
-    (SparseFunctionMonoid f) ./ r = SparseFunctionMonoid $ Map.map (index.(./r).deZIndex) f
--}
-
--------------------------------------------------------------------------------
 
 -- | Represents finite functions as a hash table associating input/output value pairs.
 data DenseFunction (a :: *) (b :: *) where
@@ -223,9 +165,6 @@ instance Category DenseFunction where
             n = fromIntegral $ natVal (Proxy :: Proxy (Order a))
 
     (DenseFunction f).(DenseFunction g) = DenseFunction $ VU.map (f VU.!) g
-
--- instance SubCategory DenseFunction (->) where
---     embed (DenseFunction f) = \x -> deZIndex $ int2index $ f VU.! (index2int $ index x)
 
 -- | Generates a dense representation of a 'Hask' function.
 -- This proof will always succeed; however, if the 'Order' of the finite types

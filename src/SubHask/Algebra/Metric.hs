@@ -4,12 +4,9 @@ module SubHask.Algebra.Metric
 
 import SubHask.Category
 import SubHask.Algebra
-import SubHask.Algebra.Ord
--- import SubHask.Monad
--- import SubHask.Compatibility.Base
 import SubHask.Internal.Prelude
 import Control.Monad
-
+import GHC.Classes (Ord)
 import qualified Data.List as L
 import System.IO
 
@@ -26,6 +23,8 @@ printTriDistances m1 m2 m3 = do
 -- A metric is a tree metric iff two of these perfect matchings have the same weight.
 -- This is called the 4 points condition.
 -- printQuadDistances :: (Ord (Scalar m), Show (Scalar m), Metric m) => m -> m -> m -> m -> IO ()
+printQuadDistances :: (GHC.Classes.Ord (Scalar t), Show (Scalar t), Metric t) =>
+                      t -> t -> t -> t -> IO ()
 printQuadDistances m1 m2 m3 m4 = do
     forM_ xs $ \(match,dist) -> do
         putStrLn $ match ++ " = " ++ show dist
@@ -43,6 +42,7 @@ printQuadDistances m1 m2 m3 m4 = do
                 ]
             , distance n1 n2 + distance n3 n4
             )
+        mkMatching _ = undefined
 
 --------------------------------------------------------------------------------
 
@@ -66,7 +66,6 @@ invar_Ball_radius b = radius b >= 0
 type instance Scalar (Ball v) = Scalar v
 type instance Logic (Ball v) = Logic v
 type instance Elem (Ball v) = v
-type instance SetElem (Ball v) v' = Ball v'
 
 -- misc classes
 
@@ -85,28 +84,21 @@ instance (NFData v, NFData (Scalar v)) => NFData (Ball v) where
 
 -- comparison
 
-instance (Eq v, HasScalar v) => Eq_ (Ball v) where
+instance (Metric v, Logic (Scalar v)~Logic v) => Eq (Ball v) where
     b1 == b2 = radius b1 == radius b2
             && center b1 == center b2
 
 -- algebra
 
-instance (Metric v, HasScalar v, ClassicalLogic v) => Semigroup (Ball v) where
+instance (Metric v, Logic (Scalar v)~Logic v) => Semigroup (Ball v) where
     b1+b2 = b1 { radius = radius b2 + radius b1 + distance (center b1) (center b2) }
---     b1+b2 = b1 { radius = radius b2 + max (radius b1) (distance (center b1) (center b2)) }
-
---     b1+b2 = b1' { radius = max (radius b1') (radius b2' + distance (center b1') (center b2')) }
---         where
---             (b1',b2') = if radius b1 > radius b2
---                 then (b1,b2)
---                 else (b2,b1)
 
 -- container
 
-instance (Metric v, HasScalar v, ClassicalLogic v) => Constructible (Ball v) where
+instance (Metric v, Logic (Scalar v)~Logic v) => Constructible (Ball v) where
     singleton v = Ball 0 v
 
-instance (Metric v, HasScalar v, ClassicalLogic v) => Container (Ball v) where
+instance (Metric v, Logic (Scalar v)~Logic v) => Container (Ball v) where
     elem v b = not $ isFartherThan v (center b) (radius b)
 
 --------------------------------------------------------------------------------

@@ -52,6 +52,7 @@ extra-deps:
 - converge-0.1.0.1
 - exception-mtl-0.4.0.1
 - symbol-0.2.4
+- homoiconic-0.1.2.0
 
 
 # Override default flag values for local packages and extra-deps
@@ -72,3 +73,5 @@ flags:
   # llvm-general:
   #   shared-llvm: true
 resolver: lts-5.9
+resolver: nightly-2016-06-15
+compiler: ghc-8.0.1

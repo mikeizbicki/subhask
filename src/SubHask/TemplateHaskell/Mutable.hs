@@ -9,7 +9,6 @@ module SubHask.TemplateHaskell.Mutable
 import SubHask.TemplateHaskell.Common
 
 import Prelude
-import Control.Monad
 import Language.Haskell.TH
 
 showtype :: Type -> String
@@ -50,9 +49,9 @@ mkMutableNewtype :: Name -> Q [Dec]
 mkMutableNewtype typename = do
     typeinfo <- reify typename
     (conname,typekind,typeapp) <- case typeinfo of
-        TyConI (NewtypeD [] _ typekind (NormalC conname [(  _,typeapp)]) _)
+        TyConI (NewtypeD [] _ typekind _ (NormalC conname [(  _,typeapp)]) _)
             -> return (conname,typekind,typeapp)
-        TyConI (NewtypeD [] _ typekind (RecC    conname [(_,_,typeapp)]) _)
+        TyConI (NewtypeD [] _ typekind _ (RecC    conname [(_,_,typeapp)]) _)
             -> return (conname,typekind,typeapp)
         _ -> error $ "\nderiveSingleInstance; typeinfo="++show typeinfo
 
@@ -60,15 +59,16 @@ mkMutableNewtype typename = do
 
     nameexists <- lookupValueName (show mutname)
     return $ case nameexists of
-        Just x -> []
+        Just _ -> []
         Nothing ->
             [ NewtypeInstD
                 [ ]
                 ( mkName $ "Mutable" )
                 [ VarT (mkName "m"), apply2varlist (ConT typename) typekind ]
+                Nothing
                 ( NormalC
                     mutname
-                    [( NotStrict
+                    [( Bang NoSourceUnpackedness NoSourceStrictness
                      , AppT
                         ( AppT
                             ( ConT $ mkName "Mutable" )
@@ -79,6 +79,7 @@ mkMutableNewtype typename = do
                 )
                 [ ]
             , InstanceD
+                Nothing
                 ( map (\x -> AppT (ConT $ mkName "IsMutable") (bndr2type x)) $ filter isStar $ typekind )
                 ( AppT
                     ( ConT $ mkName "IsMutable" )
@@ -121,24 +122,26 @@ mkMutableNewtype typename = do
 mkMutablePrimRef :: Q Type -> Q [Dec]
 mkMutablePrimRef qt = do
     _t <- qt
-    let (cxt,t) = case _t of
-            (ForallT _ cxt t) -> (cxt,t)
+    let (cxt',t) = case _t of
+            (ForallT _ cxt'' t') -> (cxt'',t')
             _                 -> ([],_t)
 
     return $
         [ NewtypeInstD
-            cxt
+            cxt'
             ( mkName $ "Mutable" )
             [ VarT (mkName "m"), t ]
+            Nothing
             ( NormalC
                 ( type2name t )
-                [( NotStrict
+                [( Bang NoSourceUnpackedness NoSourceStrictness
                  , AppT (AppT (ConT $ mkName "PrimRef") (VarT $ mkName "m")) t
                  )]
             )
             [ ]
         , InstanceD
-            cxt
+            Nothing
+            cxt'
             ( AppT ( ConT $ mkName "IsMutable" ) t )
             [ FunD (mkName "freeze")
                 [ Clause

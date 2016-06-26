@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
+
 module SubHask.TemplateHaskell.Test
     where
 
@@ -5,15 +7,9 @@ import Prelude
 import Control.Monad
 
 import qualified Data.Map as Map
-import Debug.Trace
 
 import Language.Haskell.TH
-import GHC.Exts
-
-import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
--- import SubHask.Category
--- import SubHask.Algebra
 
 -- | Ideally, this map would be generated automatically via template haskell.
 -- Due to bug <https://ghc.haskell.org/trac/ghc/ticket/9699 #9699>, however, we must enter these manually.
@@ -184,16 +180,11 @@ testMap = Map.fromList
         , "theorem_Constructible_cons"
         ] )
     , ( "Foldable",
---         [ "law_Foldable_sum"
         [ "theorem_Foldable_tofrom"
         , "defn_Foldable_foldr"
         , "defn_Foldable_foldr'"
         , "defn_Foldable_foldl"
         , "defn_Foldable_foldl'"
---         , "defn_Foldable_foldr1"
---         , "defn_Foldable_foldr1'"
---         , "defn_Foldable_foldl1"
---         , "defn_Foldable_foldl1'"
         ] )
     , ( "Partitionable",
         [ "law_Partitionable_length"
@@ -227,7 +218,7 @@ mkClassTests className = do
     info <- reify className
     typeTests <- case info of
         ClassI _ xs -> go xs
-        otherwise -> error "mkClassTests called on something not a class"
+        _ -> error "mkClassTests called on something not a class"
     return $ AppE
         ( AppE
             ( VarE $ mkName "testGroup" )
@@ -235,8 +226,9 @@ mkClassTests className = do
         )
         ( typeTests )
     where
+        go :: [Dec] -> Q Exp
         go [] = return $ ConE $ mkName "[]"
-        go ((InstanceD ctx (AppT _ t) _):xs) = case t of
+        go ((InstanceD _ _ (AppT _ t) _):xs) = case t of
             (ConT a) -> do
                 tests <- mkSpecializedClassTest (ConT a) className
                 next <- go xs
@@ -246,18 +238,7 @@ mkClassTests className = do
                         ( tests )
                     )
                     ( next )
---             (AppT _ _) -> do
---                 let specializedType = specializeType t (ConT ''Int)
---                 tests <- mkSpecializedClassTest specializedType className
---                 next <- go xs
---                 return $ AppE
---                     ( AppE
---                         ( ConE $ mkName ":" )
---                         ( tests )
---                     )
---                     ( next )
---             otherwise -> trace ("mkClassTests: skipping "++show ctx++" => "++show t) $ go xs
-            otherwise -> go xs
+            _ -> go xs
 
 
 -- | Given a type and a class, searches "testMap" for all tests for the class;
@@ -299,7 +280,7 @@ specializeType
 specializeType t n = case t of
     VarT _ -> n
     AppT t1 t2 -> AppT (specializeType t1 n) (specializeType t2 n)
-    ForallT xs ctx t -> {-ForallT xs ctx $-} specializeType t n
+    ForallT _ _ t' -> {-ForallT xs ctx $-} specializeType t' n
 --     ForallT xs ctx t -> ForallT xs (specializeType ctx n) $ specializeType t n
     x -> x
 
@@ -310,8 +291,8 @@ specializeLaw
 specializeLaw typeName lawName = do
     lawInfo <- reify lawName
     let newType = case lawInfo of
-            VarI _ t _ _ -> specializeType t typeName
-            otherwise -> error "mkTest lawName not a function"
+            VarI _ t _ -> specializeType t typeName
+            _ -> error "mkTest lawName not a function"
     return $ SigE (VarE lawName) newType
 
 -- | creates an expression of the form:
@@ -353,5 +334,4 @@ listExp2Exp (x:xs) = AppE
 -- > test
 extractTestStr :: Name -> String
 extractTestStr name = nameBase name
--- extractTestStr name = last $ words $ map (\x -> if x=='_' then ' ' else x) $ nameBase name
 

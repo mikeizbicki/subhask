@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
+
 -- |
 --
 -- FIXME: doesn't handle multiparameter classes like Integral and Vector
@@ -20,6 +22,9 @@ module SubHask.TemplateHaskell.Deriving
     , BasicType
     , helper_liftM
     , helper_id
+
+    -- ** misc
+    , substituteNewtype
     )
     where
 
@@ -27,12 +32,15 @@ import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Common
 import SubHask.TemplateHaskell.Mutable
 import Prelude
-import Data.List (init,last,nub,intersperse)
+import Data.List (nub)
 
 import Language.Haskell.TH.Syntax
 import Control.Monad
-import Debug.Trace
 
+ifThenElse :: Bool -> a -> a -> a
+ifThenElse a b c = case a of
+    True -> b
+    False -> c
 
 -- | This class provides an artificial hierarchy that defines all the classes that a "well behaved" data type should implement.
 -- All newtypes will derive them automatically.
@@ -62,7 +70,7 @@ listSuperClasses className = do
         TyConI (TySynD _ bndrs t) ->
             liftM concat $ mapM (go $ bndrs2var bndrs) $ tuple2list t
 
-        info -> error $ "type "++nameBase className++" not a unary class\n\ninfo="++show info
+        info' -> error $ "type "++nameBase className++" not a unary class\n\ninfo="++show info'
 
     where
         bndrs2var bndrs = case bndrs of
@@ -72,7 +80,7 @@ listSuperClasses className = do
         go var (AppT (ConT name) (VarT var')) = if var==var'
             then listSuperClasses name
             else return [] -- class depends on another type tested elsewhere
-        go var _ = return []
+        go _ _ = return []
 
 tuple2list :: Type -> [Type]
 tuple2list (AppT (AppT (TupleT 2) t1) t2) = [t1,t2]
@@ -89,8 +97,8 @@ deriveTypefamilies :: [Name] -> Name -> Q [Dec]
 deriveTypefamilies familynameL typename = do
     info <- reify typename
     let (tyvarbndr,tyvar) = case info of
-            TyConI (NewtypeD _ _ xs (NormalC _ [(  _,t)]) _) -> (xs,t)
-            TyConI (NewtypeD _ _ xs (RecC    _ [(_,_,t)]) _) -> (xs,t)
+            TyConI (NewtypeD _ _ xs _ (NormalC _ [(  _,t)]) _) -> (xs,t)
+            TyConI (NewtypeD _ _ xs _ (RecC    _ [(_,_,t)]) _) -> (xs,t)
     return $ map (go tyvarbndr tyvar) familynameL
     where
         go tyvarbndr tyvar familyname = TySynInstD familyname $ TySynEqn
@@ -118,10 +126,10 @@ deriveSingleInstance typename classname = if show classname == "SubHask.Mutable.
     else do
         typeinfo <- reify typename
         (conname,typekind,typeapp) <- case typeinfo of
-            TyConI (NewtypeD [] _ typekind (NormalC conname [(  _,typeapp)]) _)
+            TyConI (NewtypeD [] _ typekind _ (NormalC conname [(  _,typeapp)]) _)
                 -> return (conname,typekind,typeapp)
 
-            TyConI (NewtypeD [] _ typekind (RecC    conname [(_,_,typeapp)]) _)
+            TyConI (NewtypeD [] _ typekind _ (RecC    conname [(_,_,typeapp)]) _)
                 -> return (conname,typekind,typeapp)
 
             _ -> error $ "\nderiveSingleInstance; typeinfo="++show typeinfo
@@ -141,11 +149,11 @@ deriveSingleInstance typename classname = if show classname == "SubHask.Mutable.
             -- then don't create an overlapping instance
             -- These classes only exist because TH has problems with type families
             -- FIXME: this is probably not a robust solution
-            ClassI (ClassD _ _ _ _ _) [InstanceD _ (VarT _) _] -> return []
-            ClassI (ClassD _ _ _ _ _) [InstanceD _ (AppT (ConT _) (VarT _)) _] -> return []
+            ClassI (ClassD _ _ _ _ _) [InstanceD _ _ (VarT _) _] -> return []
+            ClassI (ClassD _ _ _ _ _) [InstanceD _ _ (AppT (ConT _) (VarT _)) _] -> return []
 
             -- otherwise, create the instance
-            ClassI classd@(ClassD ctx classname [bndr] [] decs) _ -> do
+            ClassI (ClassD ctx _ [bndr] [] decs) _ -> do
                 let varname = case bndr of
                         PlainTV v -> v
                         KindedTV v StarT -> v
@@ -175,13 +183,10 @@ deriveSingleInstance typename classname = if show classname == "SubHask.Mutable.
                                 , PragmaD $ InlineP f Inline FunLike AllPhases
                                 ]
 
-    --                     trace ("classname="++show classname++"; typename="++show typename)
-    --                         $ trace ("  funcL="++show funcL)
-    --                         $ trace ("  decs="++show decs)
-    --                         $ return ()
-                        return [ InstanceD
-    --                             ( ClassP classname [typeapp] : map (substitutePat varname typeapp) ctx )
-                                ( AppT (ConT classname) typeapp : map (substitutePat varname typeapp) ctx )
+                        return
+                            [ InstanceD
+                                Nothing
+                                ( AppT (ConT classname) typeapp : map (subVarT varname typeapp) ctx )
                                 ( AppT (ConT classname) $ apply2varlist (ConT typename) typekind )
                                 ( concat funcL )
                              ]
@@ -191,24 +196,15 @@ expandTySyn (AppT (ConT tysyn) vartype) = do
     info <- reify tysyn
     case info of
         TyConI (TySynD _ [PlainTV var] syntype) ->
-            return $ substituteVarE var vartype syntype
+            return $ subVarT var vartype syntype
 
         TyConI (TySynD _ [KindedTV var StarT] syntype) ->
-            return $ substituteVarE var vartype syntype
+            return $ subVarT var vartype syntype
 
         qqq -> error $ "expandTySyn: qqq="++show qqq
 
-substitutePat :: Name -> Type -> Pred -> Pred
-substitutePat n t (AppT (AppT EqualityT t1) t2)
-    = AppT (AppT EqualityT (substituteVarE n t t1)) (substituteVarE n t t2)
-substitutePat n t (AppT classname x) = AppT classname $ substituteVarE n t x
--- substitutePat n t (AppT classname xs) = go $ classname : map (substituteVarE n t) xs
---     where
---         go (x:y:[]) = AppT x y
---         go (x:y:zs) = go $ AppT x y : zs
-
-substituteVarE :: Name -> Type -> Type -> Type
-substituteVarE varname vartype = go
+subVarT :: Name -> Type -> Type -> Type
+subVarT varname vartype t = go t
     where
         go (VarT e) = if e==varname
             then vartype
@@ -218,31 +214,31 @@ substituteVarE varname vartype = go
         go ArrowT = ArrowT
         go ListT = ListT
         go (TupleT n) = TupleT n
-        go zzz = error $ "substituteVarE: zzz="++show zzz
+        go zzz = error $ "subVarT: zzz="++show zzz
 
 returnType2newtypeApplicator :: Name -> Name -> Type -> Exp -> Q Exp
-returnType2newtypeApplicator conname varname t exp = do
+returnType2newtypeApplicator conname varname t exp' = do
     ret <- go t
-    return $ AppE ret exp
+    return $ AppE ret exp'
 
     where
 
-        id = return $ VarE $ mkName "helper_id"
+        id' = return $ VarE $ mkName "helper_id"
 
         go (VarT v) = if v==varname
             then return $ ConE conname
-            else id
-        go (ConT c) = id
+            else id'
+        go (ConT _) = id'
 
         -- | FIXME: The cases below do not cover all the possible functions we might want to derive
-        go (TupleT 0) = id
-        go t@(AppT (ConT c) t2) = do
+        go (TupleT 0) = id'
+        go (AppT (ConT c) t2) = do
             info <- reify c
             case info of
                 TyConI (TySynD _ _ _) -> expandTySyn t >>= go
-                FamilyI (FamilyD TypeFam _ _ _) _ -> id
-                TyConI (NewtypeD _ _ _ _ _) -> liftM (AppE (VarE $ mkName "helper_liftM")) $ go t2
-                TyConI (DataD _ _ _ _ _) -> liftM (AppE (VarE $ mkName "helper_liftM")) $ go t2
+                FamilyI (OpenTypeFamilyD _) _ -> id'
+                TyConI (NewtypeD _ _ _ _ _ _) -> liftM (AppE (VarE $ mkName "helper_liftM")) $ go t2
+                TyConI (DataD _ _ _ _ _ _) -> liftM (AppE (VarE $ mkName "helper_liftM")) $ go t2
                 qqq -> error $ "returnType2newtypeApplicator: qqq="++show qqq
 
         go (AppT ListT t2) = liftM (AppE (VarE $ mkName "helper_liftM")) $ go t2
@@ -259,9 +255,9 @@ returnType2newtypeApplicator conname varname t exp = do
                 )
 
         -- FIXME: this is a particularly fragile deriving clause only designed for the mutable operators
-        go (AppT (VarT m) (TupleT 0)) = id
+        go (AppT (VarT _) (TupleT 0)) = id'
 
-        go xxx = error $ "returnType2newtypeApplicator:\n xxx="++show xxx++"\n t="++show t++"\n exp="++show exp
+        go xxx = error $ "returnType2newtypeApplicator:\n xxx="++show xxx++"\n t="++show t++"\n exp="++ show exp'
 
 isNewtypeInstance :: Name -> Name -> Q Bool
 isNewtypeInstance typename classname = do
@@ -269,12 +265,12 @@ isNewtypeInstance typename classname = do
     case info of
         ClassI _ inst -> return $ or $ map go inst
     where
-        go (InstanceD _ (AppT _ (AppT (ConT n) _)) _) = n==typename
+        go (InstanceD _ _ (AppT _ (AppT (ConT n) _)) _) = n==typename
         go _ = False
 
 
 substituteNewtype :: Name -> Name -> Name -> Type -> Type
-substituteNewtype conname varname newvar = go
+substituteNewtype conname varname _ = go
     where
         go (VarT v) = if varname==v
             then AppT (ConT conname) (VarT varname)
@@ -289,13 +285,13 @@ typeL2patL conname varname xs = map go $ zip (map (\a -> mkName [a]) ['a'..]) xs
         go (newvar,VarT v) = if v==varname
             then ConP conname [VarP newvar]
             else VarP newvar
-        go (newvar,AppT (AppT (ConT c) _) v) = if nameBase c=="Mutable"
+        go (newvar,AppT (AppT (ConT c) _) _) = if nameBase c=="Mutable"
             then ConP (mkName $ "Mutable_"++nameBase conname) [VarP newvar]
             else VarP newvar
-        go (newvar,AppT (ConT _) (VarT v)) = VarP newvar
-        go (newvar,AppT ListT (VarT v)) = VarP newvar
-        go (newvar,AppT ListT (AppT (ConT _) (VarT v))) = VarP newvar
-        go (newvar,ConT c) = VarP newvar
+        go (newvar,AppT (ConT _) (VarT _)) = VarP newvar
+        go (newvar,AppT ListT (VarT _)) = VarP newvar
+        go (newvar,AppT ListT (AppT (ConT _) (VarT _))) = VarP newvar
+        go (newvar,ConT _) = VarP newvar
         go (newvar,_) = VarP newvar
 
 typeL2expL :: [Type] -> [Exp]
@@ -310,7 +306,7 @@ list2exp :: [Exp] -> Exp
 list2exp xs = go $ reverse xs
     where
         go (x:[]) = x
-        go (x:xs) = AppE (go xs) x
+        go (x:xs') = AppE (go xs') x
 
 -- | Generate an Eq_ instance from the Prelude's Eq instance.
 -- This requires that Logic t = Bool, so we also generate this type instance.
@@ -322,6 +318,7 @@ fromPreludeEq qt = do
             ( mkName "Logic" )
             ( TySynEqn [t] (ConT $ mkName "Bool" ))
         , InstanceD
+            Nothing
             []
             ( AppT ( ConT $ mkName "Eq_" ) t )
             [ FunD

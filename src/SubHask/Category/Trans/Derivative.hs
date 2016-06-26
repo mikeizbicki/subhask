@@ -1,5 +1,5 @@
 {-# LANGUAGE IncoherentInstances #-}
-
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 -- | This module provides a category transformer for automatic differentiation.
 --
 -- There are many alternative notions of a generalized derivative.
@@ -21,15 +21,11 @@ module SubHask.Category.Trans.Derivative
     where
 
 import SubHask.Algebra
-import SubHask.Algebra.Vector
 import SubHask.Category
 import SubHask.SubType
 import SubHask.Internal.Prelude
 
-import qualified Prelude as P
-
 --------------------------------------------------------------------------------
-
 -- | This is essentially just a translation of the "Numeric.AD.Forward.Forward" type
 -- for use with the SubHask numeric hierarchy.
 --
@@ -75,6 +71,11 @@ instance Field a => Field (Forward a) where
 
 ---------
 
+-- | FIXME:
+-- This represents the tensor product;
+-- it doesn't belong here!
+type family (><) a b
+
 proveC1 :: (a ~ (a><a), Rig a) => (Forward a -> Forward a) -> C1 (a -> a)
 proveC1 f = Diffn (\a -> val $ f $ Forward a one) $ Diff0 $ \a -> val' $ f $ Forward a one
 
@@ -104,33 +105,47 @@ instance Diff 0 <: (->) where
         where
             unDiff0 :: Diff 0 a b -> a -> b
             unDiff0 (Diff0 f) = f
+            unDiff0 (Diffn _ _) = undefined
 
 instance Diff n <: (->) where
     embedType_ = Embed2 unDiffn
         where
             unDiffn :: Diff n a b -> a -> b
-            unDiffn (Diffn f f') = f
+            unDiffn (Diffn f _) = f
+            unDiffn (Diff0 _) = undefined
+
 --
 -- FIXME: these subtyping instance should be made more generic
 -- the problem is that type families aren't currently powerful enough
 --
 instance Sup (Diff 0) (Diff 1) (Diff 0)
 instance Sup (Diff 1) (Diff 0) (Diff 0)
-instance Diff 1 <: Diff 0  where embedType_ = Embed2 m2n where m2n (Diffn f f') = Diff0 f
+instance Diff 1 <: Diff 0
+    where embedType_ = Embed2 m2n
+              where m2n (Diffn f _) = Diff0 f
+                    m2n (Diff0 _) = undefined
 
 instance Sup (Diff 0) (Diff 2) (Diff 0)
 instance Sup (Diff 2) (Diff 0) (Diff 0)
-instance Diff 2 <: Diff 0  where embedType_ = Embed2 m2n where m2n (Diffn f f') = Diff0 f
+instance Diff 2 <: Diff 0
+    where embedType_ = Embed2 m2n
+              where m2n (Diffn f _) = Diff0 f
+                    m2n (Diff0 _) = undefined
 
 instance Sup (Diff 1) (Diff 2) (Diff 1)
 instance Sup (Diff 2) (Diff 1) (Diff 1)
-instance Diff 2 <: Diff 1  where embedType_ = Embed2 m2n where m2n (Diffn f f') = Diffn f (embedType2 f')
+instance Diff 2 <: Diff 1
+    where embedType_ = Embed2 m2n
+              where m2n (Diffn f f') = Diffn f (embedType2 f')
+                    m2n (Diff0 _) = undefined
 
 ---------
 
 instance (1 <= n) => C (Diff n) where
     type D (Diff n) = Diff (n-1)
-    derivative (Diffn f f') = f'
+    derivative (Diffn _ f') = f'
+    -- doesn't work, hence no non-ehaustive pattern ghc option
+    -- derivative (Diff0 _) = undefined
 
 unsafeProveC0 :: (a -> b) -> Diff 0 a b
 unsafeProveC0 f = Diff0 f
@@ -141,8 +156,8 @@ unsafeProveC1
     -> C1 (a -> b)
 unsafeProveC1 f f' = Diffn f $ unsafeProveC0 f'
 
-unsafeProveC2
-    :: (a -> b)         -- ^ f(x)
+unsafeProveC2 :: ( ((a><a)><b) ~ (a><(a><b)) )
+    => (a -> b)         -- ^ f(x)
     -> (a -> a><b)      -- ^ f'(x)
     -> (a -> a><a><b)   -- ^ f''(x)
     -> C2 (a -> b)
@@ -167,11 +182,18 @@ mkMutable [t| forall n a b. Diff n a b |]
 
 instance Semigroup b => Semigroup (Diff 0 a b) where
     (Diff0 f1    )+(Diff0 f2    ) = Diff0 (f1+f2)
+    _ + _ = undefined
 
 instance (Semigroup b, Semigroup (a><b)) => Semigroup (Diff 1 a b) where
     (Diffn f1 f1')+(Diffn f2 f2') = Diffn (f1+f2) (f1'+f2')
 
-instance (Semigroup b, Semigroup (a><b), Semigroup (a><a><b)) => Semigroup (Diff 2 a b) where
+instance
+    ( Semigroup b
+    , Semigroup (a><b)
+    , Semigroup (a><a><b)
+    , ((a><a)><b) ~ (a><(a><b))
+    ) => Semigroup (Diff 2 a b)
+        where
     (Diffn f1 f1')+(Diffn f2 f2') = Diffn (f1+f2) (f1'+f2')
 
 instance Monoid b => Monoid (Diff 0 a b) where
@@ -180,7 +202,13 @@ instance Monoid b => Monoid (Diff 0 a b) where
 instance (Monoid b, Monoid (a><b)) => Monoid (Diff 1 a b) where
     zero = Diffn zero zero
 
-instance (Monoid b, Monoid (a><b), Monoid (a><a><b)) => Monoid (Diff 2 a b) where
+instance
+    ( Monoid b
+    , Monoid (a><b)
+    , Monoid (a><a><b)
+    , ((a><a)><b) ~ (a><(a><b))
+    ) => Monoid (Diff 2 a b)
+        where
     zero = Diffn zero zero
 
 --------------------------------------------------------------------------------

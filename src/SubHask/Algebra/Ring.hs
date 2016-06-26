@@ -1,9 +1,10 @@
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
+
 module SubHask.Algebra.Ring
     where
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Internal.Prelude
 
 --------------------------------------------------------------------------------
 
@@ -14,11 +15,10 @@ newtype Componentwise v = Componentwise { unComponentwise :: v }
 type instance Scalar (Componentwise v) = Scalar v
 type instance Logic (Componentwise v) = Logic v
 type instance Elem (Componentwise v) = Scalar v
-type instance SetElem (Componentwise v) v' = Componentwise v'
 
 instance IsMutable (Componentwise v)
 
-instance Eq_ v => Eq_ (Componentwise v) where
+instance Eq v => Eq (Componentwise v) where
     (Componentwise v1)==(Componentwise v2) = v1==v2
 
 instance Semigroup v => Semigroup (Componentwise v) where
@@ -45,7 +45,3 @@ instance FiniteModule v => Ring (Componentwise v)
 
 instance (FiniteModule v, VectorSpace v) => Field (Componentwise v) where
     (Componentwise v1)/(Componentwise v2) = Componentwise $ v1./.v2
-
--- instance (ValidLogic v, FiniteModule v) => IxContainer (Componentwise v) where
---     values (Componentwise v) = values v
-

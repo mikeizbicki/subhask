@@ -9,13 +9,10 @@ import qualified GHC.Arr as Arr
 import Data.Array.ST hiding (freeze,thaw)
 import Control.Monad
 import Control.Monad.Random
-import Control.Monad.ST
 import Prelude (take)
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Mutable
-import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
@@ -31,13 +28,13 @@ instance Show a => Show (WithPreludeOrd a) where
 
 -- | FIXME: for some reason, our deriving mechanism doesn't work on Show here;
 -- It causes's Set's show to enter an infinite loop
-deriveHierarchyFiltered ''WithPreludeOrd [ ''Eq_, ''Enum, ''Boolean, ''Ring, ''Metric ] [ ''Show ]
+deriveHierarchyFiltered ''WithPreludeOrd [ ''Eq, ''Enum, ''Boolean, ''Ring, ''Metric ] [ ''Show ]
 
-instance Eq a => P.Eq (WithPreludeOrd a) where
+instance (Eq a, ClassicalLogic a) => P.Eq (WithPreludeOrd a) where
     {-# INLINE (==) #-}
     a==b = a==b
 
-instance Ord a => P.Ord (WithPreludeOrd a) where
+instance (Ord a, ClassicalLogic a) => P.Ord (WithPreludeOrd a) where
     {-# INLINE (<=) #-}
     a<=b = a<=b
 
@@ -46,21 +43,21 @@ instance Ord a => P.Ord (WithPreludeOrd a) where
 --
 -- FIXME:
 -- We should put this in the container hierarchy so we can sort any data type
-sort :: Ord a => [a] -> [a]
+sort :: (Ord a, ClassicalLogic a) => [a] -> [a]
 sort = map unWithPreludeOrd . L.sort . map WithPreludeOrd
 
 -- | Randomly shuffles a list in time O(n log n); see http://www.haskell.org/haskellwiki/Random_shuffle
-shuffle :: (Eq a, MonadRandom m) => [a] -> m [a]
+shuffle :: MonadRandom m => [a] -> m [a]
 shuffle xs = do
     let l = length xs
     rands <- take l `liftM` getRandomRs (0, l-1)
     let ar = runSTArray ( do
-            ar <- Arr.thawSTArray (Arr.listArray (0, l-1) xs)
+            ar' <- Arr.thawSTArray (Arr.listArray (0, l-1) xs)
             forM_ (L.zip [0..(l-1)] rands) $ \(i, j) -> do
-                vi <- Arr.readSTArray ar i
-                vj <- Arr.readSTArray ar j
-                Arr.writeSTArray ar j vi
-                Arr.writeSTArray ar i vj
-            return ar
+                vi <- Arr.readSTArray ar' i
+                vj <- Arr.readSTArray ar' j
+                Arr.writeSTArray ar' j vi
+                Arr.writeSTArray ar' i vj
+            return ar'
             )
     return (Arr.elems ar)

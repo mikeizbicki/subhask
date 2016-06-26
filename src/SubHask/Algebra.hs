@@ -1,4 +1,9 @@
-{-# LANGUAGE CPP,MagicHash,UnboxedTuples #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | This module defines the algebraic type-classes used in subhask.
 -- The class hierarchies are significantly more general than those in the standard Prelude.
@@ -6,22 +11,23 @@ module SubHask.Algebra
     (
     -- * Comparisons
     Logic
-    , ValidLogic
+    , TLogic
     , ClassicalLogic
-    , Eq_ (..)
-    , Eq
-    , ValidEq
+    , Elem
+    , TElem
+    , Container (..)
+    , law_Container_preservation
+    , ifThenElse
+    , Eq (..)
     , law_Eq_reflexive
     , law_Eq_symmetric
     , law_Eq_transitive
     , defn_Eq_noteq
-    , POrd_ (..)
-    , POrd
+    , POrd (..)
     , law_POrd_commutative
     , law_POrd_associative
     , theorem_POrd_idempotent
-    , Lattice_ (..)
-    , Lattice
+    , Lattice (..)
     , isChain
     , isAntichain
     , POrdering (..)
@@ -34,8 +40,7 @@ module SubHask.Algebra
     , law_Lattice_antisymmetry
     , law_Lattice_transitivity
     , defn_Lattice_greaterthan
-    , MinBound_ (..)
-    , MinBound
+    , MinBound (..)
     , law_MinBound_inf
     , Bounded (..)
     , law_Bounded_sup
@@ -51,19 +56,15 @@ module SubHask.Algebra
     , law_Heyting_infleft
     , law_Heyting_infright
     , law_Heyting_distributive
-    , Boolean (..)
+    , Boolean
     , law_Boolean_infcomplement
     , law_Boolean_supcomplement
     , law_Boolean_infdistributivity
     , law_Boolean_supdistributivity
-
---     , defn_Latticelessthaninf
---     , defn_Latticelessthansup
-    , Ord_ (..)
+    , Ord (..)
     , law_Ord_totality
     , law_Ord_min
     , law_Ord_max
-    , Ord
     , Ordering (..)
     , min
     , max
@@ -73,12 +74,12 @@ module SubHask.Algebra
     , minimum_
     , argmin
     , argmax
---     , argminimum_
---     , argmaximum_
     , Graded (..)
     , law_Graded_fromEnum
     , law_Graded_pred
     , defn_Graded_predN
+    , (>.)
+    , (<.)
     , Enum (..)
     , law_Enum_toEnum
     , law_Enum_succ
@@ -93,11 +94,6 @@ module SubHask.Algebra
     , or
 
     -- * Set-like
-    , Elem
-    , SetElem
-    , Container (..)
-    , law_Container_preservation
-
     , Constructible (..)
     , Constructible0
     , law_Constructible_singleton
@@ -113,6 +109,8 @@ module SubHask.Algebra
     , insert
     , empty
     , isEmpty
+    , infDisjoint
+    , sizeDisjoint
 
     , Foldable (..)
     , law_Foldable_sum
@@ -127,6 +125,7 @@ module SubHask.Algebra
     , defn_Foldable_foldl1'
 
     , foldtree1
+    , convertUnfoldable
     , length
     , reduce
     , concat
@@ -169,6 +168,7 @@ module SubHask.Algebra
     , Semigroup (..)
     , law_Semigroup_associativity
     , defn_Semigroup_plusequal
+    , cycle
     , Actor
     , Action (..)
     , law_Action_compatibility
@@ -184,7 +184,7 @@ module SubHask.Algebra
     , law_Monoid_leftid
     , law_Monoid_rightid
     , defn_Monoid_isZero
-    , Abelian (..)
+    , Abelian
     , law_Abelian_commutative
     , Group (..)
     , law_Group_leftinverse
@@ -215,7 +215,7 @@ module SubHask.Algebra
 --     , roundUpToNearestBase2
     , fromIntegral
     , Field(..)
-    , OrdField(..)
+    , OrdField
     , RationalField(..)
     , convertRationalField
     , toFloat
@@ -242,9 +242,9 @@ module SubHask.Algebra
 
     -- ** Linear algebra
     , Scalar
-    , IsScalar
+    , TScalar
+    , ValidScalar
     , HasScalar
-    , type (><)
     , Cone (..)
     , Module (..)
     , law_Module_multiplication
@@ -260,15 +260,15 @@ module SubHask.Algebra
     , defn_FreeModule_dotstardotequal
     , FiniteModule (..)
     , VectorSpace (..)
+    , Reisz (..)
     , Banach (..)
+    , law_Banach_distance
+    , law_Banach_size
     , Hilbert (..)
+    , TSquare
+    , squaredInnerProductNorm
     , innerProductDistance
     , innerProductNorm
-    , TensorAlgebra (..)
-
-    -- * Spatial programming
-    , Any (..)
-    , All
 
     -- * Helper functions
     , simpleMutableDefn
@@ -281,33 +281,27 @@ import qualified Data.Number.Erf as P
 import qualified Math.Gamma as P
 import qualified Data.List as L
 
-import Prelude (Ordering (..))
 import Control.Monad hiding (liftM)
 import Control.Monad.ST
 import Data.Ratio
 import Data.Typeable
-import Test.QuickCheck (Arbitrary (..), frequency)
+import Test.QuickCheck (frequency)
 
-import Control.Concurrent
-import Control.Parallel
 import Control.Parallel.Strategies
-import System.IO.Unsafe -- used in the parallel function
 
-import GHC.Prim hiding (Any)
-import GHC.Types
-import GHC.Magic
+import GHC.Types hiding (Module)
 
 import SubHask.Internal.Prelude
 import SubHask.Category
 import SubHask.Mutable
-import SubHask.SubType
 
+import Homoiconic.Constrained
 
 -------------------------------------------------------------------------------
 -- Helper functions
 
 -- | Creates a quickcheck property for a simple mutable operator defined using "immutable2mutable"
-simpleMutableDefn :: (Eq_ a, IsMutable a)
+simpleMutableDefn :: (Eq a, IsMutable a)
     => (Mutable (ST s) a -> b -> ST s ()) -- ^ mutable function
     -> (a -> b -> a)              -- ^ create a mutable function using "immutable2mutable"
     -> (a -> b -> Logic a)        -- ^ the output property
@@ -321,7 +315,53 @@ simpleMutableDefn mf f a b = unsafeRunMutableProperty $ do
     return $ a1==a2
 
 -------------------------------------------------------------------------------
--- relational classes
+-- comparison hierarchy
+
+-- | This is a generalization of a "set".
+-- We do not require a container to be a boolean algebra, just a semigroup.
+class Eq a => Container a where
+    {-# MINIMAL elem | notElem #-}
+    elem :: Elem a -> a -> Logic a
+    elem = not notElem
+
+    notElem :: Elem a -> a -> Logic a
+    notElem = not elem
+
+law_Container_preservation :: Container s => s -> s -> Elem s -> Logic s
+law_Container_preservation a1 a2 e = (a1==a2) ==> ((e `elem` a1) ==> (e `elem` a2))
+
+type instance Elem Bool = ()
+instance Container Bool where
+    elem _ True  = True
+    elem _ False = False
+
+type instance Elem () = ()
+instance Container () where
+    elem () = \_ -> ()
+
+instance Eq b => Container (a -> b)
+
+--------------------
+
+class
+    ( Monoid (Elem a)
+    , Container a
+    , IfThenElse (Logic a)
+    ) => IfThenElse a
+        where
+    ifThenElse :: a -> b -> b -> b
+    ifThenElse a b1 b2 = ifThenElse (zero `elem` a) b1 b2
+
+instance Semigroup Bool where (+) = (||)
+instance Monoid Bool where zero = False
+instance IfThenElse Bool where
+    ifThenElse True  b _ = b
+    ifThenElse False _ b = b
+
+instance IfThenElse () where
+    ifThenElse () b _ = b
+
+----------------------------------------
 
 -- | Every type has an associated logic.
 -- Most types use classical logic, which corresponds to the Bool type.
@@ -332,39 +372,25 @@ simpleMutableDefn mf f a b = unsafeRunMutableProperty $ do
 -- See wikipedia's articles on <https://en.wikipedia.org/wiki/Algebraic_logic algebraic logic>,
 -- and <https://en.wikipedia.org/wiki/Infinitary_logic infinitary logic> for more details.
 type family Logic a :: *
-type instance Logic Bool = Bool
-type instance Logic Char = Bool
-type instance Logic Int = Bool
-type instance Logic Integer = Bool
-type instance Logic Rational = Bool
-type instance Logic Float = Bool
-type instance Logic Double = Bool
-type instance Logic (a->b) = a -> Logic b
-type instance Logic () = ()
 
--- FIXME:
--- This type is only needed to due an apparent ghc bug.
--- See [#10592](https://ghc.haskell.org/trac/ghc/ticket/10592).
--- But there seems to be a workaround now.
-type ValidLogic a = Complemented (Logic a)
+type IdempLogic a = Logic (Logic a)~Logic a
 
--- | Classical logic is implemented using the Prelude's Bool type.
-type ClassicalLogic a = Logic a ~ Bool
+type ClassicalLogic a = Logic a ~Bool
 
 -- | Defines equivalence classes over the type.
 -- The values need not have identical representations in the machine to be equal.
 --
 -- See <https://en.wikipedia.org/wiki/Equivalence_class wikipedia>
 -- and <http://ncatlab.org/nlab/show/equivalence+class ncatlab> for more details.
-class Eq_ a where
+class (IdempLogic a, Container (Logic a), Boolean (Logic a)) => Eq a where
+    {-# MINIMAL (==) | (/=) #-}
 
     infix 4 ==
     (==) :: a -> a -> Logic a
+    (==) = not (/=)
 
-    -- | In order to have the "not equals to" relation, your logic must have a notion of "not", and therefore must be "Boolean".
-    {-# INLINE (/=) #-}
     infix 4 /=
-    (/=) :: ValidLogic a => a -> a -> Logic a
+    (/=) :: a -> a -> Logic a
     (/=) = not (==)
 
 law_Eq_reflexive :: Eq a => a -> Logic a
@@ -376,41 +402,38 @@ law_Eq_symmetric a1 a2 = (a1==a2)==(a2==a1)
 law_Eq_transitive :: Eq a => a -> a -> a -> Logic a
 law_Eq_transitive a1 a2 a3 = (a1==a2&&a2==a3) ==> (a1==a3)
 
-defn_Eq_noteq :: (Complemented (Logic a), Eq a) => a -> a -> Logic a
+defn_Eq_noteq :: Eq a => a -> a -> Logic a
 defn_Eq_noteq a1 a2 = (a1/=a2) == (not $ a1==a2)
 
-instance Eq_ () where
-    {-# INLINE (==) #-}
-    () == () = ()
+#define mkEq(x) \
+type instance Logic x = Bool; \
+instance Eq x where (==) = (P.==); (/=) = (P./=)
 
-    {-# INLINE (/=) #-}
+mkEq(Bool)
+mkEq(Char)
+mkEq(Int)
+mkEq(Integer)
+mkEq(Rational)
+mkEq(Float)
+mkEq(Double)
+
+type instance Logic () = ()
+instance Eq () where
+    () == () = ()
     () /= () = ()
 
-instance Eq_ Bool     where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq_ Char     where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq_ Int      where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq_ Integer  where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq_ Rational where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq_ Float    where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-instance Eq_ Double   where (==) = (P.==); (/=) = (P./=); {-# INLINE (==) #-}; {-# INLINE (/=) #-}
-
-instance Eq_ b => Eq_ (a -> b) where
-    {-# INLINE (==) #-}
-    (f==g) a = f a == g a
-
-type Eq a = (Eq_ a, Logic a~Bool)
-type ValidEq a = (Eq_ a, ValidLogic a)
-
--- class (Eq_ a, Logic a ~ Bool) => Eq a
--- instance (Eq_ a, Logic a ~ Bool) => Eq a
---
--- class (Eq_ a, ValidLogic a) => ValidEq a
--- instance (Eq_ a, ValidLogic a) => ValidEq a
+-- type instance Logic (a -> b) = (Neighbor (a -> b) -> Bool)
+type instance Logic (a -> b) = a -> Logic b
+instance Eq b => Eq (a -> b) where
+--     (==) f g (xs,nb) = go xs
+--         where
+--             go (x:xs) = (f x==g x) nb && go xs
+--             go []     = True
 
 --------------------
 
 -- | This is more commonly known as a "meet" semilattice
-class Eq_ b => POrd_ b where
+class Eq b => POrd b where
     inf :: b -> b -> b
 
     {-# INLINE (<=) #-}
@@ -419,25 +442,20 @@ class Eq_ b => POrd_ b where
     b1 <= b2 = inf b1 b2 == b1
 
     {-# INLINE (<) #-}
-    infix 4 <
-    (<) :: Complemented (Logic b) => b -> b -> Logic b
+    (<) :: b -> b -> Logic b
     b1 < b2 = inf b1 b2 == b1 && b1 /= b2
 
-type POrd a = (Eq a, POrd_ a)
--- class (Eq b, POrd_ b) => POrd b
--- instance (Eq b, POrd_ b) => POrd b
-
-law_POrd_commutative :: (Eq b, POrd_ b) => b -> b -> Bool
+law_POrd_commutative :: POrd b => b -> b -> Logic b
 law_POrd_commutative b1 b2 = inf b1 b2 == inf b2 b1
 
-law_POrd_associative :: (Eq b, POrd_ b) => b -> b -> b -> Bool
+law_POrd_associative :: POrd b => b -> b -> b -> Logic b
 law_POrd_associative b1 b2 b3 = inf (inf b1 b2) b3 == inf b1 (inf b2 b3)
 
-theorem_POrd_idempotent :: (Eq b, POrd_ b) => b -> Bool
+theorem_POrd_idempotent :: POrd b => b -> Logic b
 theorem_POrd_idempotent b = inf b b == b
 
-#define mkPOrd_(x) \
-instance POrd_ x where \
+#define mkPOrd(x) \
+instance POrd x where \
     inf = (P.min) ;\
     (<=) = (P.<=) ;\
     (<) = (P.<) ;\
@@ -445,23 +463,23 @@ instance POrd_ x where \
     {-# INLINE (<=) #-} ;\
     {-# INLINE (<) #-}
 
-mkPOrd_(Bool)
-mkPOrd_(Char)
-mkPOrd_(Int)
-mkPOrd_(Integer)
-mkPOrd_(Float)
-mkPOrd_(Double)
-mkPOrd_(Rational)
+mkPOrd(Bool)
+mkPOrd(Char)
+mkPOrd(Int)
+mkPOrd(Integer)
+mkPOrd(Float)
+mkPOrd(Double)
+mkPOrd(Rational)
 
-instance POrd_ () where
+instance POrd () where
     {-# INLINE inf #-}
     inf () () = ()
 
-instance POrd_ b => POrd_ (a -> b) where
+instance POrd b => POrd (a -> b) where
     {-# INLINE inf #-}
     inf f g = \x -> inf (f x) (g x)
 
-    {-# INLINE (<) #-}
+    {-# INLINE (<=) #-}
     (f<=g) a = f a <= g a
 
 -------------------
@@ -470,30 +488,26 @@ instance POrd_ b => POrd_ (a -> b) where
 --
 -- prop> minBound <= b || not (minBound > b)
 --
-class POrd_ b => MinBound_ b where
+class POrd b => MinBound b where
     minBound :: b
 
-type MinBound a = (Eq a, MinBound_ a)
--- class (Eq b, MinBound_ b) => MinBound b
--- instance (Eq b, MinBound_ b) => MinBound b
-
-law_MinBound_inf :: (Eq b, MinBound_ b) => b -> Bool
+law_MinBound_inf :: MinBound b => b -> Logic b
 law_MinBound_inf b = inf b minBound == minBound
 
 -- | "false" is an upper bound because `a && false = false` for all a.
 {-# INLINE false #-}
-false :: MinBound_ b => b
+false :: MinBound b => b
 false = minBound
 
-instance MinBound_ ()       where minBound = ()         ; {-# INLINE minBound #-}
-instance MinBound_ Bool     where minBound = False      ; {-# INLINE minBound #-}
-instance MinBound_ Char     where minBound = P.minBound ; {-# INLINE minBound #-}
-instance MinBound_ Int      where minBound = P.minBound ; {-# INLINE minBound #-}
-instance MinBound_ Float    where minBound = -1/0       ; {-# INLINE minBound #-}
-instance MinBound_ Double   where minBound = -1/0       ; {-# INLINE minBound #-}
+instance MinBound ()       where minBound = ()         ; {-# INLINE minBound #-}
+instance MinBound Bool     where minBound = False      ; {-# INLINE minBound #-}
+instance MinBound Char     where minBound = P.minBound ; {-# INLINE minBound #-}
+instance MinBound Int      where minBound = P.minBound ; {-# INLINE minBound #-}
+instance MinBound Float    where minBound = -1/0       ; {-# INLINE minBound #-}
+instance MinBound Double   where minBound = -1/0       ; {-# INLINE minBound #-}
 -- FIXME: should be a primop for this
 
-instance MinBound_ b => MinBound_ (a -> b) where minBound = \x -> minBound ; {-# INLINE minBound #-}
+instance MinBound b => MinBound (a -> b) where minBound = \_ -> minBound ; {-# INLINE minBound #-}
 
 -------------------
 
@@ -515,7 +529,7 @@ instance Arbitrary POrdering where
         , (1, P.return PNA)
         ]
 
-instance Eq_ POrdering where
+instance Eq POrdering where
     {-# INLINE (==) #-}
     PLT == PLT = True
     PGT == PGT = True
@@ -534,7 +548,7 @@ instance Semigroup POrdering where
 
 type instance Logic Ordering = Bool
 
-instance Eq_ Ordering where
+instance Eq Ordering where
     {-# INLINE (==) #-}
     EQ == EQ = True
     LT == LT = True
@@ -559,8 +573,8 @@ instance Monoid Ordering where
 -- |
 --
 --
--- See <https://en.wikipedia.org/wiki/Lattice_%28order%29 wikipedia> for more details.
-class POrd_ b => Lattice_ b where
+-- See <https://en.wikipedia.org/wiki/Lattice%28order%29 wikipedia> for more details.
+class POrd b => Lattice b where
     sup :: b -> b -> b
 
     {-# INLINE (>=) #-}
@@ -569,8 +583,7 @@ class POrd_ b => Lattice_ b where
     b1 >= b2 = sup b1 b2 == b1
 
     {-# INLINE (>) #-}
-    infix 4 >
-    (>) :: Boolean (Logic b) => b -> b -> Logic b
+    (>) :: b -> b -> Logic b
     b1 > b2 = sup b1 b2 == b1 && b1 /= b2
 
     -- | This function does not make sense on non-classical logics
@@ -587,34 +600,30 @@ class POrd_ b => Lattice_ b where
                 then PGT
                 else PNA
 
-type Lattice a = (Eq a, Lattice_ a)
--- class (Eq b, Lattice_ b) => Lattice b
--- instance (Eq b, Lattice_ b) => Lattice b
-
-law_Lattice_commutative :: (Eq b, Lattice_ b) => b -> b -> Bool
+law_Lattice_commutative :: Lattice b => b -> b -> Logic b
 law_Lattice_commutative b1 b2 = sup b1 b2 == sup b2 b1
 
-law_Lattice_associative :: (Eq b, Lattice_ b) => b -> b -> b -> Bool
+law_Lattice_associative :: Lattice b => b -> b -> b -> Logic b
 law_Lattice_associative b1 b2 b3 = sup (sup b1 b2) b3 == sup b1 (sup b2 b3)
 
-theorem_Lattice_idempotent :: (Eq b, Lattice_ b) => b -> Bool
+theorem_Lattice_idempotent :: Lattice b => b -> Logic b
 theorem_Lattice_idempotent b = sup b b == b
 
-law_Lattice_infabsorption :: (Eq b, Lattice b) => b -> b -> Bool
+law_Lattice_infabsorption :: Lattice b => b -> b -> Logic b
 law_Lattice_infabsorption b1 b2 = inf b1 (sup b1 b2) == b1
 
-law_Lattice_supabsorption :: (Eq b, Lattice b) => b -> b -> Bool
+law_Lattice_supabsorption :: Lattice b => b -> b -> Logic b
 law_Lattice_supabsorption b1 b2 = sup b1 (inf b1 b2) == b1
 
 law_Lattice_reflexivity :: Lattice a => a -> Logic a
 law_Lattice_reflexivity a = a<=a
 
-law_Lattice_antisymmetry :: Lattice a => a -> a -> Logic a
+law_Lattice_antisymmetry :: (ClassicalLogic a, Lattice a) => a -> a -> Logic a
 law_Lattice_antisymmetry a1 a2
     | a1 <= a2 && a2 <= a1 = a1 == a2
     | otherwise = true
 
-law_Lattice_transitivity :: Lattice a => a -> a -> a -> Logic a
+law_Lattice_transitivity :: (ClassicalLogic a, Lattice a) => a -> a -> a -> Logic a
 law_Lattice_transitivity  a1 a2 a3
     | a1 <= a2 && a2 <= a3 = a1 <= a3
     | a1 <= a3 && a3 <= a2 = a1 <= a2
@@ -624,14 +633,14 @@ law_Lattice_transitivity  a1 a2 a3
     | a3 <= a1 && a1 <= a2 = a3 <= a2
     | otherwise = true
 
-defn_Lattice_greaterthan :: Lattice a => a -> a -> Logic a
+defn_Lattice_greaterthan :: (ClassicalLogic a, Lattice a) => a -> a -> Logic a
 defn_Lattice_greaterthan a1 a2
     | a1 < a2 = a2 >= a1
     | a1 > a2 = a2 <= a1
     | otherwise = true
 
-#define mkLattice_(x)\
-instance Lattice_ x where \
+#define mkLattice(x)\
+instance Lattice x where \
     sup = (P.max) ;\
     (>=) = (P.>=) ;\
     (>) = (P.>) ;\
@@ -639,19 +648,19 @@ instance Lattice_ x where \
     {-# INLINE (>=) #-} ;\
     {-# INLINE (>) #-}
 
-mkLattice_(Bool)
-mkLattice_(Char)
-mkLattice_(Int)
-mkLattice_(Integer)
-mkLattice_(Float)
-mkLattice_(Double)
-mkLattice_(Rational)
+mkLattice(Bool)
+mkLattice(Char)
+mkLattice(Int)
+mkLattice(Integer)
+mkLattice(Float)
+mkLattice(Double)
+mkLattice(Rational)
 
-instance Lattice_ () where
+instance Lattice () where
     {-# INLINE sup #-}
     sup () () = ()
 
-instance Lattice_ b => Lattice_ (a -> b) where
+instance Lattice b => Lattice (a -> b) where
     {-# INLINE sup #-}
     sup f g = \x -> sup (f x) (g x)
 
@@ -660,17 +669,17 @@ instance Lattice_ b => Lattice_ (a -> b) where
 
 {-# INLINE (&&) #-}
 infixr 3 &&
-(&&) :: Lattice_ b => b -> b -> b
+(&&) :: Lattice b => b -> b -> b
 (&&) = inf
 
 {-# INLINE (||) #-}
 infixr 2 ||
-(||) :: Lattice_ b => b -> b -> b
+(||) :: Lattice b => b -> b -> b
 (||) = sup
 
 -- | A chain is a collection of elements all of which can be compared
 {-# INLINABLE isChain #-}
-isChain :: Lattice a => [a] -> Logic a
+isChain :: (Lattice a, ClassicalLogic a) => [a] -> Logic a
 isChain [] = true
 isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isChain xs
 
@@ -680,7 +689,7 @@ isChain (x:xs) = all (/=PNA) (map (pcompare x) xs) && isChain xs
 --
 -- See also the article on <http://en.wikipedia.org/wiki/Dilworth%27s_theorem Dilward's Theorem>.
 {-# INLINABLE isAntichain #-}
-isAntichain :: Lattice a => [a] -> Logic a
+isAntichain :: (Lattice a, ClassicalLogic a) => [a] -> Logic a
 isAntichain [] = true
 isAntichain (x:xs) = all (==PNA) (map (pcompare x) xs) && isAntichain xs
 
@@ -704,7 +713,7 @@ class Lattice b => Graded b where
         | i == 0 = b
         | i  > 0 = predN (i-1) $ pred b
 
-law_Graded_fromEnum :: (Lattice b, Graded b) => b -> b -> Bool
+law_Graded_fromEnum :: (Lattice b, ClassicalLogic b, Graded b) => b -> b -> Bool
 law_Graded_fromEnum b1 b2
     | b1 <  b2  = fromEnum b1 <  fromEnum b2
     | b1 >  b2  = fromEnum b1 >  fromEnum b2
@@ -712,16 +721,17 @@ law_Graded_fromEnum b1 b2
     | otherwise = True
 
 law_Graded_pred :: Graded b => b -> b -> Bool
-law_Graded_pred b1 b2 = fromEnum (pred b1) == fromEnum b1-1
+law_Graded_pred b1 _ = fromEnum (pred b1) == fromEnum b1-1
                      || fromEnum (pred b1) == fromEnum b1
 
-defn_Graded_predN :: Graded b => Int -> b -> Bool
+defn_Graded_predN :: Graded b => Int -> b -> Logic b
 defn_Graded_predN i b
     | i < 0 = true
     | otherwise = go i b == predN i b
     where
-        go 0 b = b
-        go i b = go (i-1) $ pred b
+        go :: Graded b => Int -> b -> b
+        go 0  b' = b'
+        go i' b' = go (i'-1) $ pred b'
 
 instance Graded Bool where
     {-# INLINE pred #-}
@@ -766,14 +776,14 @@ instance Graded Integer where
     fromEnum = P.fromEnum
 
 {-# INLINE (<.) #-}
-(<.) :: (Lattice b, Graded b) => b -> b -> Bool
+(<.) :: Graded b => b -> b -> Logic b
 b1 <. b2 = b1 == pred b2
 
 -- | In a well founded ordering, every element (except possibly the "maxBound" if it exists) has a successor element.
 -- We use the "Enum" to represent well founded orderings to maintain consistency with the standard Prelude.
 --
 -- See <http://ncatlab.org/nlab/show/well-founded+relation ncatlab> for more info.
-class (Graded b, Ord_ b) => Enum b where
+class (Graded b, Ord b) => Enum b where
     -- | The next element in the ordering
     succ :: b -> b
 
@@ -785,12 +795,12 @@ class (Graded b, Ord_ b) => Enum b where
     -- | Given an index (also called a rank) of an element, return the element
     toEnum :: Int -> b
 
-law_Enum_toEnum :: Enum b => b -> Bool
+law_Enum_toEnum :: Enum b => b -> Logic b
 law_Enum_toEnum b = toEnum (fromEnum b) == b
 
-law_Enum_succ :: Enum b => b -> b -> Bool
-law_Enum_succ b1 b2 = fromEnum (succ b1) == fromEnum b1+1
-                   || fromEnum (succ b1) == fromEnum b1
+law_Enum_succ :: Enum b => b -> Bool
+law_Enum_succ b1 = fromEnum (succ b1) == fromEnum b1+1
+                || fromEnum (succ b1) == fromEnum b1
 
 defn_Enum_succN :: Enum b => Int -> b -> Logic b
 defn_Enum_succN i b = succN i b == toEnum (fromEnum b + i)
@@ -832,7 +842,7 @@ instance Enum Integer where
 
 
 {-# INLINE (>.) #-}
-(>.) :: (Lattice b, Enum b) => b -> b -> Bool
+(>.) :: Enum b => b -> b -> Logic b
 b1 >. b2 = b1 == succ b2
 
 ---------------------------------------
@@ -840,52 +850,50 @@ b1 >. b2 = b1 == succ b2
 -- | This is the class of total orderings.
 --
 -- See https://en.wikipedia.org/wiki/Total_order
-class Lattice_ a => Ord_ a where
-    compare :: (Logic a~Bool, Ord_ a) => a -> a -> Ordering
+class Lattice a => Ord a where
+    compare :: ClassicalLogic a => a -> a -> Ordering
     compare a1 a2 = case pcompare a1 a2 of
         PLT -> LT
         PGT -> GT
         PEQ -> EQ
         PNA -> error "PNA given by pcompare on a totally ordered type"
 
-law_Ord_totality :: Ord a => a -> a -> Bool
+law_Ord_totality :: Ord a => a -> a -> Logic a
 law_Ord_totality a1 a2 = a1 <= a2 || a2 <= a1
 
-law_Ord_min :: Ord a => a -> a -> Bool
+law_Ord_min :: Ord a => a -> a -> Logic a
 law_Ord_min a1 a2 = min a1 a2 == a1
                  || min a1 a2 == a2
 
-law_Ord_max :: Ord a => a -> a -> Bool
+law_Ord_max :: Ord a => a -> a -> Logic a
 law_Ord_max a1 a2 = max a1 a2 == a1
                  || max a1 a2 == a2
 
 {-# INLINE min #-}
-min :: Ord_ a => a -> a -> a
+min :: Ord a => a -> a -> a
 min = inf
 
 {-# INLINE max #-}
-max :: Ord_ a => a -> a -> a
+max :: Ord a => a -> a -> a
 max = sup
 
-type Ord a = (Eq a, Ord_ a)
-
-instance Ord_ ()
-instance Ord_ Char      where compare = P.compare ; {-# INLINE compare #-}
-instance Ord_ Int       where compare = P.compare ; {-# INLINE compare #-}
-instance Ord_ Integer   where compare = P.compare ; {-# INLINE compare #-}
-instance Ord_ Float     where compare = P.compare ; {-# INLINE compare #-}
-instance Ord_ Double    where compare = P.compare ; {-# INLINE compare #-}
-instance Ord_ Rational  where compare = P.compare ; {-# INLINE compare #-}
-instance Ord_ Bool      where compare = P.compare ; {-# INLINE compare #-}
+instance Ord ()
+instance Ord Char      where compare = P.compare ; {-# INLINE compare #-}
+instance Ord Int       where compare = P.compare ; {-# INLINE compare #-}
+instance Ord Integer   where compare = P.compare ; {-# INLINE compare #-}
+instance Ord Float     where compare = P.compare ; {-# INLINE compare #-}
+instance Ord Double    where compare = P.compare ; {-# INLINE compare #-}
+instance Ord Rational  where compare = P.compare ; {-# INLINE compare #-}
+instance Ord Bool      where compare = P.compare ; {-# INLINE compare #-}
 
 -------------------
 
 -- | A Bounded lattice is a lattice with both a minimum and maximum element
 --
-class (Lattice_ b, MinBound_ b) => Bounded b where
+class (Lattice b, MinBound b) => Bounded b where
     maxBound :: b
 
-law_Bounded_sup :: (Eq b, Bounded b) => b -> Bool
+law_Bounded_sup :: Bounded b => b -> Logic b
 law_Bounded_sup b = sup b maxBound == maxBound
 
 -- | "true" is an lower bound because `a && true = true` for all a.
@@ -903,14 +911,14 @@ instance Bounded Double where maxBound = 1/0        ; {-# INLINE maxBound #-}
 
 instance Bounded b => Bounded (a -> b) where
     {-# INLINE maxBound #-}
-    maxBound = \x -> maxBound
+    maxBound = \_ -> maxBound
 
 --------------------
 
 class Bounded b => Complemented b where
     not :: b -> b
 
-law_Complemented_not :: (ValidLogic b, Complemented b) => b -> Logic b
+law_Complemented_not :: Complemented b => b -> Logic b
 law_Complemented_not b = not (true  `asTypeOf` b) == false
                       && not (false `asTypeOf` b) == true
 
@@ -946,16 +954,16 @@ class Bounded b => Heyting b where
     infixl 3 ==>
     (==>) :: b -> b -> b
 
-law_Heyting_maxbound :: (Eq b, Heyting b) => b -> Bool
+law_Heyting_maxbound :: Heyting b => b -> Logic b
 law_Heyting_maxbound b = (b ==> b) == maxBound
 
-law_Heyting_infleft :: (Eq b, Heyting b) => b -> b -> Bool
+law_Heyting_infleft :: Heyting b => b -> b -> Logic b
 law_Heyting_infleft b1 b2 = (b1 && (b1 ==> b2)) == (b1 && b2)
 
-law_Heyting_infright :: (Eq b, Heyting b) => b -> b -> Bool
+law_Heyting_infright :: Heyting b => b -> b -> Logic b
 law_Heyting_infright b1 b2 = (b2 && (b1 ==> b2)) == b2
 
-law_Heyting_distributive :: (Eq b, Heyting b) => b -> b -> b -> Bool
+law_Heyting_distributive :: Heyting b => b -> b -> b -> Logic b
 law_Heyting_distributive b1 b2 b3 = (b1 ==> (b2 && b3)) == ((b1 ==> b2) && (b1 ==> b3))
 
 -- | FIXME: add the axioms for intuitionist logic, which are theorems based on these laws
@@ -985,16 +993,16 @@ instance Heyting b => Heyting (a -> b) where
 -- See <https://en.wikipedia.org/wiki/Boolean_algebra_%28structure%29 wikipedia> for more details.
 class (Complemented b, Heyting b) => Boolean b where
 
-law_Boolean_infcomplement :: (Eq b, Boolean b) => b -> Bool
+law_Boolean_infcomplement :: Boolean b => b -> Logic b
 law_Boolean_infcomplement b = (b || not b) == true
 
-law_Boolean_supcomplement :: (Eq b, Boolean b) => b -> Bool
+law_Boolean_supcomplement :: Boolean b => b -> Logic b
 law_Boolean_supcomplement b = (b && not b) == false
 
-law_Boolean_infdistributivity :: (Eq b, Boolean b) => b -> b -> b -> Bool
+law_Boolean_infdistributivity :: Boolean b => b -> b -> b -> Logic b
 law_Boolean_infdistributivity b1 b2 b3 = (b1 || (b2 && b3)) == ((b1 || b2) && (b1 || b3))
 
-law_Boolean_supdistributivity :: (Eq b, Boolean b) => b -> b -> b -> Bool
+law_Boolean_supdistributivity :: Boolean b => b -> b -> b -> Logic b
 law_Boolean_supdistributivity b1 b2 b3 = (b1 && (b2 || b3)) == ((b1 && b2) || (b1 && b3))
 
 instance Boolean ()
@@ -1014,20 +1022,14 @@ class IsMutable g => Semigroup g where
 
     {-# INLINE (+=) #-}
     infixr 5 +=
-    (+=) :: (PrimBase m) => Mutable m g -> g -> m ()
+    (+=) :: PrimBase m => Mutable m g -> g -> m ()
     (+=) = immutable2mutable (+)
 
-law_Semigroup_associativity :: (Eq g, Semigroup g ) => g -> g -> g -> Logic g
+law_Semigroup_associativity :: (Eq g, Semigroup g) => g -> g -> g -> Logic g
 law_Semigroup_associativity g1 g2 g3 = g1 + (g2 + g3) == (g1 + g2) + g3
 
-defn_Semigroup_plusequal :: (Eq_ g, Semigroup g, IsMutable g) => g -> g -> Logic g
+defn_Semigroup_plusequal :: (Eq g, Semigroup g) => g -> g -> Logic g
 defn_Semigroup_plusequal = simpleMutableDefn (+=) (+)
-
--- | Measures the degree to which a Semigroup obeys the associative law.
---
--- FIXME: Less-than-perfect associativity should be formalized in the class laws somehow.
-associator :: (Semigroup g, Metric g) => g -> g -> g -> Scalar g
-associator g1 g2 g3 = distance ((g1+g2)+g3) (g1+(g2+g3))
 
 -- | A generalization of 'Data.List.cycle' to an arbitrary 'Semigroup'.
 -- May fail to terminate for some values in some semigroups.
@@ -1077,10 +1079,10 @@ class (IsMutable s, Semigroup (Actor s)) => Action s where
     (.+=) :: (PrimBase m) => Mutable m s -> Actor s -> m ()
     (.+=) = immutable2mutable (.+)
 
-law_Action_compatibility :: (Eq_ s, Action s) => Actor s -> Actor s -> s -> Logic s
+law_Action_compatibility :: (Eq s, Action s) => Actor s -> Actor s -> s -> Logic s
 law_Action_compatibility a1 a2 s = (a1+a2) +. s == a1 +. a2 +. s
 
-defn_Action_dotplusequal :: (Eq_ s, Action s, Logic (Actor s)~Logic s) => s -> Actor s -> Logic s
+defn_Action_dotplusequal :: (Eq s, Action s) => s -> Actor s -> Logic s
 defn_Action_dotplusequal = simpleMutableDefn (.+=) (.+)
 
 -- | > s .+ a = a +. s
@@ -1113,21 +1115,21 @@ instance Action b => Action (a->b) where
 class Semigroup g => Monoid g where
     zero :: g
 
--- | FIXME: this should be in the Monoid class, but putting it there requires a lot of changes to Eq
-isZero :: (Monoid g, ValidEq g) => g -> Logic g
+-- | FIXME:
+-- Mive into Monoid class
+isZero :: (Monoid g, Eq g) => g -> Logic g
 isZero = (==zero)
 
--- | FIXME: this should be in the Monoid class, but putting it there requires a lot of changes to Eq
-notZero :: (Monoid g, ValidEq g) => g -> Logic g
+notZero :: (Monoid g, Eq g) => g -> Logic g
 notZero = (/=zero)
 
-law_Monoid_leftid :: (Monoid g, Eq g) => g -> Bool
+law_Monoid_leftid :: (Monoid g, Eq g) => g -> Logic g
 law_Monoid_leftid g = zero + g == g
 
-law_Monoid_rightid :: (Monoid g, Eq g) => g -> Bool
+law_Monoid_rightid :: (Monoid g, Eq g) => g -> Logic g
 law_Monoid_rightid g = g + zero == g
 
-defn_Monoid_isZero :: (Monoid g, Eq g) => g -> Bool
+defn_Monoid_isZero :: (Monoid g, Eq g) => g -> Logic g
 defn_Monoid_isZero g = (isZero $ zero `asTypeOf` g)
                     && (g /= zero ==> not isZero g)
 
@@ -1145,7 +1147,7 @@ instance Monoid () where
 
 instance Monoid b => Monoid (a -> b) where
     {-# INLINE zero #-}
-    zero = \a -> zero
+    zero = \_ -> zero
 
 ---------------------------------------
 
@@ -1182,13 +1184,13 @@ class Semigroup g => Cancellative g where
     (-=) = immutable2mutable (-)
 
 
-law_Cancellative_rightminus1 :: (Eq g, Cancellative g) => g -> g -> Bool
+law_Cancellative_rightminus1 :: (Eq g, Cancellative g) => g -> g -> Logic g
 law_Cancellative_rightminus1 g1 g2 = (g1 + g2) - g2 == g1
 
-law_Cancellative_rightminus2 :: (Eq g, Cancellative g) => g -> g -> Bool
+law_Cancellative_rightminus2 :: (Eq g, Cancellative g) => g -> g -> Logic g
 law_Cancellative_rightminus2 g1 g2 = g1 + (g2 - g2) == g1
 
-defn_Cancellative_plusequal :: (Eq_ g, Cancellative g) => g -> g -> Logic g
+defn_Cancellative_plusequal :: (Eq g, Cancellative g) => g -> g -> Logic g
 defn_Cancellative_plusequal = simpleMutableDefn (-=) (-)
 
 instance Cancellative Int        where (-) = (P.-) ; {-# INLINE (-) #-}
@@ -1212,13 +1214,13 @@ class (Cancellative g, Monoid g) => Group g where
     negate :: g -> g
     negate g = zero - g
 
-defn_Group_negateminus :: (Eq g, Group g) => g -> g -> Bool
+defn_Group_negateminus :: (Eq g, Group g) => g -> g -> Logic g
 defn_Group_negateminus g1 g2 = g1 + negate g2 == g1 - g2
 
-law_Group_leftinverse :: (Eq g, Group g) => g -> Bool
+law_Group_leftinverse :: (Eq g, Group g) => g -> Logic g
 law_Group_leftinverse g = negate g + g == zero
 
-law_Group_rightinverse :: (Eq g, Group g) => g -> Bool
+law_Group_rightinverse :: (Eq g, Group g) => g -> Logic g
 law_Group_rightinverse g = g + negate g == zero
 
 instance Group Int        where negate = P.negate ; {-# INLINE negate #-}
@@ -1239,7 +1241,7 @@ instance Group b => Group (a -> b) where
 
 class Semigroup m => Abelian m
 
-law_Abelian_commutative :: (Abelian g, Eq g) => g -> g -> Bool
+law_Abelian_commutative :: (Abelian g, Eq g) => g -> g -> Logic g
 law_Abelian_commutative g1 g2 = g1 + g2 == g2 + g1
 
 instance Abelian Int
@@ -1274,22 +1276,22 @@ class (Abelian r, Monoid r) => Rg r where
     (*=) :: (PrimBase m) => Mutable m r -> r -> m ()
     (*=) = immutable2mutable (*)
 
-law_Rg_multiplicativeAssociativity :: (Eq r, Rg r) => r -> r -> r -> Bool
+law_Rg_multiplicativeAssociativity :: (Eq r, Rg r) => r -> r -> r -> Logic r
 law_Rg_multiplicativeAssociativity r1 r2 r3 = (r1 * r2) * r3 == r1 * (r2 * r3)
 
-law_Rg_multiplicativeCommutivity :: (Eq r, Rg r) => r -> r -> Bool
+law_Rg_multiplicativeCommutivity :: (Eq r, Rg r) => r -> r -> Logic r
 law_Rg_multiplicativeCommutivity r1 r2 = r1*r2 == r2*r1
 
-law_Rg_annihilation :: (Eq r, Rg r) => r -> Bool
+law_Rg_annihilation :: (Eq r, Rg r) => r -> Logic r
 law_Rg_annihilation r = r * zero == zero
 
-law_Rg_distributivityLeft :: (Eq r, Rg r) => r -> r -> r -> Bool
+law_Rg_distributivityLeft :: (Eq r, Rg r) => r -> r -> r -> Logic r
 law_Rg_distributivityLeft r1 r2 r3 = r1*(r2+r3) == r1*r2+r1*r3
 
-theorem_Rg_distributivityRight :: (Eq r, Rg r) => r -> r -> r -> Bool
+theorem_Rg_distributivityRight :: (Eq r, Rg r) => r -> r -> r -> Logic r
 theorem_Rg_distributivityRight r1 r2 r3 = (r2+r3)*r1 == r2*r1+r3*r1
 
-defn_Rg_timesequal :: (Eq_ g, Rg g) => g -> g -> Logic g
+defn_Rg_timesequal :: (Eq g, Rg g) => g -> g -> Logic g
 defn_Rg_timesequal = simpleMutableDefn (*=) (*)
 
 instance Rg Int         where (*) = (P.*) ; {-# INLINE (*) #-}
@@ -1315,14 +1317,14 @@ class (Monoid r, Rg r) => Rig r where
     one :: r
 
 -- | FIXME: this should be in the Rig class, but putting it there requires a lot of changes to Eq
-isOne :: (Rig g, ValidEq g) => g -> Logic g
+isOne :: (Rig g, Eq g) => g -> Logic g
 isOne = (==one)
 
 -- | FIXME: this should be in the Rig class, but putting it there requires a lot of changes to Eq
-notOne :: (Rig g, ValidEq g) => g -> Logic g
+notOne :: (Rig g, Eq g) => g -> Logic g
 notOne = (/=one)
 
-law_Rig_multiplicativeId :: (Eq r, Rig r) => r -> Bool
+law_Rig_multiplicativeId :: (Eq r, Rig r) => r -> Logic r
 law_Rig_multiplicativeId r = r * one == r && one * r == r
 
 instance Rig Int         where one = 1 ; {-# INLINE one #-}
@@ -1333,7 +1335,7 @@ instance Rig Rational    where one = 1 ; {-# INLINE one #-}
 
 instance Rig b => Rig (a -> b) where
     {-# INLINE one #-}
-    one = \a -> one
+    one = \_ -> one
 
 ---------------------------------------
 
@@ -1359,7 +1361,7 @@ class (Rng r, Rig r) => Ring r where
     fromInteger :: Integer -> r
     fromInteger = slowFromInteger
 
-defn_Ring_fromInteger :: (Eq r, Ring r) => r -> Integer -> Bool
+defn_Ring_fromInteger :: (Eq r, Ring r) => r -> Integer -> Logic r
 defn_Ring_fromInteger r i = fromInteger i `asTypeOf` r
                          == slowFromInteger i
 
@@ -1381,7 +1383,7 @@ instance Ring Rational    where fromInteger = P.fromInteger ; {-# INLINE fromInt
 
 instance Ring b => Ring (a -> b) where
     {-# INLINE fromInteger #-}
-    fromInteger i = \a -> fromInteger i
+    fromInteger i = \_ -> fromInteger i
 
 {-# INLINABLE indicator #-}
 indicator :: Ring r => Bool -> r
@@ -1430,17 +1432,17 @@ class Ring a => Integral a where
     divMod :: a -> a -> (a,a)
 
 
-law_Integral_divMod :: (Eq a, Integral a) => a -> a -> Bool
+law_Integral_divMod :: (Eq a, Integral a, ClassicalLogic a) => a -> a -> Bool
 law_Integral_divMod a1 a2 = if a2 /= 0
     then a2 * (a1 `div` a2) + (a1 `mod` a2) == a1
     else True
 
-law_Integral_quotRem :: (Eq a, Integral a) => a -> a -> Bool
+law_Integral_quotRem :: (Eq a, Integral a, ClassicalLogic a) => a -> a -> Bool
 law_Integral_quotRem a1 a2 = if a2 /= 0
     then a2 * (a1 `quot` a2) + (a1 `rem` a2) == a1
     else True
 
-law_Integral_toFromInverse :: (Eq a, Integral a) => a -> Bool
+law_Integral_toFromInverse :: (Eq a, Integral a) => a -> Logic a
 law_Integral_toFromInverse a = fromInteger (toInteger a) == a
 
 {-# INLINE[1] fromIntegral #-}
@@ -1559,7 +1561,7 @@ mkField(Double)
 mkField(Rational)
 
 instance Field b => Field (a -> b) where
-    {-# INLINE fromRational #-}
+    {-# INLINE reciprocal #-}
     reciprocal f = reciprocal . f
 
 ----------------------------------------
@@ -1568,7 +1570,7 @@ instance Field b => Field (a -> b) where
 -- In particular, all finite fields and the complex numbers are NOT ordered fields.
 --
 -- See <http://en.wikipedia.org/wiki/Ordered_field wikipedia> for more details.
-class (Field r, Ord_ r, Normed r, IsScalar r) => OrdField r
+class (Field r, Ord r, ValidScalar r) => OrdField r
 
 instance OrdField Float
 instance OrdField Double
@@ -1816,25 +1818,11 @@ instance Real Double where
 
 type family Scalar m
 
-infixr 8 ><
-type family (><) (a::k1) (b::k2) :: *
-type instance Int       >< Int        = Int
-type instance Integer   >< Integer    = Integer
-type instance Float     >< Float      = Float
-type instance Double    >< Double     = Double
-type instance Rational  >< Rational   = Rational
-
--- type instance (a,b)     >< Scalar b   = (a,b)
--- type instance (a,b,c)   >< Scalar b   = (a,b,c)
-
-type instance (a -> b)  >< c          = a -> (b><c)
--- type instance c         >< (a -> b)   = a -> (c><b)
-
 -- | A synonym that covers everything we intuitively thing scalar variables should have.
-type IsScalar r = (Ring r, Ord_ r, Scalar r~r, Normed r, Logic r ~ r, r~(r><r)) -- Replaced Classicallogic with logic
+type ValidScalar r = (Ring r, Ord r, Scalar r~r, Normed r)
 
--- | A (sometimes) more convenient version of "IsScalar".
-type HasScalar a = IsScalar (Scalar a)
+-- | A (sometimes) more convenient version of "ValidScalar".
+type HasScalar a = ValidScalar (Scalar a)
 
 type instance Scalar Int      = Int
 type instance Scalar Integer  = Integer
@@ -1854,7 +1842,7 @@ type instance Scalar (a -> b) = Scalar b
 --
 -- See <http://ncatlab.org/nlab/show/normed%20group ncatlab>
 class
-    ( Ord_ (Scalar g)
+    ( Ord (Scalar g)
     , Scalar (Scalar g) ~ Scalar g
     , Ring (Scalar g)
     ) => Normed g where
@@ -1865,7 +1853,7 @@ class
         where
             s = size g
 
-abs :: IsScalar g => g -> g
+abs :: ValidScalar g => g -> g
 abs = size
 
 instance Normed Int       where size = P.abs
@@ -1904,9 +1892,8 @@ class (Cancellative m, HasScalar m, Rig (Scalar m)) => Cone m where
 class
     ( Abelian v
     , Group v
-    , HasScalar v
-    , v ~ (v><Scalar v)
---     , v ~ (Scalar v><v)
+    , Ring (Scalar v)
+    , Scalar (Scalar v) ~ Scalar v
     ) => Module v
         where
 
@@ -1923,19 +1910,19 @@ class
     (.*=) :: (PrimBase m) => Mutable m v -> Scalar v -> m ()
     (.*=) = immutable2mutable (.*)
 
-law_Module_multiplication :: (Eq_ m, Module m) => m -> m -> Scalar m -> Logic m
+law_Module_multiplication :: (Eq m, Module m) => m -> m -> Scalar m -> Logic m
 law_Module_multiplication m1 m2 s = s *. (m1 + m2) == s*.m1 + s*.m2
 
-law_Module_addition :: (Eq_ m, Module m) => m -> Scalar m -> Scalar m -> Logic m
+law_Module_addition :: (Eq m, Module m) => m -> Scalar m -> Scalar m -> Logic m
 law_Module_addition  m s1 s2 = (s1+s2)*.m == s1*.m + s2*.m
 
-law_Module_action :: (Eq_ m, Module m) => m -> Scalar m -> Scalar m -> Logic m
+law_Module_action :: (Eq m, Module m) => m -> Scalar m -> Scalar m -> Logic m
 law_Module_action m s1 s2 = s1*.(s2*.m) == (s1*s2)*.m
 
-law_Module_unital :: (Eq_ m, Module m) => m -> Logic m
+law_Module_unital :: (Eq m, Module m) => m -> Logic m
 law_Module_unital m = 1 *. m == m
 
-defn_Module_dotstarequal :: (Eq_ m, Module m) => m -> Scalar m -> Logic m
+defn_Module_dotstarequal :: (Eq m, Module m) => m -> Scalar m -> Logic m
 defn_Module_dotstarequal = simpleMutableDefn (.*=) (.*)
 
 
@@ -1986,16 +1973,16 @@ class Module v => FreeModule v where
     -- Intuitively, this object has the value "one" in every column.
     ones :: v
 
-law_FreeModule_commutative :: (Eq_ m, FreeModule m) => m -> m -> Logic m
+law_FreeModule_commutative :: (Eq m, FreeModule m) => m -> m -> Logic m
 law_FreeModule_commutative m1 m2 = m1.*.m2 == m2.*.m1
 
-law_FreeModule_associative :: (Eq_ m, FreeModule m) => m -> m -> m -> Logic m
+law_FreeModule_associative :: (Eq m, FreeModule m) => m -> m -> m -> Logic m
 law_FreeModule_associative m1 m2 m3 = m1.*.(m2.*.m3) == (m1.*.m2).*.m3
 
-law_FreeModule_id :: (Eq_ m, FreeModule m) => m -> Logic m
+law_FreeModule_id :: (Eq m, FreeModule m) => m -> Logic m
 law_FreeModule_id m = m == m.*.ones
 
-defn_FreeModule_dotstardotequal :: (Eq_ m, FreeModule m) => m -> m -> Logic m
+defn_FreeModule_dotstardotequal :: (Eq m, FreeModule m) => m -> m -> Logic m
 defn_FreeModule_dotstardotequal = simpleMutableDefn (.*.=) (.*.)
 
 instance FreeModule Int       where (.*.) = (*); ones = one
@@ -2009,7 +1996,7 @@ instance
     ) => FreeModule (a -> b)
         where
     g .*. f = \a -> g a .*. f a
-    ones = \a -> ones
+    ones = \_ -> ones
 
 ---------------------------------------
 
@@ -2022,14 +2009,12 @@ class
     ( FreeModule v
     , IxContainer v
     , Elem v~Scalar v
-    --, Index v~Int -- Disabled to accomodate Acclerate Exp Int
-    , v ~ SetElem v (Elem v)
     ) => FiniteModule v
         where
     -- | Returns the dimension of the object.
     -- For some objects, this may be known statically, and so the parameter will not be "seq"ed.
     -- But for others, this may not be known statically, and so the parameter will be "seq"ed.
-    dim :: v -> Index v-- Set to index to accommodate Acclerate Exp Int
+    dim :: v -> Int
 
     unsafeToModule :: [Scalar v] -> v
 
@@ -2038,12 +2023,6 @@ type instance Elem Integer  = Integer
 type instance Elem Float    = Float
 type instance Elem Double   = Double
 type instance Elem Rational = Rational
-
-type instance SetElem Int      a = Int
-type instance SetElem Integer  a = Integer
-type instance SetElem Float    a = Float
-type instance SetElem Double   a = Double
-type instance SetElem Rational a = Rational
 
 type instance Index Int      = Int
 type instance Index Integer  = Int
@@ -2101,7 +2080,7 @@ instance VectorSpace b => VectorSpace (a -> b) where g ./. f = \a -> g a ./. f a
 -- | A Reisz space is a vector space obeying nice partial ordering laws.
 --
 -- See <http://en.wikipedia.org/wiki/Riesz_space wikipedia> for more details.
-class (VectorSpace v, Lattice_ v) => Reisz v where
+class (VectorSpace v, Lattice v) => Reisz v where
     --
     -- | An element of a Reisz space can always be split into positive and negative components.
     reiszSplit :: v -> (v,v)
@@ -2125,7 +2104,7 @@ class (VectorSpace v, Normed v, Metric v) => Banach v where
 law_Banach_distance :: Banach v => v -> v -> Logic (Scalar v)
 law_Banach_distance v1 v2 = size (v1 - v2) == distance v1 v2
 
-law_Banach_size :: Banach v => v -> Logic (Scalar v)
+law_Banach_size :: (Banach v, Logic v~Logic (Scalar v)) => v -> Logic (Scalar v)
 law_Banach_size v
     = isZero v
    || size (normalize v) == 1
@@ -2136,21 +2115,53 @@ instance Banach Rational
 
 ---------------------------------------
 
--- | Hilbert spaces are a natural generalization of Euclidean space that allows for infinite dimension.
+-- | Hilbert spaces generalize Euclidean space by allowing infinite dimensions.
 --
 -- See <http://en.wikipedia.org/wiki/Hilbert_space wikipedia> for more details.
---
--- FIXME:
--- The result of a dot product must always be an ordered field.
--- This is true even when the Hilbert space is over a non-ordered field like the complex numbers.
--- But the "OrdField" constraint currently prevents us from doing scalar multiplication on Complex Hilbert spaces.
--- See <http://math.stackexchange.com/questions/49348/inner-product-spaces-over-finite-fields> and <http://math.stackexchange.com/questions/47916/banach-spaces-over-fields-other-than-mathbbc> for some technical details.
-class ( Banach v , TensorAlgebra v , Real (Scalar v), OrdField (Scalar v) ) => Hilbert v where
+class Banach v => Hilbert v where
+
+    -- | The type of the tensor product of a vector with itself.
+    -- That is, the "square" of a type with respect to the tensor product.
+    --
+    -- FIXME:
+    -- Tensors are actually much more general.
+    -- For example, they can be the product of two vectors of different types.
+    -- To capture this generality requires using the monoidal structure of the Vect category.
+    type Square v
+
+    -- | The outer product
+    (><) :: v -> v -> Square v
+
+    -- | "left multiplication" of a square matrix
+    vXm :: v -> Square v -> v
+
+    -- | "right multiplication" of a square matrix
+    mXv :: Square v -> v -> v
+
+    -- | The inner product
     infix 8 <>
     (<>) :: v -> v -> Scalar v
 
-instance Hilbert Float    where (<>) = (*)
-instance Hilbert Double   where (<>) = (*)
+instance Hilbert Float where
+    type Square Float = Float
+    (><) = (*)
+    vXm  = (*)
+    mXv  = (*)
+    (<>) = (*)
+
+instance Hilbert Double where
+    type Square Double = Double
+    (><) = (*)
+    vXm  = (*)
+    mXv  = (*)
+    (<>) = (*)
+
+instance Hilbert Rational where
+    type Square Rational = Rational
+    (><) = (*)
+    vXm  = (*)
+    mXv  = (*)
+    (<>) = (*)
 
 {-# INLINE squaredInnerProductNorm #-}
 squaredInnerProductNorm :: Hilbert v => v -> Scalar v
@@ -2162,66 +2173,10 @@ innerProductNorm = undefined -- sqrt . squaredInnerProductNorm
 
 {-# INLINE innerProductDistance #-}
 innerProductDistance :: Hilbert v => v -> v -> Scalar v
-innerProductDistance v1 v2 = undefined --innerProductNorm $ v1-v2
+innerProductDistance _ _ = undefined --innerProductNorm $ v1-v2
 
 ---------------------------------------
 
--- | Tensor algebras generalize the outer product of vectors to construct a matrix.
---
--- See <https://en.wikipedia.org/wiki/Tensor_algebra wikipedia> for details.
---
--- FIXME:
--- This needs to be replaced by the Tensor product in the Monoidal category Vect
-class
-    ( VectorSpace v
-    , VectorSpace (v><v)
-    , Scalar (v><v) ~ Scalar v
-    , Normed (v><v)     -- the size represents the determinant
-    , Field (v><v)
-    ) => TensorAlgebra v
-        where
-
-    -- | Take the tensor product of two vectors
-    (><) :: v -> v -> (v><v)
-
-    -- | "left multiplication" of a square matrix
-    vXm :: v -> (v><v) -> v
-
-    -- | "right multiplication" of a square matrix
-    mXv :: (v><v) -> v -> v
-
-instance TensorAlgebra Float    where  (><) = (*); vXm = (*);  mXv = (*)
-instance TensorAlgebra Double   where  (><) = (*); vXm = (*);  mXv = (*)
-instance TensorAlgebra Rational where  (><) = (*); vXm = (*);  mXv = (*)
-
----------------------------------------
-
-{-
--- | Bregman divergences generalize the squared Euclidean distance and the KL-divergence.
--- They are closely related to exponential family distributions.
---
--- Mark Reid has a <http://mark.reid.name/blog/meet-the-bregman-divergences.html good tutorial>.
---
--- FIXME:
--- The definition of divergence requires taking the derivative.
--- How should this relate to categories?
-class
-    ( Hilbert v
-    ) => Bregman v
-        where
-
-    divergence :: v -> v -> Scalar v
-    divergence v1 v2 = f v1 - f v2 - (derivative f v2 <> v1 - v2)
-        where
-            f = bregmanFunction
-
-    bregmanFunction :: v -> Scalar v
-
-law_Bregman_nonnegativity :: v -> v -> Logic v
-law_Bregman_nonnegativity v1 v2 = divergence v1 v2 > 0
-
-law_Bregman_triangle ::
--}
 
 ---------------------------------------
 
@@ -2230,9 +2185,8 @@ law_Bregman_triangle ::
 -- FIXME: There are many other notions of distance and we should make a whole hierarchy.
 class
     ( HasScalar v
-    , Eq_ v
-    --, Boolean (Logic v) --Disabled for accelerqte Exp v
-    , Logic (Scalar v) ~ Logic v
+    , Eq v
+    , Boolean (Logic v)
     ) => Metric v
         where
 
@@ -2243,18 +2197,18 @@ class
     -- Otherwise, it will return some number greater than the upper bound.
     {-# INLINE distanceUB #-}
     distanceUB :: v -> v -> Scalar v -> Scalar v
-    distanceUB v1 v2 _ = {-# SCC distanceUB #-} distance v1 v2
+    distanceUB v1 v2 _ = distance v1 v2
 
 -- | Calling this function will be faster on some 'Metric's than manually checking if distance is greater than the bound.
 {-# INLINE isFartherThan #-}
-isFartherThan :: Metric v => v -> v -> Scalar v -> Logic v
-isFartherThan s1 s2 b = {-# SCC isFartherThan #-} distanceUB s1 s2 b > b
+isFartherThan :: Metric v => v -> v -> Scalar v -> Logic (Scalar v)
+isFartherThan s1 s2 b = distanceUB s1 s2 b > b
 
 -- | This function constructs an efficient default implementation for 'distanceUB' given a function that lower bounds the distance metric.
 {-# INLINE lb2distanceUB #-}
 lb2distanceUB ::
     ( Metric a
-    , ClassicalLogic a
+    , IfThenElse (Logic (Scalar a))
     ) => (a -> a -> Scalar a)
       -> (a -> a -> Scalar a -> Scalar a)
 lb2distanceUB lb p q b = if lbpq > b
@@ -2262,18 +2216,18 @@ lb2distanceUB lb p q b = if lbpq > b
     else distance p q
     where
         lbpq = lb p q
-law_Metric_nonnegativity :: Metric v => v -> v -> Logic v
+law_Metric_nonnegativity :: Metric v => v -> v -> Logic (Scalar v)
 law_Metric_nonnegativity v1 v2 = distance v1 v2 >= 0
 
-law_Metric_indiscernables :: (Eq v, Metric v) => v -> v -> Logic v
+law_Metric_indiscernables :: (Metric v, IfThenElse (Logic v)) => v -> v -> Logic (Scalar v)
 law_Metric_indiscernables v1 v2 = if v1 == v2
     then distance v1 v2 == 0
     else distance v1 v2 > 0
 
-law_Metric_symmetry :: Metric v => v -> v -> Logic v
+law_Metric_symmetry :: Metric v => v -> v -> Logic (Scalar v)
 law_Metric_symmetry v1 v2 = distance v1 v2 == distance v2 v1
 
-law_Metric_triangle :: Metric v => v -> v -> v -> Logic v
+law_Metric_triangle :: Metric v => v -> v -> v -> Logic (Scalar v)
 law_Metric_triangle m1 m2 m3
     = distance m1 m2 <= distance m1 m3 + distance m2 m3
    && distance m1 m3 <= distance m1 m2 + distance m2 m3
@@ -2332,13 +2286,7 @@ instance CanError Double where
 
 -------------------------------------------------------------------------------
 -- set-like
-
-type Item s = Elem s
-
 type family Elem s
-type family SetElem s t
-
-type ValidSetElem s = SetElem s (Elem s) ~ s
 
 -- | Two sets are disjoint if their infimum is the empty set.
 -- This function generalizes the notion of disjointness for any lower bounded lattice.
@@ -2382,20 +2330,26 @@ class Semigroup s => Constructible s where
     fromList1N :: Int -> Elem s -> [Elem s] -> s
     fromList1N _ = fromList1
 
-defn_Constructible_fromList :: (Eq_ s, Constructible s) => s -> Elem s -> [Elem s] -> Logic s
+defn_Constructible_fromList :: (Eq s, Constructible s) => s -> Elem s -> [Elem s] -> Logic s
 defn_Constructible_fromList s e es = fromList1 e es `asTypeOf` s == foldl' snoc (singleton e) es
 
-defn_Constructible_fromListN :: (Eq_ s, Constructible s) => s -> Elem s -> [Elem s] -> Logic s
+defn_Constructible_fromListN :: (Eq s, Constructible s) => s -> Elem s -> [Elem s] -> Logic s
 defn_Constructible_fromListN s e es = (fromList1 e es `asTypeOf` s)==fromList1N (size es+1) e es
 
-defn_Constructible_cons :: (Eq_ s, Constructible s) => s -> Elem s -> Logic s
+defn_Constructible_cons :: (Eq s, Constructible s) => s -> Elem s -> Logic s
 defn_Constructible_cons s e = cons e s == singleton e + s
 
-defn_Constructible_snoc :: (Eq_ s, Constructible s) => s -> Elem s -> Logic s
+defn_Constructible_snoc :: (Eq s, Constructible s) => s -> Elem s -> Logic s
 defn_Constructible_snoc s e = snoc s e == s + singleton e
 
+law_Constructible_singleton :: (Constructible s, Container s) => s -> Elem s -> Logic s
+law_Constructible_singleton s e = elem e $ singleton e `asTypeOf` s
+
+theorem_Constructible_cons :: (Constructible s, Container s) => s -> Elem s -> Logic s
+theorem_Constructible_cons s e = elem e (cons e s)
+
 -- | A more suggestive name for inserting an element into a container that does not remember location
-insert :: Constructible s => Elem s -> s -> s
+insert :: (Abelian s, Constructible s) => Elem s -> s -> s
 insert = cons
 
 -- | A slightly more suggestive name for a container's monoid identity
@@ -2403,7 +2357,7 @@ empty :: (Monoid s, Constructible s) => s
 empty = zero
 
 -- | A slightly more suggestive name for checking if a container is empty
-isEmpty :: (ValidEq s, Monoid s, Constructible s) => s -> Logic s
+isEmpty :: (Eq s, Monoid s, Constructible s) => s -> Logic s
 isEmpty = isZero
 
 -- | This function needed for the OverloadedStrings language extension
@@ -2426,24 +2380,6 @@ generate :: (Monoid v, Constructible v) => Int -> (Int -> Elem v) -> v
 generate n f = if n <= 0
     then zero
     else fromList1N n (f 0) (map f [1..n-1])
-
--- | This is a generalization of a "set".
--- We do not require a container to be a boolean algebra, just a semigroup.
-class (ValidLogic s, Constructible s, ValidSetElem s) => Container s where
-    elem :: Elem s -> s -> Logic s
-
-    notElem :: Elem s -> s -> Logic s
-    notElem = not elem
-
-law_Container_preservation :: (Heyting (Logic s), Container s) => s -> s -> Elem s -> Logic s
-law_Container_preservation s1 s2 e = (e `elem` s1 || e `elem` s2) ==> (e `elem` (s1+s2))
-
-law_Constructible_singleton :: Container s => s -> Elem s -> Logic s
-law_Constructible_singleton s e = elem e $ singleton e `asTypeOf` s
-
-theorem_Constructible_cons :: Container s => s -> Elem s -> Logic s
-theorem_Constructible_cons s e = elem e (cons e s)
-
 
 -- | The dual of a monoid, obtained by swapping the arguments of 'mappend'.
 newtype DualSG a = DualSG { getDualSG :: a }
@@ -2473,7 +2409,7 @@ class (Constructible s, Monoid s, Normed s, Scalar s~Int) => Foldable s where
     {-# MINIMAL foldMap | foldr #-}
 
     -- | Convert the container into a list.
-    toList :: Foldable s => s -> [Elem s]
+    toList :: s -> [Elem s]
     toList s = foldr (:) [] s
 
     -- | Remove an element from the left of the container.
@@ -2493,17 +2429,7 @@ class (Constructible s, Monoid s, Normed s, Scalar s~Int) => Foldable s where
     sum :: Monoid (Elem s) => s -> Elem s
     sum xs = foldl' (+) zero $ toList xs
 
-    -- | the default summation uses kahan summation
---     sum :: (Abelian (Elem s), Group (Elem s)) => s -> Elem s
---     sum = snd . foldl' go (zero,zero)
---         where
---             go (c,t) i = ((t'-t)-y,t')
---                 where
---                     y = i-c
---                     t' = t+y
-
     -- the definitions below are copied from Data.Foldable
-
     foldMap :: Monoid a => (Elem s -> a) -> s -> a
     foldMap f = foldr ((+) . f) zero
 
@@ -2536,74 +2462,62 @@ class (Constructible s, Monoid s, Normed s, Scalar s~Int) => Foldable s where
     foldl1' f s = foldl1' f (toList s)
 
 defn_Foldable_foldr ::
-    ( Eq_ a
+    ( Eq a
     , a~Elem s
-    , Logic a ~ Logic (Elem s)
     , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
     ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
 defn_Foldable_foldr f a s = foldr f a s == foldr f a (toList s)
 
 defn_Foldable_foldr' ::
-    ( Eq_ a
+    ( Eq a
     , a~Elem s
-    , Logic a ~ Logic (Elem s)
     , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
     ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
 defn_Foldable_foldr' f a s = foldr' f a s == foldr' f a (toList s)
 
 defn_Foldable_foldl ::
-    ( Eq_ a
+    ( Eq a
     , a~Elem s
-    , Logic a ~ Logic (Elem s)
     , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
     ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
 defn_Foldable_foldl f a s = foldl f a s == foldl f a (toList s)
 
 defn_Foldable_foldl' ::
-    ( Eq_ a
+    ( Eq a
     , a~Elem s
-    , Logic a ~ Logic (Elem s)
     , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
     , Foldable s
     ) => (Elem s -> Elem s -> Elem s) -> Elem s -> s -> Logic (Elem s)
 defn_Foldable_foldl' f a s = foldl' f a s == foldl' f a (toList s)
 
 defn_Foldable_foldr1 ::
-    ( Eq_ (Elem s)
-    , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
+    ( Eq (Elem s)
     , Foldable s
+    , ClassicalLogic (Elem s)
     ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
 defn_Foldable_foldr1 f s = (length s > 0) ==> (foldr1 f s == foldr1 f (toList s))
 
 defn_Foldable_foldr1' ::
-    ( Eq_ (Elem s)
-    , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
+    ( Eq (Elem s)
     , Foldable s
+    , ClassicalLogic (Elem s)
     ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
 defn_Foldable_foldr1' f s = (length s > 0) ==> (foldr1' f s == foldr1' f (toList s))
 
 defn_Foldable_foldl1 ::
-    ( Eq_ (Elem s)
-    , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
+    ( Eq (Elem s)
     , Foldable s
+    , ClassicalLogic (Elem s)
     ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
 defn_Foldable_foldl1 f s = (length s > 0) ==> (foldl1 f s == foldl1 f (toList s))
 
 defn_Foldable_foldl1' ::
-    ( Eq_ (Elem s)
-    , Logic (Scalar s) ~ Logic (Elem s)
-    , Boolean (Logic (Elem s))
+    ( Eq (Elem s)
     , Foldable s
+    , ClassicalLogic (Elem s)
     ) => (Elem s -> Elem s -> Elem s) -> s -> Logic (Elem s)
 defn_Foldable_foldl1' f s = (length s > 0) ==> (foldl1' f s == foldl1' f (toList s))
 
@@ -2612,7 +2526,7 @@ defn_Foldable_foldl1' f s = (length s > 0) ==> (foldl1' f s == foldl1' f (toList
 -- Note:
 -- The inverse \"theorem\" of @(toList . fromList) xs == xs@ is actually not true.
 -- See the "Set" type for a counter example.
-theorem_Foldable_tofrom :: (Eq_ s, Foldable s) => s -> Logic s
+theorem_Foldable_tofrom :: (Eq s, Foldable s) => s -> Logic s
 theorem_Foldable_tofrom s = fromList (toList s) == s
 
 -- |
@@ -2623,7 +2537,7 @@ law_Foldable_sum ::
     , Logic (Elem s)~Logic s
     , Heyting (Logic s)
     , Monoid (Elem s)
-    , Eq_ (Elem s)
+    , Eq (Elem s)
     , Foldable s
     ) => s -> s -> Logic s
 law_Foldable_sum s1 s2 = sizeDisjoint s1 s2 ==> (sum (s1+s2) == sum s1 + sum s2)
@@ -2633,11 +2547,11 @@ foldtree1 :: Monoid a => [a] -> a
 foldtree1 as = case go as of
     []  -> zero
     [a] -> a
-    as  -> foldtree1 as
+    as'  -> foldtree1 as'
     where
         go []  = []
         go [a] = [a]
-        go (a1:a2:as) = (a1+a2):go as
+        go (a1:a2:as'') = (a1+a2):go as''
 
 {-# INLINE[1] convertUnfoldable #-}
 convertUnfoldable :: (Monoid t, Foldable s, Constructible t, Elem s ~ Elem t) => s -> t
@@ -2661,45 +2575,27 @@ or :: (Foldable bs, Elem bs~b, Boolean b) => bs -> b
 or = foldl' sup false
 
 {-# INLINE argmin #-}
-argmin :: Ord b => a -> a -> (a -> b) -> a
+argmin :: (Ord b, ClassicalLogic b) => a -> a -> (a -> b) -> a
 argmin a1 a2 f = if f a1 < f a2 then a1 else a2
 
 {-# INLINE argmax #-}
-argmax :: Ord b => a -> a -> (a -> b) -> a
+argmax :: (Ord b, ClassicalLogic b) => a -> a -> (a -> b) -> a
 argmax a1 a2 f = if f a1 > f a2 then a1 else a2
 
--- {-# INLINE argminimum_ #-}
--- argminimum_ :: Ord_ b => a -> [a] -> (a -> b) -> a
--- argminimum_ a as f = fstHask $ foldl' go (a,f a) as
---     where
---         go (a1,fa1) a2 = if fa1 < fa2
---             then (a1,fa1)
---             else (a2,fa2)
---             where fa2 = f a2
---
--- {-# INLINE argmaximum_ #-}
--- argmaximum_ :: Ord_ b => a -> [a] -> (a -> b) -> a
--- argmaximum_ a as f = fstHask $ foldl' go (a,f a) as
---     where
---         go (a1,fa1) a2 = if fa1 > fa2
---             then (a1,fa1)
---             else (a2,fa2)
---             where fa2 = f a2
-
 {-# INLINE maximum #-}
-maximum :: (ValidLogic b, Bounded b) => [b] -> b
+maximum :: (Bounded b) => [b] -> b
 maximum = supremum
 
 {-# INLINE maximum_ #-}
-maximum_ :: (ValidLogic b, Ord_ b) => b -> [b] -> b
+maximum_ :: (Ord b) => b -> [b] -> b
 maximum_ = supremum_
 
 {-# INLINE minimum #-}
-minimum :: (ValidLogic b, Bounded b) => [b] -> b
+minimum :: (Bounded b) => [b] -> b
 minimum = infimum
 
 {-# INLINE minimum_ #-}
-minimum_ :: (ValidLogic b, Ord_ b) => b -> [b] -> b
+minimum_ :: (Ord b) => b -> [b] -> b
 minimum_ = infimum_
 
 {-# INLINE supremum #-}
@@ -2707,7 +2603,7 @@ supremum :: (Foldable bs, Elem bs~b, Bounded b) => bs -> b
 supremum = supremum_ minBound
 
 {-# INLINE supremum_ #-}
-supremum_ :: (Foldable bs, Elem bs~b, Lattice_ b) => b -> bs -> b
+supremum_ :: (Foldable bs, Elem bs~b, Lattice b) => b -> bs -> b
 supremum_ = foldl' sup
 
 {-# INLINE infimum #-}
@@ -2715,7 +2611,7 @@ infimum :: (Foldable bs, Elem bs~b, Bounded b) => bs -> b
 infimum = infimum_ maxBound
 
 {-# INLINE infimum_ #-}
-infimum_ :: (Foldable bs, Elem bs~b, POrd_ b) => b -> bs -> b
+infimum_ :: (Foldable bs, Elem bs~b, POrd b) => b -> bs -> b
 infimum_ = foldl' inf
 
 {-# INLINE concat #-}
@@ -2738,28 +2634,10 @@ lastMaybe = P.fmap snd . unsnoc
 initMaybe :: Foldable s => s -> Maybe s
 initMaybe = P.fmap fst . unsnoc
 
--- |
---
--- FIXME:
--- This is a correct definition of topologies, but is it useful?
--- How can this relate to continuous functions?
-class (Boolean (Logic s), Boolean s, Container s) => Topology s where
-    open :: s -> Logic s
-
-    closed :: s -> Logic s
-    closed s = open $ not s
-
-    clopen :: s -> Logic s
-    clopen = open && closed
-
 ----------------------------------------
 
 type family Index s
 type family SetIndex s a
-
--- | FIXME:
--- This type is a hack designed to work around the lack of injective type families.
-type ValidSetIndex s = SetIndex s (Index s) ~ s
 
 -- | An indexed constructible container associates an 'Index' with each 'Elem'.
 -- This class generalizes the map abstract data type.
@@ -2769,7 +2647,7 @@ type ValidSetIndex s = SetIndex s (Index s) ~ s
 --   2. Many regular containers are indexed containers, but not the other way around.
 --      So the class hierarchy is in a different order.
 --
-class (ValidLogic s, Monoid s, ValidSetElem s{-, ValidSetIndex s-}) => IxContainer s where
+class (Monoid s) => IxContainer s where
     lookup :: Index s -> s -> Maybe (Elem s)
 
     {-# INLINABLE (!) #-}
@@ -2785,16 +2663,16 @@ class (ValidLogic s, Monoid s, ValidSetElem s{-, ValidSetIndex s-}) => IxContain
         Just e -> e
 
     {-# INLINABLE hasIndex #-}
-    hasIndex :: s -> Index s -> Logic s
+    hasIndex :: Bounded (Logic s) => s -> Index s -> Logic s
     hasIndex s i = case s !? i of
         Nothing -> false
         Just _ -> true
 
     -- | FIXME: should the functions below be moved to other classes?
-    type ValidElem s e :: Constraint
+    type ValidElem s (e :: *) :: Constraint
     type ValidElem s e = ()
 
-    imap :: (ValidElem s (Elem s), ValidElem s b) => (Index s -> Elem s -> b) -> s -> SetElem s b
+    imap :: (Index s -> Elem s -> Elem s) -> s -> s
 
     toIxList :: s -> [(Index s, Elem s)]
 
@@ -2806,8 +2684,7 @@ class (ValidLogic s, Monoid s, ValidSetElem s{-, ValidSetIndex s-}) => IxContain
 
 law_IxContainer_preservation ::
     ( Logic (Elem s)~Logic s
-    , ValidLogic s
-    , Eq_ (Elem s)
+    , Eq (Elem s)
     , IxContainer s
     ) => s -> s -> Index s -> Logic s
 law_IxContainer_preservation s1 s2 i = case s1 !? i of
@@ -2815,8 +2692,7 @@ law_IxContainer_preservation s1 s2 i = case s1 !? i of
     Nothing -> true
 
 defn_IxContainer_bang ::
-    ( Eq_ (Elem s)
-    , ValidLogic (Elem s)
+    ( Eq (Elem s)
     , IxContainer s
     ) => s -> Index s -> Logic (Elem s)
 defn_IxContainer_bang s i = case s !? i of
@@ -2824,7 +2700,7 @@ defn_IxContainer_bang s i = case s !? i of
     Just e -> s!i == e
 
 defn_IxContainer_findWithDefault ::
-    ( Eq_ (Elem s)
+    ( Eq (Elem s)
     , IxContainer s
     ) => s -> Index s -> Elem s -> Logic (Elem s)
 defn_IxContainer_findWithDefault s i e = case s !? i of
@@ -2832,7 +2708,7 @@ defn_IxContainer_findWithDefault s i e = case s !? i of
     Just e' -> findWithDefault e i s == e'
 
 defn_IxContainer_hasIndex ::
-    ( Eq_ (Elem s)
+    ( Complemented (Logic s)
     , IxContainer s
     ) => s -> Index s -> Logic s
 defn_IxContainer_hasIndex s i = case s !? i of
@@ -2871,17 +2747,17 @@ class (IxContainer s, Scalar s~Index s, HasScalar s, Normed s) => Sliceable s wh
 law_Sliceable_restorable ::
     ( Sliceable s
     , Eq s
+    , Logic (Index s) ~ Logic s
+    , IfThenElse (Logic s)
     ) => s -> Index s -> Logic s
-law_Sliceable_restorable s i
-    | i >= 0 && i < length s = slice 0 i s + slice i (length s-i) s == s
-    | otherwise = True
+law_Sliceable_restorable s i = if i >= 0 && i < length s
+    then slice 0 i s + slice i (length s-i) s == s
+    else true
 
 law_Sliceable_preservation ::
-    ( ValidLogic s
-    , Logic (Elem s) ~ Logic s
-    , Eq_ (Elem s)
-    , Eq_ s
+    ( Eq (Elem s)
     , Sliceable s
+    , Logic s ~ Logic (Elem s)
     ) => s -> s -> Index s -> Logic s
 law_Sliceable_preservation s1 s2 i = case s1 !? i of
     Just e -> (s1+s2) !? i == Just e
@@ -2922,31 +2798,28 @@ class IxContainer s => IxConstructible s where
     fromIxList xs = foldl' (\s (i,e) -> snocAt s i e) zero xs
 
 law_IxConstructible_lookup ::
-    ( ValidLogic (Elem s)
-    , Eq_ (Elem s)
+    ( Eq (Elem s)
     , IxConstructible s
     ) => s -> Index s -> Elem s -> Logic (Elem s)
 law_IxConstructible_lookup s i e = case lookup i (consAt i e s) of
     Just e' -> e'==e
     Nothing -> false
 
-defn_IxConstructible_consAt :: (Eq_ s, IxConstructible s) => s -> Index s -> Elem s -> Logic s
+defn_IxConstructible_consAt :: (Eq s, IxConstructible s) => s -> Index s -> Elem s -> Logic s
 defn_IxConstructible_consAt s i e = consAt i e s == singletonAt i e + s
 
-defn_IxConstructible_snocAt :: (Eq_ s, IxConstructible s) => s -> Index s -> Elem s -> Logic s
+defn_IxConstructible_snocAt :: (Eq s, IxConstructible s) => s -> Index s -> Elem s -> Logic s
 defn_IxConstructible_snocAt s i e = snocAt s i e == s + singletonAt i e
 
-defn_IxConstructible_fromIxList :: (Eq_ s, IxConstructible s) => s -> [(Index s, Elem s)] -> Logic s
+defn_IxConstructible_fromIxList :: (Eq s, IxConstructible s) => s -> [(Index s, Elem s)] -> Logic s
 defn_IxConstructible_fromIxList t es
     = fromIxList es `asTypeOf` t == foldl' (\s (i,e) -> snocAt s i e) zero es
 
 -- | Follows from "law_IxConstructible_lookup" but is closely related to "law_IxContainer_preservation" and "law_Sliceable_preservation"
 theorem_IxConstructible_preservation ::
-    ( ValidLogic s
-    , Logic (Elem s) ~ Logic s
-    , Eq_ (Elem s)
+    ( Eq (Elem s)
     , IxContainer s
-    , Scalar s ~ Int
+    , Logic s ~ Logic (Elem s)
     ) => s -> s -> Index s -> Logic s
 theorem_IxConstructible_preservation s1 s2 i = case s1 !? i of
     Just e -> (s1+s2) !? i == Just e
@@ -2968,23 +2841,22 @@ insertAt = consAt
 type instance Scalar [a] = Int
 type instance Logic [a] = Logic a
 type instance Elem [a] = a
-type instance SetElem [a] b = [b]
 type instance Index [a] = Int
 
-instance ValidEq a => Eq_ [a] where
+instance Eq a => Eq [a] where
     (x:xs)==(y:ys) = x==y && xs==ys
-    (x:xs)==[]     = false
-    []    ==(y:ts) = false
+    (_:_)==[]     = false
+    []    ==(_:_) = false
     []    ==[]     = true
 
-instance Eq a => POrd_ [a] where
+instance (Eq a, ClassicalLogic a) => POrd [a] where
     inf [] _  = []
     inf _  [] = []
     inf (x:xs) (y:ys) = if x==y
         then x:inf xs ys
         else []
 
-instance Eq a => MinBound_ [a] where
+instance (Eq a, ClassicalLogic a) => MinBound [a] where
     minBound = []
 
 instance Normed [a] where
@@ -2996,7 +2868,7 @@ instance Semigroup [a] where
 instance Monoid [a] where
     zero = []
 
-instance ValidEq a => Container [a] where
+instance Eq a => Container [a] where
     elem _ []       = false
     elem x (y:ys)   = x==y || elem x ys
 
@@ -3029,10 +2901,10 @@ instance Foldable [a] where
     foldl1 = L.foldl1
     foldl1' = L.foldl1'
 
-instance ValidLogic a => IxContainer [a] where
-    lookup 0 (x:xs) = Just x
-    lookup i (x:xs) = lookup (i-1) xs
-    lookup _ [] = Nothing
+instance Eq a => IxContainer [a] where
+    lookup 0 (x:_ ) = Just x
+    lookup i (_:xs) = lookup (i-1) xs
+    lookup _ []     = Nothing
 
     imap f xs = map (uncurry f) $ P.zip [0..] xs
 
@@ -3043,7 +2915,7 @@ instance ValidLogic a => IxContainer [a] where
 type instance Scalar (Maybe a) = Scalar a
 type instance Logic (Maybe a) = Logic a
 
-instance ValidEq a => Eq_ (Maybe a) where
+instance Eq a => Eq (Maybe a) where
     Nothing   == Nothing   = true
     Nothing   == _         = false
     _         == Nothing   = false
@@ -3073,7 +2945,7 @@ instance NFData a => NFData (Maybe' a) where
     rnf Nothing' = ()
     rnf (Just' a) = rnf a
 
-instance ValidEq a => Eq_ (Maybe' a) where
+instance Eq a => Eq (Maybe' a) where
     (Just' a1) == (Just' a2) = a1==a2
     Nothing'   == Nothing'   = true
     _          == _          = false
@@ -3091,10 +2963,10 @@ instance Semigroup a => Monoid (Maybe' a) where
 type instance Logic (a,b) = Logic a
 type instance Logic (a,b,c) = Logic a
 
-instance (ValidEq a, ValidEq b, Logic a ~ Logic b) => Eq_ (a,b) where
+instance (Eq a, Eq b, Logic a ~ Logic b) => Eq (a,b) where
     (a1,b1)==(a2,b2) = a1==a2 && b1==b2
 
-instance (ValidEq a, ValidEq b, ValidEq c, Logic a ~ Logic b, Logic b~Logic c) => Eq_ (a,b,c) where
+instance (Eq a, Eq b, Eq c, Logic a ~ Logic b, Logic b~Logic c) => Eq (a,b,c) where
     (a1,b1,c1)==(a2,b2,c2) = a1==a2 && b1==b2 && c1==c2
 
 instance (Semigroup a, Semigroup b) => Semigroup (a,b) where
@@ -3125,24 +2997,6 @@ instance (Abelian a, Abelian b) => Abelian (a,b)
 
 instance (Abelian a, Abelian b, Abelian c) => Abelian (a,b,c)
 
--- instance (Module a, Module b, Scalar a ~ Scalar b) => Module (a,b) where
---     (a,b) .* r = (r*.a, r*.b)
---     (a1,b1).*.(a2,b2) = (a1.*.a2,b1.*.b2)
---
--- instance (Module a, Module b, Module c, Scalar a ~ Scalar b, Scalar c~Scalar b) => Module (a,b,c) where
---     (a,b,c) .* r = (r*.a, r*.b,r*.c)
---     (a1,b1,c1).*.(a2,b2,c2) = (a1.*.a2,b1.*.b2,c1.*.c2)
---
--- instance (VectorSpace a,VectorSpace b, Scalar a ~ Scalar b) => VectorSpace (a,b) where
---     (a,b) ./ r = (a./r,b./r)
---     (a1,b1)./.(a2,b2) = (a1./.a2,b1./.b2)
---
--- instance (VectorSpace a,VectorSpace b, VectorSpace c, Scalar a ~ Scalar b, Scalar c~Scalar b) => VectorSpace (a,b,c) where
---     (a,b,c) ./ r = (a./r,b./r,c./r)
---     (a1,b1,c1)./.(a2,b2,c2) = (a1./.a2,b1./.b2,c1./.c2)
-
---------------------------------------------------------------------------------
-
 data Labeled' x y = Labeled' { xLabeled' :: !x, yLabeled' :: !y }
     deriving (Read,Show,Typeable)
 
@@ -3165,75 +3019,34 @@ type instance Elem (Labeled' x y) = Elem x
 
 -----
 
-instance Eq_ x => Eq_ (Labeled' x y) where
-    (Labeled' x1 y1) == (Labeled' x2 y2) = x1==x2
+instance Eq x => Eq (Labeled' x y) where
+    (Labeled' x1 _) == (Labeled' x2 _) = x1==x2
 
-instance (ClassicalLogic x, Ord_ x) => POrd_ (Labeled' x y) where
+instance (ClassicalLogic x, Ord x) => POrd (Labeled' x y) where
     inf (Labeled' x1 y1) (Labeled' x2 y2) = if x1 < x2
         then Labeled' x1 y1
         else Labeled' x2 y2
     (Labeled' x1 _)< (Labeled' x2 _) = x1< x2
     (Labeled' x1 _)<=(Labeled' x2 _) = x1<=x2
 
-instance (ClassicalLogic x, Ord_ x) => Lattice_ (Labeled' x y) where
+instance (ClassicalLogic x, Ord x) => Lattice (Labeled' x y) where
     sup (Labeled' x1 y1) (Labeled' x2 y2) = if x1 >= x2
         then Labeled' x1 y1
         else Labeled' x2 y2
     (Labeled' x1 _)> (Labeled' x2 _) = x1> x2
     (Labeled' x1 _)>=(Labeled' x2 _) = x1>=x2
 
-instance (ClassicalLogic x, Ord_ x) => Ord_ (Labeled' x y) where
-
------
+instance (ClassicalLogic x, Ord x) => Ord (Labeled' x y) where
 
 instance Semigroup x => Action (Labeled' x y) where
     (Labeled' x y) .+ x' = Labeled' (x'+x) y
 
------
-
 instance Metric x => Metric (Labeled' x y) where
-    distance (Labeled' x1 y1) (Labeled' x2 y2) = distance x1 x2
-    distanceUB (Labeled' x1 y1) (Labeled' x2 y2) = distanceUB x1 x2
+    distance (Labeled' x1 _) (Labeled' x2 _) = distance x1 x2
+    distanceUB (Labeled' x1 _) (Labeled' x2 _) = distanceUB x1 x2
 
 instance Normed x => Normed (Labeled' x y) where
     size (Labeled' x _) = size x
-
-
---------------------------------------------------------------------------------
--- spatial programming
---
--- FIXME:
--- This is broken, partly due to type system limits.
--- It's being exported just for basic testing.
-
--- | The type of all containers satisfying the @cxt@ constraint with elements of type @x@.
-type All cxt x = forall xs. (cxt xs, Elem xs~x) => xs
-
-data Any cxt x where
-    Any :: forall cxt x xs. (cxt xs, Elem xs~x) => xs -> Any cxt x
---     Any :: All cxt x -> Any cxt x
-
-instance Show x => Show (Any Foldable x) where
-    show (Any xs) = show $ toList xs
-
-type instance Elem (Any cxt x) = x
-type instance Scalar (Any cxt x) = Int
-
-instance Semigroup (Any Foldable x) where
-    (Any x1)+(Any x2)=Any (x1+(fromList.toList)x2)
-
-instance Constructible (Any Foldable x) where
-
-instance Normed (Any Foldable x) where
-    size (Any xs) = size xs
-
-instance Monoid (Any Foldable x) where
-    zero = Any []
-
-instance Foldable (Any Foldable x) where
-    toList (Any xs) = toList xs
-
-mkMutable [t| forall cxt x. Any cxt x |]
 
 --------------------------------------------------------------------------------
 
@@ -3244,3 +3057,32 @@ mkMutable [t| forall a. DualSG a |]
 mkMutable [t| forall a. Maybe a |]
 mkMutable [t| forall a. Maybe' a |]
 mkMutable [t| forall a b. Labeled' a b |]
+
+instance FAlgebra IfThenElse
+instance FAlgebra IsMutable
+instance IsMutable (Free (Sig alg) t a)
+instance Show (Sig IsMutable t a)
+mkTagFromCnst ''Logic [t| forall a. IdempLogic a |]
+mkTag ''Elem
+mkFAlgebra ''Eq
+mkFAlgebra ''POrd
+mkFAlgebra ''MinBound
+mkFAlgebra ''Lattice
+mkFAlgebra ''Boolean
+mkTagFromCnst ''Scalar [t| forall a. Scalar (Scalar a) ~ Scalar a |]
+mkFAlgebra ''RationalField
+mkFAlgebra ''VectorSpace
+mkFAlgebra ''Normed
+mkFAlgebra ''Hilbert
+
+type instance FreeConstraints t a
+    = ( AppTags (ConsTag TScalar t) a
+      ~ Scalar (AppTags t a)
+--       , AppTags (ConsTag TScalar (ConsTag TLogic (ConsTag TLogic t))) a
+--       ~ Scalar (AppTags (ConsTag_TLogic (ConsTag_TLogic t)) a)
+      )
+
+--------------------------------------------------------------------------------
+
+class FAlgebra alg => Variety alg where
+

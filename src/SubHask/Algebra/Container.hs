@@ -5,20 +5,9 @@ module SubHask.Algebra.Container
     where
 
 import Control.Monad
-import GHC.Prim
-import Control.Monad
-import GHC.TypeLits
-import qualified Prelude as P
-import Prelude (tail,head,last)
-
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 import SubHask.Algebra
-import SubHask.Algebra.Ord
 import SubHask.Category
-import SubHask.Compatibility.Base
-import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
@@ -35,13 +24,12 @@ data Box v = Box
 
 mkMutable [t| forall v. Box v |]
 
-invar_Box_ordered :: (Lattice v, HasScalar v) => Box v -> Logic v
+invar_Box_ordered :: Lattice v => Box v -> Logic v
 invar_Box_ordered b = largest b >= smallest b
 
 type instance Scalar (Box v) = Scalar v
 type instance Logic (Box v) = Logic v
 type instance Elem (Box v) = v
-type instance SetElem (Box v) v' = Box v'
 
 -- misc classes
 
@@ -53,22 +41,22 @@ instance (Lattice v, Arbitrary v) => Arbitrary (Box v) where
 
 -- comparison
 
-instance (Eq v, HasScalar v) => Eq_ (Box v) where
+instance (Eq v, HasScalar v) => Eq (Box v) where
     b1==b2 = smallest b1 == smallest b2
           && largest  b1 == largest  b2
 
 -- FIXME:
 -- the following instances are "almost" valid
--- POrd_, however, can't be correct without adding an empty element to the Box
+-- POrd, however, can't be correct without adding an empty element to the Box
 -- should we do this?  Would it hurt efficiency?
 --
--- instance (Lattice v, HasScalar v) => POrd_ (Box v) where
+-- instance (Lattice v, HasScalar v) => POrd (Box v) where
 --     inf b1 b2 = Box
 --         { smallest = sup (smallest b1) (smallest b2)
 --         , largest = inf (largest b1) (largest b2)
 --         }
 --
--- instance (Lattice v, HasScalar v) => Lattice_ (Box v) where
+-- instance (Lattice v, HasScalar v) => Lattice (Box v) where
 --     sup = (+)
 
 -- algebra
@@ -102,7 +90,7 @@ deriveHierarchy ''Jaccard
     ]
 
 instance
-    ( Lattice_ a
+    ( Lattice a
     , Field (Scalar a)
     , Normed a
     , Logic (Scalar a) ~ Logic a
@@ -131,40 +119,42 @@ instance
     , Eq (Elem a)
     , Eq a
     , ClassicalLogic (Scalar a)
+    , ClassicalLogic a
+    , ClassicalLogic (Elem a)
     , HasScalar a
     ) => Metric (Hamming a)
         where
 
     {-# INLINE distance #-}
     distance (Hamming xs) (Hamming ys) =
-        {-# SCC distance_Hamming #-}
         go (toList xs) (toList ys) 0
         where
-            go [] [] i = i
-            go xs [] i = i + fromIntegral (size xs)
-            go [] ys i = i + fromIntegral (size ys)
-            go (x:xs) (y:ys) i = go xs ys $ i + if x==y
+            go :: [Elem a] -> [Elem a] -> Scalar a -> Scalar a
+            go []  []  i = i
+            go xs' []  i = i + fromIntegral (size xs')
+            go []  ys' i = i + fromIntegral (size ys')
+            go (x:xs') (y:ys') i = go xs' ys' $ i + if x==y
                 then 0
                 else 1
 
     {-# INLINE distanceUB #-}
     distanceUB (Hamming xs) (Hamming ys) dist =
-        {-# SCC distanceUB_Hamming #-}
         go (toList xs) (toList ys) 0
         where
-            go xs ys tot = if tot > dist
+            go xs' ys' tot = if tot > dist
                 then tot
-                else go_ xs ys tot
+                else go_ xs' ys' tot
                 where
-                    go_ (x:xs) (y:ys) i = go xs ys $ i + if x==y
+                    go_ (x:xs'') (y:ys'') i = go xs'' ys'' $ i + if x==y
                         then 0
                         else 1
                     go_ [] [] i = i
-                    go_ xs [] i = i + fromIntegral (size xs)
-                    go_ [] ys i = i + fromIntegral (size ys)
+                    go_ xs'' [] i = i + fromIntegral (size xs'')
+                    go_ [] ys'' i = i + fromIntegral (size ys'')
 
 ----------------------------------------
 
+{-
 -- | The Levenshtein distance is a type of edit distance, but it is often referred to as THE edit distance.
 --
 -- FIXME: The implementation could be made faster in a number of ways;
@@ -187,18 +177,19 @@ instance
     , Show a
     , HasScalar a
     , ClassicalLogic (Scalar a)
+    , ClassicalLogic (Elem a)
+    , ClassicalLogic a
     , Bounded (Scalar a)
     ) => Metric (Levenshtein a)
         where
 
     {-# INLINE distance #-}
     distance (Levenshtein xs) (Levenshtein ys) =
-        {-# SCC distance_Levenshtein #-}
         fromIntegral $ dist (toList xs) (toList ys)
 
 -- | this function stolen from
 -- https://www.haskell.org/haskellwiki/Edit_distance
-dist :: Eq a => [a] -> [a] -> Int
+dist :: (ClassicalLogic a, Eq a) => [a] -> [a] -> Int
 dist a b
     = last (if lab == 0
         then mainDiag
@@ -206,24 +197,31 @@ dist a b
             then lowers P.!! (lab - 1)
             else{- < 0 -}   uppers P.!! (-1 - lab))
     where
-        mainDiag = oneDiag a b (head uppers) (-1 : head lowers)
-        uppers = eachDiag a b (mainDiag : uppers) -- upper diagonals
-        lowers = eachDiag b a (mainDiag : lowers) -- lower diagonals
-        eachDiag a [] diags = []
-        eachDiag a (bch:bs) (lastDiag:diags) = oneDiag a bs nextDiag lastDiag : eachDiag a bs diags
+        mainDiag = oneDiag a b (head uppers) (-1 : head lowers) :: [Int]
+        uppers = eachDiag a b (mainDiag : uppers) ::[[Int]] -- upper diagonals
+        lowers = eachDiag b a (mainDiag : lowers) ::[[Int]] -- lower diagonals
+        eachDiag _ (_:bs) (lastDiag:diags) = oneDiag a bs nextDiag lastDiag : eachDiag a bs diags
             where
                 nextDiag = head (tail diags)
-        oneDiag a b diagAbove diagBelow = thisdiag
+        eachDiag _ _ _ = []
+
+        oneDiag _ _ diagAbove diagBelow = thisdiag :: [[Int]]
             where
-                doDiag [] b nw n w = []
-                doDiag a [] nw n w = []
+                firstelt = 1 + head diagBelow
+
+                thisdiag = firstelt : doDiag a b firstelt diagAbove (tail diagBelow)
+
+                doDiag [] _ _ _ _ = []
+                doDiag _ [] _ _ _ = []
                 doDiag (ach:as) (bch:bs) nw n w = me : (doDiag as bs me (tail n) (tail w))
                     where
-                        me = if ach == bch then nw else 1 + min3 (head w) nw (head n)
-                firstelt = 1 + head diagBelow
-                thisdiag = firstelt : doDiag a b firstelt diagAbove (tail diagBelow)
+                        me = if ach == (bch::[Int]) then nw else 1 + min3 (head w) nw (head n)
+        lab :: Int
         lab = size a - size b
+
+        min3 :: Ord b => b -> b -> b -> b
         min3 x y z = if x < y then x else min y z
+-}
 
 ----------------------------------------
 
@@ -281,73 +279,79 @@ instance Foldable s => Foldable (Uncompensated s) where
 -- FIXME: there are more container orderings that probably deserve implementation
 newtype Lexical a = Lexical { unLexical :: a }
 
-deriveHierarchy ''Lexical [ ''Eq_, ''Foldable, ''Constructible, ''Monoid ]
--- deriveHierarchy ''Lexical [ ''Eq_, ''Monoid ]
+deriveHierarchy ''Lexical [ ''Eq, ''Foldable, ''Constructible, ''Monoid ]
+-- deriveHierarchy ''Lexical [ ''Eq, ''Monoid ]
 
 instance
-    (Logic a~Bool
+    ( Logic a~Bool
     , Ord (Elem a)
     , Foldable a
-    , Eq_ a
-    ) => POrd_ (Lexical a)
+    , Eq a
+    , ClassicalLogic (Elem a)
+    ) => POrd (Lexical a)
         where
+
     inf a1 a2 = if a1<a2 then a1 else a2
 
     (Lexical a1)<(Lexical a2) = go (toList a1) (toList a2)
         where
+            go :: [Elem a] -> [Elem a] -> Logic a
             go (x:xs) (y:ys) = if x<y
-                then True
+                then true
                 else if x>y
-                    then False
+                    then false
                     else go xs ys
-            go [] [] = False
-            go [] _  = True
-            go _  [] = False
+            go [] [] = false
+            go [] _  = true
+            go _  [] = false
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Eq_ a) => MinBound_ (Lexical a) where
+instance (Logic a~Bool, ClassicalLogic (Elem a), Ord (Elem a), Foldable a, Eq a) => MinBound (Lexical a) where
     minBound = Lexical zero
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Eq_ a) => Lattice_ (Lexical a) where
+instance (Logic a~Bool, ClassicalLogic (Elem a), Ord (Elem a), Foldable a, Eq a) => Lattice (Lexical a) where
     sup a1 a2 = if a1>a2 then a1 else a2
 
     (Lexical a1)>(Lexical a2) = go (toList a1) (toList a2)
         where
+            go :: [Elem a] -> [Elem a] -> Logic a
             go (x:xs) (y:ys) = if x>y
-                then True
+                then true
                 else if x<y
-                    then False
+                    then false
                     else go xs ys
-            go [] [] = False
-            go [] _  = False
-            go _  [] = True
+            go [] [] = false
+            go [] _  = false
+            go _  [] = true
 
-instance (Logic a~Bool, Ord (Elem a), Foldable a, Eq_ a) => Ord_ (Lexical a) where
+instance (Logic a~Bool, ClassicalLogic (Elem a), Ord (Elem a), Foldable a, Eq a) => Ord (Lexical a) where
 
 ---------------------------------------
 
 newtype ComponentWise a = ComponentWise { unComponentWise :: a }
 
-deriveHierarchy ''ComponentWise [ ''Eq_, ''Foldable, ''Monoid ]
+deriveHierarchy ''ComponentWise [ ''Eq, ''Foldable, ''Monoid ]
 -- deriveHierarchy ''ComponentWise [ ''Monoid ]
 
 class (Boolean (Logic a), Logic (Elem a) ~ Logic a) => SimpleContainerLogic a
 instance (Boolean (Logic a), Logic (Elem a) ~ Logic a) => SimpleContainerLogic a
 
--- instance (SimpleContainerLogic a, Eq_ (Elem a), Foldable a) => Eq_ (ComponentWise a) where
+-- instance (SimpleContainerLogic a, Eq (Elem a), Foldable a) => Eq (ComponentWise a) where
 --     (ComponentWise a1)==(ComponentWise a2) = toList a1==toList a2
 
-instance (SimpleContainerLogic a, Eq_ a, POrd_ (Elem a), Foldable a) => POrd_ (ComponentWise a) where
+instance (SimpleContainerLogic a, Eq a, POrd (Elem a), Foldable a) => POrd (ComponentWise a) where
     inf (ComponentWise a1) (ComponentWise a2) = fromList $ go (toList a1) (toList a2)
         where
+            go :: [Elem a] -> [Elem a] -> [Elem a]
             go (x:xs) (y:ys) = inf x y:go xs ys
             go _ _ = []
 
-instance (SimpleContainerLogic a, Eq_ a, POrd_ (Elem a), Foldable a) => MinBound_ (ComponentWise a) where
+instance (SimpleContainerLogic a, Eq a, POrd (Elem a), Foldable a) => MinBound (ComponentWise a) where
     minBound = ComponentWise zero
 
-instance (SimpleContainerLogic a, Eq_ a, Lattice_ (Elem a), Foldable a) => Lattice_ (ComponentWise a) where
+instance (SimpleContainerLogic a, Eq a, Lattice (Elem a), Foldable a) => Lattice (ComponentWise a) where
     sup (ComponentWise a1) (ComponentWise a2) = fromList $ go (toList a1) (toList a2)
         where
+            go :: [Elem a] -> [Elem a] -> [Elem a]
             go (x:xs) (y:ys) = sup x y:go xs ys
             go xs [] = xs
             go [] ys = ys

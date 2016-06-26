@@ -1,57 +1,90 @@
+# see https://github.com/hvr/multi-ghc-travis for structure
+
+# Use new container infrastructure to enable caching
+sudo: false
+
 # NB: don't set `language: haskell` here
+language: c
 
-# The following enables several GHC versions to be tested; often it's enough to test only against the last release in a major GHC version. Feel free to omit lines listings versions you don't need/want testing for.
-env:
- - CABALVER=1.22 GHCVER=7.10.1 LLVMVER=3.5
- - CABALVER=1.22 GHCVER=7.10.2 LLVMVER=3.5
- # - CABALVER=head GHCVER=head   # see section about GHC HEAD snapshots
+# The different configurations we want to test.
+matrix:
+  include:
 
-# Note: the distinction between `before_install` and `install` is not important.
+  - env: BUILD=stack
+    compiler: ": #stack 7.10.3"
+    addons: {apt: {packages: [ghc-7.10.3, libblas-dev, liblapack-dev, g++-4.8], sources: [hvr-ghc, ubuntu-toolchain-r-test]}}
+
+# Caching so the next build will be fast too.
+cache:
+  directories:
+  - $HOME/.ghc
+  - $HOME/.cabal
+  - $HOME/.stack
+
 before_install:
+# Using compiler above sets CC to an invalid value, so unset it
+- unset CC
 
- - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
- - travis_retry sudo apt-get update
- - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER # see note about happy/alex
- - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
- - travis_retry sudo apt-get install libblas-dev liblapack-dev
+# We want to always allow newer versions of packages when building on GHC HEAD
+- CABALARGS=""
+- if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi
 
- # update g++
- - g++ --version
- - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
- - sudo apt-get update -qq
- - sudo apt-get install -qq g++-4.8
- - g++ --version
- - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
- - g++ --version
-
- # update llvm
- - wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
- - travis_retry sudo add-apt-repository "deb http://llvm.org/apt/precise/ llvm-toolchain-precise main"
- - travis_retry sudo add-apt-repository "deb http://llvm.org/apt/precise/ llvm-toolchain-precise-$LLVMVER main"
- - travis_retry sudo apt-get update
- - sudo apt-get install -y llvm-$LLVMVER llvm-$LLVMVER-dev
- #- sudo ln -s /usr/bin/opt-$LLVMVER /usr/bin/opt
- - sudo rm -rf /usr/bin/opt && sudo ln -s /usr/bin/opt-$LLVMVER /usr/bin/opt
- - sudo rm -rf /usr/bin/llc && sudo ln -s /usr/bin/llc-$LLVMVER /usr/bin/llc
- - export PATH="/usr/bin:$PATH"
+# Download and unpack the stack executable
+- export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:/opt/alex/$ALEXVER/bin:/opt/happy/$HAPPYVER/bin:$HOME/.cabal/bin:$PATH
+- mkdir -p ~/.local/bin
+- |
+  if [ `uname` = "Darwin" ]
+  then
+    travis_retry curl --insecure -L https://www.stackage.org/stack/osx-x86_64 | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
+  else
+    travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+  fi
+  # Use the more reliable S3 mirror of Hackage
+  mkdir -p $HOME/.cabal
+  echo 'remote-repo: hackage.haskell.org:http://hackage.fpcomplete.com/' > $HOME/.cabal/config
+  echo 'remote-repo-cache: $HOME/.cabal/packages' >> $HOME/.cabal/config
+  if [ "$CABALVER" != "1.16" ]
+  then
+    echo 'jobs: $ncpus' >> $HOME/.cabal/config
+  fi
+# Get the list of packages from the stack.yaml file
+- PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
 
 install:
- - cabal --version
- - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
- - travis_retry cabal update
- - travis_retry cabal install -j4 --only-dependencies --enable-tests --enable-benchmarks
-
-# Here starts the actual work to be performed for the package under test; any command which exits with a non-zero exit code causes the build to fail.
+- echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
+- if [ -f configure.ac ]; then autoreconf -i; fi
+- |
+  set -ex
+  case "$BUILD" in
+    stack)
+      stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies --flag subhask:-llvmsupport
+      ;;
+    cabal)
+      cabal --version
+      travis_retry cabal update
+      cabal install --only-dependencies --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 -f-llvmsupport $CABALARGS $PACKAGES
+      ;;
+  esac
+  set +ex
 script:
- - if [ -f configure.ac ]; then autoreconf -i; fi
- - cabal configure --enable-tests --enable-benchmarks -v2  # -v2 provides useful information for debugging
- - cabal build   # this builds all libraries and executables (including tests/benchmarks)
- - cabal test
- - cabal check
- - cabal sdist   # tests that a source-distribution can be generated
-
-# Check that the resulting source distribution can be built & installed.
-# If there are no other `.tar.gz` files in `dist`, this can be even simpler:
-# `cabal install --force-reinstalls dist/*-*.tar.gz`
- - SRC_TGZ=$(cabal info . | awk '{print $2;exit}').tar.gz &&
-   (cd dist && cabal install --force-reinstalls "$SRC_TGZ")
+- |
+  set -ex
+  case "$BUILD" in
+    stack)
+      stack --no-terminal $ARGS test --bench --no-run-benchmarks --flag subhask:-llvmsupport
+      ;;
+    cabal)
+      cabal install --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 -f-llvmsupport $CABALARGS $PACKAGES
+      ORIGDIR=$(pwd)
+      for dir in $PACKAGES
+      do
+        cd $dir
+        cabal check || [ "$CABALVER" == "1.16" ]
+        cabal sdist
+        SRC_TGZ=$(cabal info . | awk '{print $2;exit}').tar.gz && \
+          (cd dist && cabal install --force-reinstalls "$SRC_TGZ")
+        cd $ORIGDIR
+      done
+      ;;
+  esac
+  set +ex
