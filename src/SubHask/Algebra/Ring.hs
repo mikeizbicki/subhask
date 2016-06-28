@@ -38,10 +38,10 @@ instance Group v => Group (Componentwise v) where
 instance FreeModule v => Rg (Componentwise v) where
     (Componentwise v1)*(Componentwise v2) = Componentwise $ v1.*.v2
 
-instance FiniteModule v => Rig (Componentwise v) where
+instance FreeModule1 v => Rig (Componentwise v) where
     one = Componentwise $ ones
 
-instance FiniteModule v => Ring (Componentwise v)
+instance FreeModule1 v => Ring (Componentwise v)
 
-instance (FiniteModule v, VectorSpace v) => Field (Componentwise v) where
+instance (FreeModule1 v, Vector v) => Field (Componentwise v) where
     (Componentwise v1)/(Componentwise v2) = Componentwise $ v1./.v2

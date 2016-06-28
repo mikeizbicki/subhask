@@ -273,7 +273,7 @@ instance (Action r, Prim r) => Action (UVector (n::Symbol) r) where
 instance (FreeModule r, ValidUVector n r) => FreeModule (UVector (n::Symbol) r) where
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopDynUV  (.*.)
 
-instance (VectorSpace r, ValidUVector n r) => VectorSpace (UVector (n::Symbol) r) where
+instance (Vector r, ValidUVector n r) => Vector (UVector (n::Symbol) r) where
     {-# INLINE (./)   #-} ;  (./)  v r = monopDynUV  (./r) v
     {-# INLINE (./.)  #-} ;  (./.)     = binopDynUV  (./.)
 
@@ -294,7 +294,7 @@ instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Sym
 instance (FreeModule r, ValidUVector n r, Eq r, ValidScalar r) => FiniteModule (UVector (n::Symbol) r) where
 
     {-# INLINE dim #-}
-    dim (UVector_Dynamic _ _ n) = n
+    dim (UVector_Dynamic _ _ n) = fromInteger $ toInteger n
 
     {-# INLINABLE unsafeToModule #-}
     unsafeToModule xs = unsafeInlineIO $ do
@@ -344,7 +344,7 @@ instance
     , Ord r
     , Logic r~Bool
     , ValidScalar r
-    , VectorSpace r
+    , Vector r
     ) => Metric (UVector (n::Symbol) r)
         where
 
@@ -392,7 +392,7 @@ instance
                 then tot
                 else goEach (tot + (v1!i-v2!i).*.(v1!i-v2!i)) (i-1)
 
-instance (VectorSpace r, Prim r, ValidScalar r, ExpField r) => Normed (UVector (n::Symbol) r) where
+instance (Vector r, Prim r, ValidScalar r, ExpField r) => Normed (UVector (n::Symbol) r) where
     {-# INLINE size #-}
     size v@(UVector_Dynamic _ off n) = if isZero n
         then 0
@@ -411,7 +411,7 @@ instance (VectorSpace r, Prim r, ValidScalar r, ExpField r) => Normed (UVector (
                 else goEach (tot+v!i*v!i) (i-1)
 
 instance
-    ( VectorSpace r
+    ( Vector r
     , ValidUVector n r
     , ValidScalar r
     , ExpField r
@@ -419,8 +419,8 @@ instance
 
 -- | Construct an "UMatrix"
 unsafeMkUMatrix ::
-    ( VectorSpace (UVector m r)
-    , VectorSpace (UVector n r)
+    ( Vector (UVector m r)
+    , Vector (UVector n r)
     , ToFromVector (UVector m r)
     , ToFromVector (UVector n r)
     , MatrixField r
@@ -432,7 +432,7 @@ unsafeMkUMatrix m n rs = Mat_ $ (m HM.>< n) rs
 type UMatrix r m n = UVector m r +> UVector n r
 
 instance
-    ( VectorSpace r
+    ( Vector r
     , ValidUVector n r
     , ValidScalar r
     , ExpField r
@@ -743,7 +743,7 @@ instance (FreeModule r, ValidSVector n r, ValidScalar r) => FreeModule (SVector 
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopDyn  (.*.)
     {-# INLINE (.*.=) #-} ;  (.*.=)    = binopDynM (.*.)
 
-instance (VectorSpace r, ValidSVector n r, ValidScalar r) => VectorSpace (SVector (n::Symbol) r) where
+instance (Vector r, ValidSVector n r, ValidScalar r) => Vector (SVector (n::Symbol) r) where
     {-# INLINE (./)   #-} ;  (./)  v r = monopDyn  (./r) v
     {-# INLINE (./=)  #-} ;  (./=) v r = monopDynM (./r) v
 
@@ -779,7 +779,7 @@ instance
 instance (FreeModule r, Eq r, ValidSVector n r, ValidScalar r) => FiniteModule (SVector (n::Symbol) r) where
 
     {-# INLINE dim #-}
-    dim (SVector_Dynamic _ _ n) = n
+    dim (SVector_Dynamic _ _ n) = fromInteger $ toInteger n
 
     {-# INLINABLE unsafeToModule #-}
     unsafeToModule xs = unsafeInlineIO $ do
@@ -837,7 +837,7 @@ instance
     , Ord r
     , Logic r~Bool
     , ValidScalar r
-    , VectorSpace r
+    , Vector r
     ) => Metric (SVector (n::Symbol) r)
         where
 
@@ -881,7 +881,7 @@ instance
                 then tot
                 else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
 
-instance (VectorSpace r, ValidSVector n r, ValidScalar r, ExpField r) => Normed (SVector (n::Symbol) r) where
+instance (Vector r, ValidSVector n r, ValidScalar r, ExpField r) => Normed (SVector (n::Symbol) r) where
     {-# INLINE size #-}
     size v@(SVector_Dynamic fp _ n) = if isNull fp
         then 0
@@ -900,7 +900,7 @@ instance (VectorSpace r, ValidSVector n r, ValidScalar r, ExpField r) => Normed 
                 else goEach (tot+v!i*v!i) (i-1)
 
 instance
-    ( VectorSpace r
+    ( Vector r
     , ValidSVector n r
     , ValidScalar r
     , ExpField r
@@ -911,8 +911,8 @@ type SMatrix r m n = SVector m r +> SVector n r
 
 -- | Construct an "SMatrix"
 unsafeMkSMatrix ::
-    ( VectorSpace (SVector m r)
-    , VectorSpace (SVector n r)
+    ( Vector (SVector m r)
+    , Vector (SVector n r)
     , ToFromVector (SVector m r)
     , ToFromVector (SVector n r)
     , MatrixField r
@@ -921,7 +921,7 @@ unsafeMkSMatrix ::
 unsafeMkSMatrix m n rs = Mat_ $ (m HM.>< n) rs
 
 instance
-    ( VectorSpace r
+    ( Vector r
     , ValidSVector n r
     , ValidScalar r
     , ExpField r
@@ -1145,7 +1145,7 @@ instance (KnownNat n, FreeModule r, ValidSVector n r, ValidScalar r) => FreeModu
     {-# INLINE (.*.)  #-} ;  (.*.)     = binopStatic  (.*.)
     {-# INLINE (.*.=) #-} ;  (.*.=)    = binopStaticM (.*.)
 
-instance (KnownNat n, VectorSpace r, ValidSVector n r, ValidScalar r) => VectorSpace (SVector (n::Nat) r) where
+instance (KnownNat n, Vector r, ValidSVector n r, ValidScalar r) => Vector (SVector (n::Nat) r) where
     {-# INLINE (./)   #-} ;  (./)  v r = monopStatic  (./r) v
     {-# INLINE (./=)  #-} ;  (./=) v r = monopStaticM (./r) v
 
@@ -1189,7 +1189,7 @@ instance
         where
 
     {-# INLINE dim #-}
-    dim _ = nat2int (Proxy::Proxy n)
+    dim _ = fromInteger $ toInteger $ nat2int (Proxy::Proxy n)
 
     {-# INLINABLE unsafeToModule #-}
     unsafeToModule xs = if n /= length xs
@@ -1241,7 +1241,7 @@ instance
     , Ord r
     , Logic r~Bool
     , ValidScalar r
-    , VectorSpace r
+    , Vector r
     , ValidSVector "dyn" r
     ) => Metric (SVector (n::Nat) r)
         where
@@ -1272,7 +1272,7 @@ instance
 
 instance
     ( KnownNat n
-    , VectorSpace r
+    , Vector r
     , ValidSVector n r
     , ValidScalar r
     , ExpField r
@@ -1297,7 +1297,7 @@ instance
 
 instance
     ( KnownNat n
-    , VectorSpace r
+    , Vector r
     , ValidSVector n r
     , ValidScalar r
     , ExpField r
@@ -1306,7 +1306,7 @@ instance
 
 instance
     ( KnownNat n
-    , VectorSpace r
+    , Vector r
     , ValidScalar r
     , ExpField r
     , Real r
@@ -1347,7 +1347,7 @@ instance
 
 type MatrixField r =
     ( ValidScalar r
-    , VectorSpace r
+    , Vector r
     , Field r
     , HM.Field r
     , HM.Container HM.Vector r
@@ -1392,15 +1392,15 @@ data a +> b where
         ) => a +> b
 
     Id_ ::
-        ( VectorSpace b
+        ( Vector b
         ) => !(Scalar b) -> b +> b
 
     Mat_ ::
         ( MatrixField (Scalar b)
         , Scalar a~Scalar b
         , Scalar b~Scalar (Scalar b)
-        , VectorSpace a
-        , VectorSpace b
+        , Vector a
+        , Vector b
         , ToFromVector a
         , ToFromVector b
         , P.Num (HM.Vector (Scalar a))
@@ -1452,14 +1452,24 @@ instance (+>) <: (->) where
             go (Mat_ m) = apMat_ m
 
 instance Dagger (+>) where
-    trans Zero     = Zero
-    trans (Id_  r) = Id_ r
-    trans (Mat_ m) = Mat_ $ HM.tr' m
+    dagger Zero     = Zero
+    dagger (Id_  r) = Id_ r
+    dagger (Mat_ m) = Mat_ $ HM.tr' m
 
 instance Groupoid (+>) where
     inverse Zero = undefined
     inverse (Id_  r) = Id_  $ reciprocal r
     inverse (Mat_ m) = Mat_ $ HM.inv m
+
+
+-- FIXME
+type instance Elem (a +> b) = b
+type instance Index (a +> b) = Index a
+
+instance Eq (a +> b)
+instance IxContainer (a +> b)
+instance Transposable (a +> a) where
+    trans = dagger
 
 ----------------------------------------
 -- size
@@ -1481,10 +1491,10 @@ instance Semigroup (a +> b) where
     (Mat_ m ) + (Id_  r ) = Mat_ $ m P.+ HM.scale r (HM.ident (HM.rows m))
     (Mat_ m1) + (Mat_ m2) = Mat_ $ m1 P.+ m2
 
-instance (VectorSpace a, VectorSpace b) => Monoid (a +> b) where
+instance (Vector a, Vector b) => Monoid (a +> b) where
     zero = Zero
 
-instance (VectorSpace a, VectorSpace b) => Cancellative (a +> b) where
+instance (Vector a, Vector b) => Cancellative (a +> b) where
     a         - Zero      = a
     Zero      - a         = negate a
     (Id_  r1) - (Id_  r2) = Id_ (r1-r2)
@@ -1492,7 +1502,7 @@ instance (VectorSpace a, VectorSpace b) => Cancellative (a +> b) where
     (Mat_ m ) - (Id_  r ) = Mat_ $ m P.- HM.scale r (HM.ident (HM.rows m))
     (Mat_ m1) - (Mat_ m2) = Mat_ $ m1 P.- m2
 
-instance (VectorSpace a, VectorSpace b) => Group (a +> b) where
+instance (Vector a, Vector b) => Group (a +> b) where
     negate Zero     = Zero
     negate (Id_  r) = Id_ $ negate r
     negate (Mat_ m) = Mat_ $ HM.scale (-1) m
@@ -1502,12 +1512,12 @@ instance Abelian (a +> b)
 -------------------
 -- modules
 
-instance (VectorSpace a, VectorSpace b) => Module (a +> b) where
+instance (Vector a, Vector b) => Module (a +> b) where
     Zero     .* _  = Zero
     (Id_ r1) .* r2 = Id_ $ r1*r2
     (Mat_ m) .* r2 = Mat_ $ HM.scale r2 m
 
-instance (VectorSpace a, VectorSpace b) => FreeModule (a +> b) where
+instance (Vector a, Vector b) => FreeModule (a +> b) where
     Zero      .*. _         = Zero
     _         .*. Zero      = Zero
     (Id_  r1) .*. (Id_  r2) = Id_ $ r1*r2
@@ -1515,7 +1525,7 @@ instance (VectorSpace a, VectorSpace b) => FreeModule (a +> b) where
     (Mat_ m ) .*. (Id_  r ) = Mat_ $ m P.* HM.scale r (HM.ident (HM.rows m))
     (Mat_ m1) .*. (Mat_ m2) = Mat_ $ m1 P.* m2
 
-instance (VectorSpace a, VectorSpace b) => VectorSpace (a +> b) where
+instance (Vector a, Vector b) => Vector (a +> b) where
     Zero      ./. _         = Zero
     (Id_  _) ./. Zero = undefined
     (Mat_  _) ./. Zero = undefined
@@ -1529,16 +1539,16 @@ instance (VectorSpace a, VectorSpace b) => VectorSpace (a +> b) where
 --
 -- NOTE: matrices are only a ring when their dimensions are equal
 
-instance VectorSpace a => Rg (a +> a) where
+instance Vector a => Rg (a +> a) where
     (*) = (>>>)
 
-instance VectorSpace a => Rig (a +> a) where
+instance Vector a => Rig (a +> a) where
     one = Id_ one
 
-instance VectorSpace a => Ring (a +> a) where
+instance Vector a => Ring (a +> a) where
     fromInteger i = Id_ $ fromInteger i
 
-instance VectorSpace a => Field (a +> a) where
+instance Vector a => Field (a +> a) where
     fromRational r = Id_ $ fromRational r
 
     reciprocal Zero = undefined

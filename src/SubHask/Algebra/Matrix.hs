@@ -28,8 +28,12 @@ type ValidMatrix vect r =
   , Hilbert vect
   , r ~ Scalar (Elem vect)
   , Index vect ~ Int
-  , VectorSpace r
+  , Elem vect ~ r
+  , Scalar vect ~ r
+  , Vector r
   , Prim r
+  , Classical Eq vect
+  , Classical Eq r
   )
 
 type instance Scalar (Matrix vect r m n) = Scalar r
@@ -175,16 +179,19 @@ instance
   FreeModule (Matrix vect r (a::Symbol) (b::Symbol)) where
     {-# INLINE (.*.) #-}
     (.*.) = binopDyn (.*.)
-    ones = undefined
 
 instance
-  (VectorSpace r, ValidMatrix vect r) =>
-  VectorSpace (Matrix vect r (a::Symbol) (b::Symbol)) where
+  (Vector r, ValidMatrix vect r) =>
+  Vector (Matrix vect r (a::Symbol) (b::Symbol)) where
     {-# INLINE (./) #-} ;  (./)  v r = monopDyn  (./r) v
     {-# INLINE (./.) #-} ;  (./.)     = binopDyn  (./.)
 
 ----------------------------------------
 -- container
+
+instance ValidMatrix vect r => Eq (Matrix vect r (a::Symbol) (b::Symbol)) where
+  (==) (Matrix_Dynamic vect1 l1) (Matrix_Dynamic vect2 l2)
+    = l1==l2 && vect1==vect2
 
 instance
   (ValidMatrix vect r, Monoid r, ValidScalar r)
@@ -198,7 +205,7 @@ instance
   => FiniteModule (Matrix vect r (a::Symbol) (b::Symbol)) where
 
   {-# INLINE dim #-}
-  dim m = colLength m * rowLength m
+  dim m = fromInteger $ toInteger $ colLength m * rowLength m
 
 --   {-# INLINABLE unsafeToModule #-}
   -- unsafeToModule xs = unsafeToModuleM r xs

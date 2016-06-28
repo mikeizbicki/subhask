@@ -108,6 +108,8 @@ instance ValidScalar r => Module (Polynomial_ r r) where
 
 instance ValidScalar r => FreeModule (Polynomial_ r r) where
     (Polynomial_ xs) .*. (Polynomial_ ys) = Polynomial_ $ P.zipWith (*) xs ys
+
+instance ValidScalar r => FreeModule1 (Polynomial_ r r) where
     ones = Polynomial_ $ P.repeat one
 
 sumList :: (t -> t -> t) -> [t] -> [t] -> [t]

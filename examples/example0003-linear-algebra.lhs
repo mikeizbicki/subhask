@@ -1,5 +1,5 @@
 This example introduces subhask's basic linear algebra system.
-It starts with the differences between arrays and vectors, 
+It starts with the differences between arrays and vectors,
 then shows example manipulations on a few vector spaces,
 and concludes with links to real world code.
 
@@ -183,10 +183,10 @@ For example, the linear functions above are finite dimensional vector spaces,
 and ordinary haskell functions are actually infinite dimensional vector space!
 Here they are in action:
 
->   let f x = x.*.x -- :: SVector 5 Double
->       g x = x + x -- :: SVector 5 Double
+>   let f x = x.*.x :: SVector 3 Double
+>       g x = x + x :: SVector 3 Double
 >
->   let h = f.*.g   -- :: SVector 5 Double -> SVector 5 Double
+>   let h = f.*.g   :: SVector 3 Double -> SVector 3 Double
 >
 >   putStrLn ""
 >   putStrLn $ "h u = " + show (h u)

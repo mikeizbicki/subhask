@@ -131,6 +131,78 @@ instance (Eq a, ClassicalLogic a) => Partitionable (Seq a) where
             go [] _ = undefined
 
 -------------------------------------------------------------------------------
+
+newtype FreeModule_Map b a = FreeModule_Map (M.Map b a)
+    deriving (Show,NFData)
+
+mkMutable [t| forall b a. FreeModule_Map b a |]
+
+-- misc classes
+
+instance
+    ( Classical Ord b
+    , Arbitrary b
+    , Arbitrary a
+    ) => Arbitrary (FreeModule_Map b a)
+        where
+    arbitrary = P.fmap (FreeModule_Map . M.fromList)  arbitrary
+
+-- comparisons
+
+type instance Logic (FreeModule_Map b a) = (Logic b, Logic a)
+instance (Eq b, Eq a) => Eq (FreeModule_Map b a) where
+    {-# INLINE (==) #-}
+    (FreeModule_Map m1)==(FreeModule_Map m2) = M.toList m1 == M.toList m2
+
+instance (Classical Ord b, POrd a) => POrd (FreeModule_Map b a) where
+    {-# INLINE inf #-}
+    inf (FreeModule_Map m1) (FreeModule_Map m2)
+        = FreeModule_Map $ M.intersectionWith inf m1 m2
+
+instance (Classical Ord b, POrd a) => MinBound (FreeModule_Map b a) where
+    {-# INLINE minBound #-}
+    minBound = FreeModule_Map $ M.empty
+
+instance (Classical Ord b, Lattice a) => Lattice (FreeModule_Map b a) where
+    {-# INLINE sup #-}
+    sup (FreeModule_Map m1) (FreeModule_Map m2)
+        = FreeModule_Map $ M.intersectionWith sup m1 m2
+
+-- algebra
+
+instance (Classical Ord b, Semigroup a) => Semigroup (FreeModule_Map b a) where
+    {-# INLINE (+) #-}
+    (FreeModule_Map m1)+(FreeModule_Map m2) = FreeModule_Map $ M.unionWith (+) m1 m2
+
+instance (Classical Ord b, ClassicalLogic b, Semigroup a) => Monoid (FreeModule_Map b a) where
+    {-# INLINE zero #-}
+    zero = FreeModule_Map $ M.empty
+
+instance (Classical Ord b, Cancellative a) => Cancellative (FreeModule_Map b a) where
+    {-# INLINE (-) #-}
+    (FreeModule_Map m1)-(FreeModule_Map m2) = FreeModule_Map $ M.unionWith (+) m1 m2
+
+instance (Classical Ord b, Group a) => Group (FreeModule_Map b a) where
+instance (Classical Ord b, Abelian a) => Abelian (FreeModule_Map b a) where
+
+type instance Scalar (FreeModule_Map b a) = Scalar a
+instance (Classical Ord b, Ring a, ValidScalar a) => Module (FreeModule_Map b a) where
+    (.*) (FreeModule_Map m) s = FreeModule_Map $ M.map (*s) m
+
+instance (Classical Ord b, Ring a, ValidScalar a) => FreeModule (FreeModule_Map b a) where
+    (.*.) (FreeModule_Map m1) (FreeModule_Map m2)
+        = FreeModule_Map $ M.unionWith (*) m1 m2
+
+-- indexed containers
+
+type instance Index (FreeModule_Map b a) = b
+type instance Elem (FreeModule_Map b a) = a
+instance (Classical Ord b, Eq a, Monoid a) => IxContainer (FreeModule_Map b a) where
+    lookup b (FreeModule_Map m) = Just $ case M.lookup b m of
+        Just x -> x
+        Nothing -> zero
+
+-------------------------------------------------------------------------------
 -- | This is a thin wrapper around Data.Map
 
 newtype Map b a = Map (M.Map (WithPreludeOrd b) (WithPreludeOrd a))
