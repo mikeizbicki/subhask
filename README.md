@@ -51,7 +51,7 @@ To install on Linux or Mac, run the following commands:
     ```
     $ wget http://llvm.org/releases/3.5.2/llvm-3.5.2.src.tar.xz
     $ tar -xf llvm-3.5.2.src.tar.xz
-    $ cd llvm-3.5.2
+    $ cd llvm-3.5.2.src
     $ mkdir build
     $ cd build
     $ cmake ..
@@ -68,11 +68,7 @@ For Debian/Ubuntu systems, you can install them using:
     $ sudo apt-get install libblas-dev liblapack-dev
     ```
 
-For OSX, try homebrew:
-
-    ```
-    $ brew install libblas-dev liblapack-dev
-    ```
+For macOS, they are preinstalled as part of the [Accelerate Framework](https://developer.apple.com/legacy/library/documentation/Darwin/Reference/ManPages/man7/Accelerate.7.html).
 
 The easiest way to build and try Subhask is to clone the repo
 
