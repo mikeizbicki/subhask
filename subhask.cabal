@@ -57,7 +57,6 @@ library
         SubHask.Algebra.Accelerate.Accelerate
         SubHask.Algebra.Accelerate.AccelerateBackend
         SubHask.Algebra.Accelerate.Vector
-        SubHask.Algebra.Accelerate.Matrix
 
 
         SubHask.Category
@@ -178,8 +177,8 @@ library
         containers                  ,
         vector                      ,
         array                       ,
-        hyperloglog                 ,
-        reflection                  ,
+        -- hyperloglog                 ,
+        reflection
 
         -- required for hyperloglog compatibility
 --         hyperloglog,
@@ -253,4 +252,3 @@ benchmark bench
 
  if flag(llvmsupport)
     ghc-options: -fllvm
-

@@ -1,77 +1,33 @@
-
+flags:
+    accelerate:
+      unsafe-checks: false
+      bounds-checks: true
+      debug: true
+      internal-checks: false
+extra-include-dirs:
+- /usr/local/include
+- /usr/local/include
+extra-lib-dirs:
+- /usr/local/lib
 packages:
 - '.'
 - location:
-    git:    https://github.com/AccelerateHS/accelerate.git
+    git: https://github.com/AccelerateHS/accelerate.git
     commit: aed12138a9788ff5d6289d214c84ff6108dc04bd
   extra-dep: true
 - location:
     git: https://github.com/AccelerateHS/accelerate-cuda
     commit: 05acd3adca9fd89a8ac19184afbed47d1b7d1505
   extra-dep: true
-#- location:
-#    git:    https://github.com/AccelerateHS/accelerate-llvm.git
-  #   commit: 2c26ca7755a3f5acc3a56dd0f4a23565ba620501
-  # extra-dep: true
-  # subdirs:
-  #   - accelerate-llvm
-  #   - accelerate-llvm-native
-  #   - accelerate-llvm-ptx
-
-# required on OS X due to https://github.com/bscarlet/llvm-general/issues/155
 # - location:
-#     git:    https://github.com/bscarlet/llvm-general.git
-#     commit: 1ee693cc7577aab2f3e11ec9bd7f4244a5182c89
+#     git: https://github.com/AccelerateHS/accelerate-llvm/
+#     commit: 2c26ca7755a3f5acc3a56dd0f4a23565ba620501
 #   extra-dep: true
-#   subdirs:
-#     - llvm-general
-
-extra-include-dirs:
-  - /usr/local/include
-  - /usr/local/include
-extra-lib-dirs:
-  - /usr/local/lib
-
 extra-deps:
-- 'unique-0'
-
-# accelerate-llvm
-- 'chaselev-deque-0.5.0.5'
-# - 'llvm-general-pure-3.5.0.0'
-
-# accelerate-llvm-native
-- 'libffi-0.1'
-
-# accelerate-llvm-ptx
-- 'cuda-0.7.0.0'
-
-- gamma-0.9.0.2
-- language-c-quote-0.11.6.2
-- mainland-pretty-0.4.1.4
-- continued-fractions-0.9.1.1
-- converge-0.1.0.1
-- exception-mtl-0.4.0.1
-- symbol-0.2.4
+- accelerate-2.0.0.0
+- bloomfilter-2.0.1.0
+- cuda-0.7.0.0
 - homoiconic-0.1.2.0
-
-
-# Override default flag values for local packages and extra-deps
-flags:
-  accelerate:
-    unsafe-checks: false
-    bounds-checks: true
-    debug: true
-    internal-checks: false
-  # accelerate-llvm:
-  #   debug: true
-  #   chase-lev: true
-  # accelerate-llvm-native:
-  #   debug: true
-  # accelerate-llvm-ptx:
-  #   debug: true
-  #   libnvvm: false
-  # llvm-general:
-  #   shared-llvm: true
-resolver: lts-5.9
-resolver: nightly-2016-06-15
+- unique-0
 compiler: ghc-8.0.1
+resolver: nightly-2016-06-15

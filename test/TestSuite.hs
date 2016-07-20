@@ -1,28 +1,29 @@
+{-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Main
     where
 
-import SubHask
-import SubHask.Algebra.Array
-import SubHask.Algebra.Group
-import SubHask.Algebra.Container
-import SubHask.Algebra.Logic
-import SubHask.Algebra.Metric
-import SubHask.Algebra.Parallel
-import SubHask.Algebra.Vector
-import SubHask.Compatibility.ByteString
-import SubHask.Compatibility.Containers
+import           SubHask
+import           SubHask.Algebra.Accelerate.Vector
+import           SubHask.Algebra.Array
+import           SubHask.Algebra.Container
+import           SubHask.Algebra.Group
+import           SubHask.Algebra.Logic
+import           SubHask.Algebra.Metric
+import           SubHask.Algebra.Parallel
+import           SubHask.Algebra.Vector
+import           SubHask.Compatibility.ByteString
+import           SubHask.Compatibility.Containers
 
-import SubHask.TemplateHaskell.Deriving
-import SubHask.TemplateHaskell.Test
+import           SubHask.TemplateHaskell.Deriving
+import           SubHask.TemplateHaskell.Test
 
-import Test.Framework (defaultMain, testGroup)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.Framework.Runners.Console
-import Test.Framework.Runners.Options
+import           Test.Framework                       (defaultMain, testGroup)
+import           Test.Framework.Providers.QuickCheck2 (testProperty)
+import           Test.Framework.Runners.Console
+import           Test.Framework.Runners.Options
 
 --------------------------------------------------------------------------------
 
@@ -48,6 +49,13 @@ main = defaultMainWithOpts
             , $( mkSpecializedClassTests [t| SVector 1001  Int |] [ ''Module ] )
             , $( mkSpecializedClassTests [t| SVector "dyn" Int |] [ ''Module ] )
             , $( mkSpecializedClassTests [t| UVector "dyn" Int |] [ ''Module ] )
+            ]
+        , testGroup "accelerate-vector"
+            [ $( mkSpecializedClassTests [t| ACCVector 0     Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| ACCVector 1     Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| ACCVector 2     Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| ACCVector 19    Int |] [ ''Module ] )
+            , $( mkSpecializedClassTests [t| ACCVector 1001  Int |] [ ''Module ] )
             ]
         , testGroup "non-numeric"
             [ $( mkSpecializedClassTests [t| Bool      |] [''Enum,''Boolean] )

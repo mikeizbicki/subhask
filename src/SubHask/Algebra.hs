@@ -3085,4 +3085,3 @@ type instance FreeConstraints t a
 --------------------------------------------------------------------------------
 
 class FAlgebra alg => Variety alg where
-
