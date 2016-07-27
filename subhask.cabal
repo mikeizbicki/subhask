@@ -200,7 +200,10 @@ Test-Suite test
     build-depends:
         subhask,
         test-framework-quickcheck2,
-        test-framework
+        test-framework,
+        accelerate                  ,
+        accelerate-cuda             ,
+        cuda
   if flag(dotestoptimise)
     ghc-options: -O2
   if flag(llvmsupport)
