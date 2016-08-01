@@ -69,6 +69,15 @@ testMap = Map.fromList
         , "law_Heyting_infleft"
         , "law_Heyting_infright"
         , "law_Heyting_distributive"
+        , "theorem_Heyting_then1"
+        , "theorem_Heyting_then2"
+        , "theorem_Heyting_and1"
+        , "theorem_Heyting_and2"
+        , "theorem_Heyting_and3"
+        , "theorem_Heyting_or1"
+        , "theorem_Heyting_or2"
+        , "theorem_Heyting_or3"
+        , "theorem_Heyting_false"
         ] )
     , ("Boolean",
         [ "law_Boolean_infcomplement"
