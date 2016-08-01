@@ -965,40 +965,40 @@ law_Heyting_distributive b1 b2 b3 = (b1 ==> (b2 && b3)) == ((b1 ==> b2) && (b1 =
 -- characterization of Heyting algebras via the axioms. (Conditions 3-11 are the axioms.)
 
 -- a ==> (b ==> a)
-axiom_Heyting_then1 :: (Eq b, Heyting b) => b -> b -> Bool
-axiom_Heyting_then1 b1 b2 = (b1 ==> (b2 ==> b1)) == maxBound
+theorem_Heyting_then1 :: (Eq b, Heyting b) => b -> b -> Bool
+theorem_Heyting_then1 b1 b2 = (b1 ==> (b2 ==> b1)) == maxBound
 
 -- (a ==> ( b ==> c)) ==> ((a ==> b ) ==> (a ==> c))
-axiom_Heyting_then2 :: (Eq b, Heyting b) => b -> b -> b -> Bool
-axiom_Heyting_then2 b1 b2 b3 = ((b1 ==> (b2 ==> b3)) ==> ((b1 ==> b2) ==> (b1 ==> b3))) == maxBound
+theorem_Heyting_then2 :: (Eq b, Heyting b) => b -> b -> b -> Bool
+theorem_Heyting_then2 b1 b2 b3 = ((b1 ==> (b2 ==> b3)) ==> ((b1 ==> b2) ==> (b1 ==> b3))) == maxBound
 
 -- (a && b) ==> a
-axiom_Heyting_and1 :: (Eq b, Heyting b) => b -> b -> Bool
-axiom_Heyting_and1 b1 b2 = ((b1 && b2) ==> b1) == maxBound
+theorem_Heyting_and1 :: (Eq b, Heyting b) => b -> b -> Bool
+theorem_Heyting_and1 b1 b2 = ((b1 && b2) ==> b1) == maxBound
 
 -- (a && b) ==> b
-axiom_Heyting_and2 :: (Eq b, Heyting b) => b -> b -> Bool
-axiom_Heyting_and2 b1 b2 = ((b1 && b2) ==> b2) == maxBound
+theorem_Heyting_and2 :: (Eq b, Heyting b) => b -> b -> Bool
+theorem_Heyting_and2 b1 b2 = ((b1 && b2) ==> b2) == maxBound
 
 -- a ==> (b ==> (a && b))
-axiom_Heyting_and3 :: (Eq b, Heyting b) => b -> b -> Bool
-axiom_Heyting_and3 b1 b2 = (b1 ==> (b2 ==> (b1 && b2))) == maxBound
+theorem_Heyting_and3 :: (Eq b, Heyting b) => b -> b -> Bool
+theorem_Heyting_and3 b1 b2 = (b1 ==> (b2 ==> (b1 && b2))) == maxBound
 
 -- a ==> (a || b)
-axiom_Heyting_or1 :: (Eq b, Heyting b) => b -> b -> Bool
-axiom_Heyting_or1 b1 b2 = (b1 ==> (b1 || b2)) == maxBound
+theorem_Heyting_or1 :: (Eq b, Heyting b) => b -> b -> Bool
+theorem_Heyting_or1 b1 b2 = (b1 ==> (b1 || b2)) == maxBound
 
 -- b ==> (a || b)
-axiom_Heyting_or2 :: (Eq b, Heyting b) => b -> b-> Bool
-axiom_Heyting_or2 b1 b2 = (b2 ==> (b1 || b2)) == maxBound
+theorem_Heyting_or2 :: (Eq b, Heyting b) => b -> b-> Bool
+theorem_Heyting_or2 b1 b2 = (b2 ==> (b1 || b2)) == maxBound
 
 -- (a ==> c) ==> ((b ==> c) ==> (a || b ==> c))
-axiom_Heyting_or3 :: (Eq b, Heyting b) => b -> b -> b -> Bool
-axiom_Heyting_or3 b1 b2 b3 = ((b1 ==> b3) ==> ((b2 ==> b3) ==> (b1 || b2 ==> b3))) == maxBound
+theorem_Heyting_or3 :: (Eq b, Heyting b) => b -> b -> b -> Bool
+theorem_Heyting_or3 b1 b2 b3 = ((b1 ==> b3) ==> ((b2 ==> b3) ==> (b1 || b2 ==> b3))) == maxBound
 
 -- bottomElement ==> a
-axiom_Heyting_false :: (Eq b, Heyting b) => b -> Bool
-axiom_Heyting_false b1 = (minBound ==> b1) == maxBound
+theorem_Heyting_false :: (Eq b, Heyting b) => b -> Bool
+theorem_Heyting_false b1 = (minBound ==> b1) == maxBound
 
 
 -- | Modus ponens gives us a default definition for "==>" in a "Boolean" algebra.
