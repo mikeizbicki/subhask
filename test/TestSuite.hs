@@ -54,7 +54,7 @@ main = defaultMainWithOpts
             , $( mkSpecializedClassTests [t| UVector "dyn" Int |] [ ''Module ] )
             ]
         , testGroup "accelerate-vector"
-            [ $( mkSpecializedClassTests [t| ACCVector Interpreter 3     Int |] [ ''Module ] )
+            [ $( mkSpecializedClassTests [t| ACCVector Interpreter 0     Int |] [ ''Module ] )
             , $( mkSpecializedClassTests [t| ACCVector Interpreter 1     Int |] [ ''Module ] )
             , $( mkSpecializedClassTests [t| ACCVector Interpreter 2     Int |] [ ''Module ] )
             , $( mkSpecializedClassTests [t| ACCVector Interpreter 19    Int |] [ ''Module ] )
