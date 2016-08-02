@@ -285,6 +285,27 @@ instance (Monoid r, ValidLogic r, Prim r, IsScalar r) => IxContainer (UVector (n
     {-# INLINE (!) #-}
     (!) (UVector_Dynamic arr off _) i = indexByteArray arr (off+i)
 
+    {-# INLINE (!~) #-}
+    (!~) i e (UVector_Dynamic arr off n) =
+                unsafeInlineIO $ do
+                        let b = n*Prim.sizeOf(undefined::r)
+                        marr <- newByteArray b
+                        copyByteArray marr 0 arr off b
+                        writeByteArray marr i e
+                        arr' <- unsafeFreezeByteArray marr
+                        return $ UVector_Dynamic arr' 0 n
+
+    {-# INLINE (%~) #-}
+    (%~) i f (UVector_Dynamic arr off n) =
+                unsafeInlineIO $ do
+                        let b = n*Prim.sizeOf(undefined::r)
+                        marr <- newByteArray b
+                        copyByteArray marr 0 arr off b
+                        e <- readByteArray marr i
+                        writeByteArray marr i (f e)
+                        arr' <- unsafeFreezeByteArray marr
+                        return $ UVector_Dynamic arr' 0 n
+
     {-# INLINABLE toIxList #-}
     toIxList (UVector_Dynamic arr off n) = P.zip [0..] $ go (n-1) []
         where
@@ -772,6 +793,29 @@ instance
     {-# INLINE (!) #-}
     (!) (SVector_Dynamic fp off _) i = unsafeInlineIO $ withForeignPtr fp $ \p -> peekElemOff p (off+i)
 
+    {-# INLINE (!~) #-}
+    (!~) i e (SVector_Dynamic fp1 off n) =
+            unsafeInlineIO $ do
+                let b = n*sizeOf(undefined::r)
+                fp2 <- mallocForeignPtrBytes b
+                withForeignPtr fp1 $ \ptr1 ->
+                    withForeignPtr fp2 $ \ptr2 -> do
+                        copyBytes ptr2 (plusPtr ptr1 off) b
+                        pokeElemOff ptr2 i e
+                return $ (SVector_Dynamic fp2 0 n)
+
+    {-# INLINE (%~) #-}
+    (%~) i f (SVector_Dynamic fp1 off n) =
+            unsafeInlineIO $ do
+                let b = n*sizeOf(undefined::r)
+                fp2 <- mallocForeignPtrBytes b
+                withForeignPtr fp1 $ \ptr1 ->
+                    withForeignPtr fp2 $ \ptr2 -> do
+                        copyBytes ptr2 (plusPtr ptr1 off) b
+                        e <- peekElemOff ptr2 i
+                        pokeElemOff ptr2 i (f e)
+                return $ (SVector_Dynamic fp2 0 n)
+
     {-# INLINABLE toIxList #-}
     toIxList v = P.zip [0..] $ go (dim v-1) []
         where
@@ -1154,6 +1198,32 @@ instance
 
     {-# INLINE (!) #-}
     (!) (SVector_Nat fp) i = unsafeInlineIO $ withForeignPtr fp $ \p -> peekElemOff p i
+
+    {-# INLINE (!~) #-}
+    (!~) i e (SVector_Nat fp1) =
+            unsafeInlineIO $ do
+                let b = n*sizeOf(undefined::r)
+                    n = nat2int (Proxy::Proxy n)
+                fp2 <- mallocForeignPtrBytes b
+                withForeignPtr fp1 $ \ptr1 ->
+                    withForeignPtr fp2 $ \ptr2 -> do
+                        copyBytes ptr2 ptr1 b
+                        pokeElemOff ptr2 i e
+                return $ (SVector_Nat fp2)
+
+    {-# INLINE (%~) #-}
+    (%~) i f (SVector_Nat fp1) =
+            unsafeInlineIO $ do
+                let b = n*sizeOf(undefined::r)
+                    n = nat2int (Proxy::Proxy n)
+                fp2 <- mallocForeignPtrBytes b
+                withForeignPtr fp1 $ \ptr1 ->
+                    withForeignPtr fp2 $ \ptr2 -> do
+                        copyBytes ptr2 ptr1 b
+                        e <- peekElemOff ptr2 i
+                        pokeElemOff ptr2 i (f e)
+                return $ (SVector_Nat fp2)
+
 
     {-# INLINABLE toIxList #-}
     toIxList v = P.zip [0..] $ go (dim v-1) []
