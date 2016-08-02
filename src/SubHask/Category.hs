@@ -418,7 +418,7 @@ class Symmetric cat => Compact cat where
 -- More details avalable at <https://en.wikipedia.org/wiki/Dagger_category wikipedia>
 -- and <http://ncatlab.org/nlab/show/dagger-category ncatlab>
 class Category cat => Dagger cat where
-    trans :: cat a b -> cat b a
+    dagger :: cat a b -> cat b a
 
 --------------------------------------------------------------------------------
 

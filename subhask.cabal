@@ -172,13 +172,13 @@ library
 
         -- compatibility data structures
         bytestring                  ,
-        bloomfilter                 ,
         cassava                     ,
         containers                  ,
         vector                      ,
         array                       ,
         -- hyperloglog                 ,
         reflection
+--         bloomfilter,
 
         -- required for hyperloglog compatibility
 --         hyperloglog,
@@ -255,3 +255,4 @@ benchmark bench
 
  if flag(llvmsupport)
     ghc-options: -fllvm
+

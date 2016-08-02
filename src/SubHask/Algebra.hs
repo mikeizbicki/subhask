@@ -11,10 +11,12 @@ module SubHask.Algebra
     (
     -- * Comparisons
     Logic
-    , TLogic
+--     , TLogic
+    , IdempLogic
+    , Classical
     , ClassicalLogic
     , Elem
-    , TElem
+--     , TElem
     , Container (..)
     , law_Container_preservation
     , ifThenElse
@@ -242,7 +244,7 @@ module SubHask.Algebra
 
     -- ** Linear algebra
     , Scalar
-    , TScalar
+--     , TScalar
     , ValidScalar
     , HasScalar
     , Cone (..)
@@ -256,16 +258,19 @@ module SubHask.Algebra
     , FreeModule (..)
     , law_FreeModule_commutative
     , law_FreeModule_associative
-    , law_FreeModule_id
     , defn_FreeModule_dotstardotequal
+    , FreeModule1 (..)
+    , law_FreeModule_id
     , FiniteModule (..)
-    , VectorSpace (..)
+    , Vector (..)
     , Reisz (..)
     , Banach (..)
     , law_Banach_distance
     , law_Banach_size
     , Hilbert (..)
-    , TSquare
+    , HasValidSquare
+    , Transposable (..)
+--     , TSquare
     , squaredInnerProductNorm
     , innerProductDistance
     , innerProductNorm
@@ -373,9 +378,11 @@ instance IfThenElse () where
 -- and <https://en.wikipedia.org/wiki/Infinitary_logic infinitary logic> for more details.
 type family Logic a :: *
 
-type IdempLogic a = Logic (Logic a)~Logic a
+type IdempLogic a = Logic (Logic (Logic a))~Logic (Logic a)
 
 type ClassicalLogic a = Logic a ~Bool
+
+type Classical (alg :: * -> Constraint) (a :: *) = (Logic a~Bool, alg a)
 
 -- | Defines equivalence classes over the type.
 -- The values need not have identical representations in the machine to be equal.
@@ -396,13 +403,13 @@ class (IdempLogic a, Container (Logic a), Boolean (Logic a)) => Eq a where
 law_Eq_reflexive :: Eq a => a -> Logic a
 law_Eq_reflexive a = a==a
 
-law_Eq_symmetric :: Eq a => a -> a -> Logic a
+law_Eq_symmetric :: Eq a => a -> a -> Logic (Logic a)
 law_Eq_symmetric a1 a2 = (a1==a2)==(a2==a1)
 
 law_Eq_transitive :: Eq a => a -> a -> a -> Logic a
 law_Eq_transitive a1 a2 a3 = (a1==a2&&a2==a3) ==> (a1==a3)
 
-defn_Eq_noteq :: Eq a => a -> a -> Logic a
+defn_Eq_noteq :: (IdempLogic a, Eq a) => a -> a -> Logic (Logic a)
 defn_Eq_noteq a1 a2 = (a1/=a2) == (not $ a1==a2)
 
 #define mkEq(x) \
@@ -1937,10 +1944,7 @@ instance Module Float     where (.*) = (*)
 instance Module Double    where (.*) = (*)
 instance Module Rational  where (.*) = (*)
 
-instance
-    ( Module b
-    ) => Module (a -> b)
-        where
+instance Module b => Module (a -> b) where
     f .*  b = \a -> f a .*  b
 
 ---------------------------------------
@@ -1949,16 +1953,18 @@ instance
 -- This means it makes sense to perform operations elementwise on the basis coefficients.
 --
 -- See <https://en.wikipedia.org/wiki/Free_module wikipedia> for more detail.
-class Module v => FreeModule v where
+class
+    ( Module v
+--     , IxContainer v
+--     , Scalar v~Elem v
+    ) => FreeModule v where
 
-    {-# MINIMAL ones, ((.*.) | (.*.=)) #-}
+    {-# MINIMAL ((.*.) | (.*.=)) #-}
 
     -- | Multiplication of the components pointwise.
     -- For matrices, this is commonly called Hadamard multiplication.
     --
     -- See <http://en.wikipedia.org/wiki/Hadamard_product_%28matrices%29 wikipedia> for more detail.
-    --
-    -- FIXME: This is only valid for modules with a basis.
     {-# INLINE (.*.) #-}
     infixl 7 .*.
     (.*.) :: v -> v -> v
@@ -1969,52 +1975,57 @@ class Module v => FreeModule v where
     (.*.=) :: (PrimBase m) => Mutable m v -> v -> m ()
     (.*.=) = immutable2mutable (.*.)
 
-    -- | The identity for Hadamard multiplication.
-    -- Intuitively, this object has the value "one" in every column.
-    ones :: v
-
 law_FreeModule_commutative :: (Eq m, FreeModule m) => m -> m -> Logic m
 law_FreeModule_commutative m1 m2 = m1.*.m2 == m2.*.m1
 
 law_FreeModule_associative :: (Eq m, FreeModule m) => m -> m -> m -> Logic m
 law_FreeModule_associative m1 m2 m3 = m1.*.(m2.*.m3) == (m1.*.m2).*.m3
 
-law_FreeModule_id :: (Eq m, FreeModule m) => m -> Logic m
-law_FreeModule_id m = m == m.*.ones
-
 defn_FreeModule_dotstardotequal :: (Eq m, FreeModule m) => m -> m -> Logic m
 defn_FreeModule_dotstardotequal = simpleMutableDefn (.*.=) (.*.)
 
-instance FreeModule Int       where (.*.) = (*); ones = one
-instance FreeModule Integer   where (.*.) = (*); ones = one
-instance FreeModule Float     where (.*.) = (*); ones = one
-instance FreeModule Double    where (.*.) = (*); ones = one
-instance FreeModule Rational  where (.*.) = (*); ones = one
+instance FreeModule Int       where (.*.) = (*)
+instance FreeModule Integer   where (.*.) = (*)
+instance FreeModule Float     where (.*.) = (*)
+instance FreeModule Double    where (.*.) = (*)
+instance FreeModule Rational  where (.*.) = (*)
 
-instance
-    ( FreeModule b
-    ) => FreeModule (a -> b)
-        where
+instance FreeModule b => FreeModule (a -> b) where
     g .*. f = \a -> g a .*. f a
-    ones = \_ -> ones
+
+---------------------------------------
+
+class FreeModule v => FreeModule1 v where
+
+    -- | The identity for Hadamard multiplication.
+    -- Intuitively, this object has the value "one" in every column.
+    ones :: v
+--     ones = sum $ map snd $ toIxList (basis (msg::v))
+--         where
+--             msg = error "default implementation of ones requires a statically known basis"
+
+law_FreeModule_id :: (Eq m, FreeModule1 m) => m -> Logic m
+law_FreeModule_id m = m == m.*.ones
+
+instance FreeModule1 Int       where ones = one
+instance FreeModule1 Integer   where ones = one
+instance FreeModule1 Float     where ones = one
+instance FreeModule1 Double    where ones = one
+instance FreeModule1 Rational  where ones = one
+
+instance (FreeModule b, ValidScalar b) => FreeModule1 (a -> b) where
+    ones = \_ -> one
 
 ---------------------------------------
 
 -- | If our "FreeModule" has a finite basis, then we can:
 --
--- * index into the modules basis coefficients
---
 -- * provide a dense construction method that's a bit more convenient than "fromIxList".
-class
-    ( FreeModule v
-    , IxContainer v
-    , Elem v~Scalar v
-    ) => FiniteModule v
-        where
+class FreeModule v => FiniteModule v where
     -- | Returns the dimension of the object.
     -- For some objects, this may be known statically, and so the parameter will not be "seq"ed.
     -- But for others, this may not be known statically, and so the parameter will be "seq"ed.
-    dim :: v -> Int
+    dim :: v -> (Ring a, Ord a) => a
 
     unsafeToModule :: [Scalar v] -> v
 
@@ -2044,7 +2055,7 @@ instance FiniteModule Rational  where dim _ = 1; unsafeToModule [x] = x
 
 ---------------------------------------
 
-class (FreeModule v, Field (Scalar v)) => VectorSpace v where
+class (FreeModule v, Field (Scalar v)) => Vector v where
 
     {-# MINIMAL (./.) | (./.=) #-}
 
@@ -2069,18 +2080,18 @@ class (FreeModule v, Field (Scalar v)) => VectorSpace v where
     (./.=) = immutable2mutable (./.)
 
 
-instance VectorSpace Float     where (./) = (/); (./.) = (/)
-instance VectorSpace Double    where (./) = (/); (./.) = (/)
-instance VectorSpace Rational  where (./) = (/); (./.) = (/)
+instance Vector Float     where (./) = (/); (./.) = (/)
+instance Vector Double    where (./) = (/); (./.) = (/)
+instance Vector Rational  where (./) = (/); (./.) = (/)
 
-instance VectorSpace b => VectorSpace (a -> b) where g ./. f = \a -> g a ./. f a
+-- instance Vector b => Vector (a -> b) where g ./. f = \a -> g a ./. f a
 
 ---------------------------------------
 
 -- | A Reisz space is a vector space obeying nice partial ordering laws.
 --
 -- See <http://en.wikipedia.org/wiki/Riesz_space wikipedia> for more details.
-class (VectorSpace v, Lattice v) => Reisz v where
+class (Vector v, Lattice v) => Reisz v where
     --
     -- | An element of a Reisz space can always be split into positive and negative components.
     reiszSplit :: v -> (v,v)
@@ -2090,7 +2101,7 @@ class (VectorSpace v, Lattice v) => Reisz v where
 -- | A Banach space is a Vector Space equipped with a compatible Norm and Metric.
 --
 -- See <http://en.wikipedia.org/wiki/Banach_space wikipedia> for more details.
-class (VectorSpace v, Normed v, Metric v) => Banach v where
+class (Vector v, Normed v, Metric v) => Banach v where
     {-# INLINE normalize #-}
     normalize :: v -> v
     normalize v = v ./ size v
@@ -2115,10 +2126,55 @@ instance Banach Rational
 
 ---------------------------------------
 
+type HasValidSquare a =
+    ( Vector (Square a)
+    , IxContainer (Square a)
+    , IxContainer a
+    , Transposable (Square a)
+--     , IxConstructible (Square a)
+--     , IxConstructible a
+    , a ~ Elem (Square a)
+    , Index a ~ Index (Square a)
+--     , Square (Elem a) ~ Elem (Elem (Square a))
+    )
+
+-- FIXME:
+-- Should these instances exist?
+-- If so, put them in a better spot.
+instance IxConstructible Float
+instance IxConstructible Double
+instance IxConstructible Rational
+
+-- | Transpose
+--
+-- FIXME:
+-- All Square types are dagger categories,
+-- and the transpose is the dagger operation.
+-- The hierarchy should reflect this.
+class {-Transposable (Scalar a) =>-} Transposable a where
+    trans :: a -> a
+
+    -- | Given a vector, return the basis.
+    -- Depending on the type, every vector may use the same basis or different bases.
+    -- In the former case, the basis is statically known for every vector and so the vector need not be evaluated.
+    -- In the latter case, the vector will be evaluated.
+    basis :: Elem a -> a
+
+--     default basis :: (Basis v~[v], FiniteModule v) => v -> Basis v
+--     basis v = map go [0..dim v-1]
+--         where
+--             go i = unsafeToModule $ P.replicate (i-1) 0 ++ [1] ++ P.replicate (dim v-2-i) 0
+
+instance Transposable Float     where trans = id; basis = 1
+instance Transposable Double    where trans = id; basis = 1
+instance Transposable Rational  where trans = id; basis = 1
+instance Transposable Int       where trans = id; basis = 1
+instance Transposable Integer   where trans = id; basis = 1
+
 -- | Hilbert spaces generalize Euclidean space by allowing infinite dimensions.
 --
 -- See <http://en.wikipedia.org/wiki/Hilbert_space wikipedia> for more details.
-class Banach v => Hilbert v where
+class (Banach v, HasValidSquare v) => Hilbert v where
 
     -- | The type of the tensor product of a vector with itself.
     -- That is, the "square" of a type with respect to the tensor product.
@@ -2127,6 +2183,10 @@ class Banach v => Hilbert v where
     -- Tensors are actually much more general.
     -- For example, they can be the product of two vectors of different types.
     -- To capture this generality requires using the monoidal structure of the Vect category.
+    --
+    -- FIXME:
+    -- All of the tensor related operations here are valid for general Modules.
+    -- They should be moved in the hierarchy accordingly.
     type Square v
 
     -- | The outer product
@@ -2647,7 +2707,7 @@ type family SetIndex s a
 --   2. Many regular containers are indexed containers, but not the other way around.
 --      So the class hierarchy is in a different order.
 --
-class (Monoid s) => IxContainer s where
+class Eq s => IxContainer s where
     lookup :: Index s -> s -> Maybe (Elem s)
 
     {-# INLINABLE (!) #-}
@@ -2686,6 +2746,7 @@ law_IxContainer_preservation ::
     ( Logic (Elem s)~Logic s
     , Eq (Elem s)
     , IxContainer s
+    , Monoid s
     ) => s -> s -> Index s -> Logic s
 law_IxContainer_preservation s1 s2 i = case s1 !? i of
     Just e -> (s1+s2) !? i == Just e
@@ -2694,6 +2755,7 @@ law_IxContainer_preservation s1 s2 i = case s1 !? i of
 defn_IxContainer_bang ::
     ( Eq (Elem s)
     , IxContainer s
+    , Monoid s
     ) => s -> Index s -> Logic (Elem s)
 defn_IxContainer_bang s i = case s !? i of
     Nothing -> true
@@ -2702,6 +2764,7 @@ defn_IxContainer_bang s i = case s !? i of
 defn_IxContainer_findWithDefault ::
     ( Eq (Elem s)
     , IxContainer s
+    , Monoid s
     ) => s -> Index s -> Elem s -> Logic (Elem s)
 defn_IxContainer_findWithDefault s i e = case s !? i of
     Nothing -> findWithDefault e i s == e
@@ -2710,6 +2773,7 @@ defn_IxContainer_findWithDefault s i e = case s !? i of
 defn_IxContainer_hasIndex ::
     ( Complemented (Logic s)
     , IxContainer s
+    , Monoid s
     ) => s -> Index s -> Logic s
 defn_IxContainer_hasIndex s i = case s !? i of
     Nothing -> not $ hasIndex s i
@@ -2731,6 +2795,12 @@ mkIxContainer(Float)
 mkIxContainer(Double)
 mkIxContainer(Rational)
 
+-- FIXME
+type instance Index (a -> b) = a
+type instance Elem (a -> b) = b
+instance Eq b => IxContainer (a -> b) where
+    lookup a f = Just $ f a
+
 -- | Sliceable containers generalize the notion of a substring to any IxContainer.
 -- Sliceables place a stronger guarantee on the way the Semigroup and IxContainer class interact to make the containers more array-like.
 --
@@ -2749,6 +2819,7 @@ law_Sliceable_restorable ::
     , Eq s
     , Logic (Index s) ~ Logic s
     , IfThenElse (Logic s)
+    , Monoid s
     ) => s -> Index s -> Logic s
 law_Sliceable_restorable s i = if i >= 0 && i < length s
     then slice 0 i s + slice i (length s-i) s == s
@@ -2758,6 +2829,7 @@ law_Sliceable_preservation ::
     ( Eq (Elem s)
     , Sliceable s
     , Logic s ~ Logic (Elem s)
+    , Monoid s
     ) => s -> s -> Index s -> Logic s
 law_Sliceable_preservation s1 s2 i = case s1 !? i of
     Just e -> (s1+s2) !? i == Just e
@@ -2770,7 +2842,7 @@ law_Sliceable_preservation s1 s2 i = case s1 !? i of
 --
 -- Some containers that use indices are not typically constructed with those indices (e.g. Arrays).
 -- They belong to the "Sliceable" and "Constructable" classes, but not to this class.
-class IxContainer s => IxConstructible s where
+class (Monoid s, IxContainer s) => IxConstructible s where
     {-# MINIMAL singletonAt | consAt #-}
 
     -- | Construct a container with only the single (index,element) pair.
@@ -2818,7 +2890,7 @@ defn_IxConstructible_fromIxList t es
 -- | Follows from "law_IxConstructible_lookup" but is closely related to "law_IxContainer_preservation" and "law_Sliceable_preservation"
 theorem_IxConstructible_preservation ::
     ( Eq (Elem s)
-    , IxContainer s
+    , IxConstructible s
     , Logic s ~ Logic (Elem s)
     ) => s -> s -> Index s -> Logic s
 theorem_IxConstructible_preservation s1 s2 i = case s1 !? i of
@@ -2960,42 +3032,74 @@ instance Semigroup a => Monoid (Maybe' a) where
 
 ----------------------------------------
 
-type instance Logic (a,b) = Logic a
-type instance Logic (a,b,c) = Logic a
+type instance Logic (a,b) = (Logic a, Logic b)
 
-instance (Eq a, Eq b, Logic a ~ Logic b) => Eq (a,b) where
-    (a1,b1)==(a2,b2) = a1==a2 && b1==b2
+instance (Eq a, Eq b) => Eq (a,b) where
+    (==) (a1,b1) (a2,b2) = (a1==a2,b1==b2)
 
-instance (Eq a, Eq b, Eq c, Logic a ~ Logic b, Logic b~Logic c) => Eq (a,b,c) where
-    (a1,b1,c1)==(a2,b2,c2) = a1==a2 && b1==b2 && c1==c2
+type instance Elem (a,b) = (Elem a, Elem b)
+type instance Index (a,b) = (Index a, Index b)
+instance (Container a, Container b) => Container (a,b) where
+    elem (ea,eb) (a,b) = (elem ea a, elem eb b)
 
-instance (Semigroup a, Semigroup b) => Semigroup (a,b) where
-    (a1,b1)+(a2,b2) = (a1+a2,b1+b2)
+instance (POrd a, POrd b) => POrd (a,b) where
+    inf (a1,b1) (a2,b2) = (inf a1 a2, inf b1 b2)
 
-instance (Semigroup a, Semigroup b, Semigroup c) => Semigroup (a,b,c) where
-    (a1,b1,c1)+(a2,b2,c2) = (a1+a2,b1+b2,c1+c2)
+instance (MinBound a, MinBound b) => MinBound (a,b) where
+    minBound = (minBound,minBound)
 
-instance (Monoid a, Monoid b) => Monoid (a,b) where
-    zero = (zero,zero)
+instance (Lattice a, Lattice b) => Lattice (a,b) where
+    sup (a1,b1) (a2,b2) = (sup a1 a2, sup b1 b2)
 
-instance (Monoid a, Monoid b, Monoid c) => Monoid (a,b,c) where
-    zero = (zero,zero,zero)
+instance (Bounded a, Bounded b) => Bounded (a,b) where
+    maxBound = (maxBound,maxBound)
 
-instance (Cancellative a, Cancellative b) => Cancellative (a,b) where
-    (a1,b1)-(a2,b2) = (a1-a2,b1-b2)
+instance (Complemented a, Complemented b) => Complemented (a,b) where
+    not (a,b) = (not a, not b)
 
-instance (Cancellative a, Cancellative b, Cancellative c) => Cancellative (a,b,c) where
-    (a1,b1,c1)-(a2,b2,c2) = (a1-a2,b1-b2,c1-c2)
+instance (Heyting a, Heyting b) => Heyting (a,b) where
+    (==>) (a1,b1) (a2,b2) = (a1==>a2, b1==>b2)
 
-instance (Group a, Group b) => Group (a,b) where
-    negate (a,b) = (negate a,negate b)
+instance (Boolean a, Boolean b) => Boolean (a,b)
 
-instance (Group a, Group b, Group c) => Group (a,b,c) where
-    negate (a,b,c) = (negate a,negate b,negate c)
+-- type instance Logic (a,b) = Logic a
+-- type instance Logic (a,b,c) = Logic a
+--
+-- instance (Eq a, Eq b, Logic a ~ Logic b) => Eq (a,b) where
+--     (a1,b1)==(a2,b2) = a1==a2 && b1==b2
+--
+-- instance (Eq a, Eq b, Eq c, Logic a ~ Logic b, Logic b~Logic c) => Eq (a,b,c) where
+--     (a1,b1,c1)==(a2,b2,c2) = a1==a2 && b1==b2 && c1==c2
+--
+-- instance (Semigroup a, Semigroup b) => Semigroup (a,b) where
+--     (a1,b1)+(a2,b2) = (a1+a2,b1+b2)
+--
+-- instance (Semigroup a, Semigroup b, Semigroup c) => Semigroup (a,b,c) where
+--     (a1,b1,c1)+(a2,b2,c2) = (a1+a2,b1+b2,c1+c2)
+--
+-- instance (Monoid a, Monoid b) => Monoid (a,b) where
+--     zero = (zero,zero)
+--
+-- instance (Monoid a, Monoid b, Monoid c) => Monoid (a,b,c) where
+--     zero = (zero,zero,zero)
+--
+-- instance (Cancellative a, Cancellative b) => Cancellative (a,b) where
+--     (a1,b1)-(a2,b2) = (a1-a2,b1-b2)
+--
+-- instance (Cancellative a, Cancellative b, Cancellative c) => Cancellative (a,b,c) where
+--     (a1,b1,c1)-(a2,b2,c2) = (a1-a2,b1-b2,c1-c2)
+--
+-- instance (Group a, Group b) => Group (a,b) where
+--     negate (a,b) = (negate a,negate b)
+--
+-- instance (Group a, Group b, Group c) => Group (a,b,c) where
+--     negate (a,b,c) = (negate a,negate b,negate c)
+--
+-- instance (Abelian a, Abelian b) => Abelian (a,b)
+--
+-- instance (Abelian a, Abelian b, Abelian c) => Abelian (a,b,c)
 
-instance (Abelian a, Abelian b) => Abelian (a,b)
-
-instance (Abelian a, Abelian b, Abelian c) => Abelian (a,b,c)
+----------------------------------------
 
 data Labeled' x y = Labeled' { xLabeled' :: !x, yLabeled' :: !y }
     deriving (Read,Show,Typeable)
@@ -3058,6 +3162,7 @@ mkMutable [t| forall a. Maybe a |]
 mkMutable [t| forall a. Maybe' a |]
 mkMutable [t| forall a b. Labeled' a b |]
 
+{-
 instance FAlgebra IfThenElse
 instance FAlgebra IsMutable
 instance IsMutable (Free (Sig alg) t a)
@@ -3071,7 +3176,7 @@ mkFAlgebra ''Lattice
 mkFAlgebra ''Boolean
 mkTagFromCnst ''Scalar [t| forall a. Scalar (Scalar a) ~ Scalar a |]
 mkFAlgebra ''RationalField
-mkFAlgebra ''VectorSpace
+mkFAlgebra ''Vector
 mkFAlgebra ''Normed
 mkFAlgebra ''Hilbert
 
@@ -3084,4 +3189,15 @@ type instance FreeConstraints t a
 
 --------------------------------------------------------------------------------
 
+data Law alg = Law
+    { lawName :: String
+    , lawLHS  :: AST alg '[] Var
+    , lawRHS  :: AST alg '[] Var
+    }
+
 class FAlgebra alg => Variety alg where
+    laws :: [Law alg]
+
+instance Variety Semigroup where
+    laws = [ Law "associative" ((var1+var2)+var3) (var1+(var2+var3)) ]
+    -}

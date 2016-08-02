@@ -144,12 +144,15 @@ testMap = Map.fromList
     , ("FreeModule",
         [ "law_FreeModule_commutative"
         , "law_FreeModule_associative"
-        , "law_FreeModule_id"
         , "defn_FreeModule_dotstardotequal"
         ]
         )
+    , ("FreeModule1",
+        [ "law_FreeModule_id"
+        ]
+        )
 
-    , ("VectorSpace",
+    , ("Vector",
         []
         )
 
