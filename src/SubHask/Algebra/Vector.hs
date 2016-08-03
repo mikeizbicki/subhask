@@ -313,7 +313,7 @@ instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Sym
             go i xs = go (i-1) (indexByteArray arr (off+i) : xs)
 
     {-# INLINABLE imap #-}
-    imap :: (ValidElem (UVector n s) s) => (Index (UVector n r) -> Elem (UVector n r) -> s) -> UVector n r -> UVector n s
+    imap :: forall s.(ValidElem (UVector n s) s) => (Index (UVector n r) -> Elem (UVector n r) -> s) -> UVector n r -> UVector n s
     imap f (UVector_Dynamic arr off n) =
             unsafeInlineIO $ do
                     let b = n*Prim.sizeOf(undefined::s)
