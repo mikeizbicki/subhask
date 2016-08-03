@@ -312,6 +312,18 @@ instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Sym
             go (-1) xs = xs
             go i xs = go (i-1) (indexByteArray arr (off+i) : xs)
 
+    {-# INLINABLE imap #-}
+    imap :: (ValidElem (UVector n s) s) => (Index (UVector n r) -> Elem (UVector n r) -> s) -> UVector n r -> UVector n s
+    imap f (UVector_Dynamic arr off n) =
+            unsafeInlineIO $ do
+                    let b = n*Prim.sizeOf(undefined::s)
+                    marr <- newByteArray b
+                    forM_ [0..(n-1)] $ \i -> writeByteArray marr i (f i $ indexByteArray arr i)
+                    arr' <- unsafeFreezeByteArray marr
+                    return $ UVector_Dynamic arr' 0 n
+
+    type ValidElem (UVector n r) s = (ValidScalar s, Monoid s, Eq s, Prim s)
+
 instance (FreeModule r, ValidUVector n r, Eq r, ValidScalar r) => FiniteModule (UVector (n::Symbol) r) where
 
     {-# INLINE dim #-}
