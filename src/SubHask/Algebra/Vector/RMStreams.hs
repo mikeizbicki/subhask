@@ -9,7 +9,7 @@ module SubHask.Algebra.Vector.RMStreams where
 import Control.Monad
 import Control.Monad.Identity
 import Control.Monad.ST
-import Data.Functor
+import Data.Functor ()
 import Prelude ((.), ($), Int)
 
 --import SubHask.Internal.Prelude
@@ -24,17 +24,31 @@ instance Functor (Step i) where
     fmap _ (Skip i)    = Skip i
     fmap _ Done        = Done
 
+data Stream (s :: * -> * -> *) i a = Stream (i -> Step i a) !i {-# UNPACK #-} !Int
+
+class Streamable s i where
+        stream :: s i a -> Stream s i a
+        unstream :: Stream s i a -> s i a
+
+{-# RULES
+"stream/unstream" forall (t :: forall s i a. Stream s i a). stream (unstream t) = t
+  #-}
+
+instance MStreamable Identity s i => Streamable s i where
+        stream s = let (MStream nextM i n) = streamM s in Stream (runIdentity . nextM) i n
+        unstream (Stream next i n) = runIdentity $ unstreamM (MStream (return . next) i n)
+
 -- | The MStream composed of a next action in the monad m, the index it works on and the size of the structure
-data MStream m s i a = MStream (i -> m (Step i a)) {-# UNBOX #-} !i {-# UNBOX #-} !Int
+data MStream m (s :: * -> * -> *) i a = MStream (i -> m (Step i a)) !i {-# UNPACK #-} !Int
 
 
 -- | stream . unstream gets fused away, chaining the MStream i a -> MStream i a functions.
-class (Monad m) => Streamable m s i where
-        stream :: s i a -> MStream m s i a
-        unstream :: MStream m s i a -> m (s i a)
+class (Monad m) => MStreamable m s i where
+        streamM :: s i a -> MStream m s i a
+        unstreamM :: MStream m s i a -> m (s i a)
 
 {-# RULES
-"stream/unstream" forall (t :: forall s i a. MStream Identity s i a). stream (unstream t) = t
+"streamM/unstreamM" forall (t :: forall s i a. MStream Identity s i a). streamM (runIdentity (unstreamM t)) = t
   #-}
 
 -- | Wrapper for signaling a creation of a value
@@ -55,26 +69,26 @@ class Recycleable r where
 --   Defining fill is sufficient and GHC-Rules replace all occurences of
 --   unstream and clone with the fill-based definition which then gets
 --   optimised away by further rules.
-class (Monad m, Streamable m s i, Recycleable s, m ~ ST i) => RMStreams m s i where
-        fill :: MStream m s i a -> New s i a
+class (Monad m, MStreamable m s i, Recycleable s, m ~ ST i) => RMStreams m s i where
+        fill :: Stream s i a -> New s i a
 
         {-# INLINE unstream_ #-}
-        unstream_ :: MStream m s i a-> m (s i a)
-        unstream_ s = return $ new (fill s)
+        unstream_ :: Stream s i a-> s i a
+        unstream_ s = new (fill s)
 
         {-# INLINE clone_ #-}
-        clone_ :: s i a -> New s i a
-        clone_ s = fill ((stream :: s i a -> MStream m s i a) s)
+        clone_ :: Streamable s i => s i a -> New s i a
+        clone_ s = fill (stream s)
 
         {-# INLINE transform #-}
-        transform :: (forall m. Monad m => MStream m s i a -> MStream m s i a) -> New s i a -> New s i a
+        transform :: (forall n. Monad n => MStream n s i a -> MStream n s i a) -> New s i a -> New s i a
         transform f (New init) = New $ do 
                                        v <- init
-                                       (unstream_ :: MStream (ST i) s i a -> ST i (s i a)) (f ((stream :: s i a -> MStream (ST i) s i a) v))
+                                       unstreamM (f (streamM v))
 
         -- | functions that do not change the type can be done inplace. Definition is id but used in GHC-Rules.
         {-# INLINE inplace #-}
-        inplace :: (forall m. Monad m => MStream m s i a -> MStream m s i a) -> MStream m s i a -> MStream m s i a
+        inplace :: (forall n. Monad n => MStream n s i a -> MStream n s i a) -> MStream Identity s i a -> MStream Identity s i a
         inplace f = f
 
 {- # RULES
