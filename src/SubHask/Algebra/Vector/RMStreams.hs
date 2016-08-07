@@ -24,6 +24,16 @@ instance Functor (Step i) where
     fmap _ (Skip i)    = Skip i
     fmap _ Done        = Done
 
+-- | A Stream can be thought of repeated application of the given function
+--   from the given Seed (i) to form a List of Yield/Skip finishing with
+--   Done.
+--
+--   i.e. in a Vector i would be the index and the Stream the Element/Index-Stream
+--        on Lists it would be the normal recursion
+--        on Trees it might be Breadth-First or Depth-First-Streaming
+--
+--   in short: everything you can serialize into and out of lists.
+
 data Stream i a = Stream (i -> Step i a) !i {-# UNPACK #-} !Int
 
 class Streamable s i a where
@@ -59,9 +69,9 @@ instance Streamable s i a => MStreamable Identity s i a where
 --
 -- Automatic instancing of STreamable for MStream Identity not possible becaus of undicidability
 -- of choosing which one to apply and thus looping endlessly in the type-checker/optimizer.
-{-# INLINE[1] liftIdentity #-}
-liftIdentity :: Stream i a -> MStream Identity i a
-liftIdentity (Stream next i n) = MStream (return . next) i n
+{-# INLINE[1] liftMStream #-}
+liftMStream :: Monad m => Stream i a -> MStream m i a
+liftMStream (Stream next i n) = MStream (return . next) i n
 
 -- | and the way back
 {-# INLINE[1] lowerIdentity #-}
@@ -72,15 +82,20 @@ lowerIdentity (MStream next i n) = Stream (runIdentity . next) i n
 
 {-# RULES
 "streamM/unstreamM" forall (t :: forall i a. MStream Identity i a). streamM (runIdentity (unstreamM t)) = t
-"lift/lower-Stream[1]"[~1] forall s . liftIdentity (lowerIdentity s) = s
-"lift/lower-Stream[2]"[~1] forall s . lowerIdentity (liftIdentity s) = s
+"lift/lower-Stream[1]"[~1] forall s . lowerIdentity (liftMStream s) = s
   #-}
 
 
 -- | Wrapper for signaling a creation of a value
 newtype (IxContainer mutable, Index mutable ~ i, Elem mutable ~ a) => New mutable i a = New (ST i mutable)
 
--- | clone . new gets fused away chaining New r a -> New r a functions.
+-- | Recycleable is used for collection of inplace-updates on indexed-based structures
+--   (read: Arrays) without exposing the mutability and performing safe optimisations.
+--
+--   Concatenation of these functions works similar to a Stream - but in every step the
+--   whole structure can get updated - Therefore the need for the (ST i)-constraint.
+--
+--   clone . new gets fused away chaining New r a -> New r a functions.
 class (IxContainer r, Index r ~ i, Elem r ~ a) => Recycleable r i a where
         new :: New r i a -> r
         clone :: r -> New r i a
@@ -92,10 +107,14 @@ class (IxContainer r, Index r ~ i, Elem r ~ a) => Recycleable r i a where
 
 -- | combining interface of Streams and Recycles yielding more optimisations.
 --   
+--   Recycleabe and monadic Streams are incompatible, but if we lift a un-monadic
+--   Stream to any monad we can recover the original Stream-fusion (by using the
+--   Identity-Monad) while also allowing for Usage of the ST-Monad for recycling.
+--
 --   Defining fill is sufficient and GHC-Rules replace all occurences of
 --   unstream and clone with the fill-based definition which then gets
 --   optimised away by further rules.
-class (Monad m, MStreamable m s i a, Recycleable s i a, m ~ ST i) => RMStreams m s i a where
+class (Streamable s i a, MStreamable (ST i) s i a, Recycleable s i a) => RMStreams s i a where
         fill :: Stream i a -> New s i a
 
         {-# INLINE unstream_ #-}
@@ -110,7 +129,7 @@ class (Monad m, MStreamable m s i a, Recycleable s i a, m ~ ST i) => RMStreams m
         transform :: (forall n. Monad n => MStream n i a -> MStream n i a) -> New s i a -> New s i a
         transform f (New init) = New $ do 
                                        v <- init
-                                       unstreamM (f (streamM v))
+                                       unstreamM (f (liftMStream (stream v)))
 
         -- | functions that do not change the type can be done inplace. Definition is id but used in GHC-Rules.
         {-# INLINE inplace #-}
