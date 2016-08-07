@@ -34,22 +34,48 @@ class Streamable s i where
 "stream/unstream" forall (t :: forall s i a. Stream s i a). stream (unstream t) = t
   #-}
 
-instance MStreamable Identity s i => Streamable s i where
-        stream s = let (MStream nextM i n) = streamM s in Stream (runIdentity . nextM) i n
-        unstream (Stream next i n) = runIdentity $ unstreamM (MStream (return . next) i n)
-
 -- | The MStream composed of a next action in the monad m, the index it works on and the size of the structure
 data MStream m (s :: * -> * -> *) i a = MStream (i -> m (Step i a)) !i {-# UNPACK #-} !Int
 
 
--- | stream . unstream gets fused away, chaining the MStream i a -> MStream i a functions.
+-- | streamM . runIdentity . unstream gets fused away, chaining the MStream m s i a -> MStream m s i a functions.
 class (Monad m) => MStreamable m s i where
         streamM :: s i a -> MStream m s i a
         unstreamM :: MStream m s i a -> m (s i a)
 
+-- | if we choose m == Identity then we recover Stream, but we have to tell the compiler about the identity.
+
+-- instance MStreamable Identity s i => Streamable s i where
+--         stream s = let (MStream nextM i n) = streamM s in Stream (runIdentity . nextM) i n
+--         unstream (Stream next i n) = runIdentity $ unstreamM (MStream (return . next) i n)
+
+-- both - above and below work. comment both in -> compiler-loop.
+instance Streamable s i => MStreamable Identity s i where
+        streamM s = let (Stream next i n) = stream s in MStream (return . next) i n
+        unstreamM (MStream next i n) = return . unstream $ Stream (runIdentity . next) i n
+
+
+-- | manual function to convert Streams to MStream Identity.
+--
+-- Automatic instancing of STreamable for MStream Identity not possible becaus of undicidability
+-- of choosing which one to apply and thus looping endlessly in the type-checker/optimizer.
+{-# INLINE[1] liftIdentity #-}
+liftIdentity :: Stream s i a -> MStream Identity s i a
+liftIdentity (Stream next i n) = MStream (return . next) i n
+
+-- | and the way back
+{-# INLINE[1] lowerIdentity #-}
+lowerIdentity :: MStream Identity s i a -> Stream s i a
+lowerIdentity (MStream next i n) = Stream (runIdentity . next) i n
+
+-- | And this rule recaptures the stream . unstream-Identity from above.
+
 {-# RULES
 "streamM/unstreamM" forall (t :: forall s i a. MStream Identity s i a). streamM (runIdentity (unstreamM t)) = t
+"lift/lower-Stream[1]"[~1] forall s . liftIdentity (lowerIdentity s) = s
+"lift/lower-Stream[2]"[~1] forall s . lowerIdentity (liftIdentity s) = s
   #-}
+
 
 -- | Wrapper for signaling a creation of a value
 newtype New mutable i a = New (ST i (mutable i a))
