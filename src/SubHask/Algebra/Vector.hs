@@ -50,6 +50,7 @@ import SubHask.Algebra
 import SubHask.Category
 import SubHask.Internal.Prelude
 import SubHask.SubType
+import SubHask.Algebra.Vector.RMStreams
 
 import Data.Csv (FromRecord,FromField,parseRecord)
 
@@ -343,6 +344,73 @@ instance (FreeModule r, ValidUVector n r, Eq r, ValidScalar r) => FiniteModule (
             go marr (x:xs') i = do
                 writeByteArray marr i x
                 go marr xs' (i-1)
+
+----------------------------------------
+-- Stream-Fusion/Recycling
+
+instance Prim r => Streamable (UVector (sym::Symbol) r) Int r where
+        stream (UVector_Dynamic arr _ n) = Stream next 0 n
+                where
+                        next i
+                          | i < n     = Yield (indexByteArray arr i) (i+1)
+                          | otherwise = Done
+        unstream (Stream next i n) = unsafeInlineIO $ do
+                        v <- safeNewByteArray (n*Prim.sizeOf (undefined::r)) 16
+                        ent <- fillUV v i 0
+                        when (ent >= n) (error $ "tried to stream more than " + show n + " elements into " + show n + "-dim Vector.") -- impossible if types are correct!
+                                                                                                                                      -- abort as we have corrupted the memory anyways..
+                        a <- unsafeFreezeByteArray v
+                        return (UVector_Dynamic a 0 n)
+                where
+                        fillUV arr i' pos = case next i' of
+                                         Yield x i'' -> writeByteArray arr pos x >> fillUV arr i'' (pos+1)
+                                         Skip i''    -> fillUV arr i'' (pos+1)
+                                         Done        -> return i'
+
+instance Prim r => Streamable (MutableByteArray RealWorld, Int) Int r where
+        stream (marr, n) = Stream next 0 n
+                where
+                        next i
+                          | i < n     = Yield (unsafeInlineIO $ readByteArray marr i) (i+1)
+                          | otherwise = Done
+        unstream (Stream next i n) = unsafeInlineIO $ do
+                        marr <- newByteArray (n*Prim.sizeOf(undefined :: r))
+                        ent <- fillUV marr i 0
+                        when (ent >= n) (error $ "tried to stream more than " + show n + " elements into " + show n + "-dim Vector.") -- impossible if types are correct!
+                                                                                                                                      -- abort as we have corrupted the memory anyways..
+                        return (marr, n)
+                where
+                        fillUV arr i' pos = case next i' of
+                                         Yield x i'' -> writeByteArray arr pos x >> fillUV arr i'' (pos+1)
+                                         Skip i''    -> fillUV arr i'' (pos+1)
+                                         Done        -> return i'
+
+instance (Prim r, r ~ Scalar r) => Recycleable IO (MutableByteArray RealWorld, Int) (UVector (sym::Symbol) r) where
+        new (New init) = unsafeInlineIO $ do
+                                        (marr, n) <- init
+                                        arr <- unsafeFreezeByteArray marr
+                                        return $ UVector_Dynamic arr 0 n
+        clone (UVector_Dynamic a off n) = New $ do
+                                            let b = n*Prim.sizeOf (undefined :: r)
+                                            marr <- newByteArray b
+                                            copyByteArray marr 0 a off b
+                                            return (marr,n)
+
+
+instance (Prim r) => Fillable IO (MutableByteArray RealWorld, Int) Int r where
+        fill (Stream next i n) = New $ do
+                        arr <- safeNewByteArray (n*Prim.sizeOf (undefined::r)) 16
+                        ent <- fillUV arr i 0
+                        when (ent >= n) (error $ "tried to stream more than " + show n + " elements into " + show n + "-dim Vector.") -- impossible if types are correct!
+                                                                                                                                      -- abort as we have corrupted the memory anyways..
+                        return (arr,n)
+                where
+                        fillUV arr i' pos = case next i' of
+                                         Yield x i'' -> writeByteArray arr pos x >> fillUV arr i'' (pos+1)
+                                         Skip i''    -> fillUV arr i'' (pos+1)
+                                         Done        -> return i'
+
+instance (Prim r, r ~ Scalar r) => RMStreams IO (UVector (sym::Symbol) r) (MutableByteArray RealWorld, Int) Int r
 
 ----------------------------------------
 -- comparison

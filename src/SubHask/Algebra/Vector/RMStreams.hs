@@ -8,7 +8,7 @@ module SubHask.Algebra.Vector.RMStreams where
 
 import Control.Monad
 import Control.Monad.Identity
-import Control.Monad.ST
+import Control.Monad.Primitive
 import Data.Functor ()
 import Prelude ((.), ($), Int)
 
@@ -69,40 +69,40 @@ instance Streamable s i a => MStreamable Identity s i a where
 --
 -- Automatic instancing of STreamable for MStream Identity not possible becaus of undicidability
 -- of choosing which one to apply and thus looping endlessly in the type-checker/optimizer.
-{-# INLINE[1] liftMStream #-}
+{-# INLINE_FUSION liftMStream #-}
 liftMStream :: Monad m => Stream i a -> MStream m i a
 liftMStream (Stream next i n) = MStream (return . next) i n
 
 -- | and the way back
-{-# INLINE[1] lowerIdentity #-}
+{-# INLINE_FUSION lowerIdentity #-}
 lowerIdentity :: MStream Identity i a -> Stream i a
 lowerIdentity (MStream next i n) = Stream (runIdentity . next) i n
 
 -- | And this rule recaptures the stream . unstream-Identity from above.
 
 {-# RULES
-"streamM/unstreamM" forall (t :: forall i a. MStream Identity i a). streamM (runIdentity (unstreamM t)) = t
-"lift/lower-Stream[1]"[~1] forall s . lowerIdentity (liftMStream s) = s
+"streamM/unstreamM"[~0] forall (t :: forall i a. MStream Identity i a). streamM (runIdentity (unstreamM t)) = t
+"lift/lower-Stream"[~1] forall s . lowerIdentity (liftMStream s) = s
   #-}
 
 
 -- | Wrapper for signaling a creation of a value
-newtype (IxContainer mutable, Index mutable ~ i, Elem mutable ~ a) => New mutable i a = New (ST i mutable)
+newtype (PrimMonad m) => New m mutable = New (m mutable)
 
 -- | Recycleable is used for collection of inplace-updates on indexed-based structures
 --   (read: Arrays) without exposing the mutability and performing safe optimisations.
 --
 --   Concatenation of these functions works similar to a Stream - but in every step the
---   whole structure can get updated - Therefore the need for the (ST i)-constraint.
+--   whole structure can get updated.
 --
---   clone . new gets fused away chaining New r a -> New r a functions.
-class (IxContainer r, Index r ~ i, Elem r ~ a) => Recycleable r i a where
-        new :: New r i a -> r
-        clone :: r -> New r i a
+--   clone . new gets fused away chaining New ds -> New ds functions.
+class (PrimMonad m) => Recycleable m ds r where
+        new :: New m ds -> r
+        clone :: r -> New m ds
 
 
 {-# RULES
-"clone/new" forall p. clone (new p) = p
+"clone/new"[~0] forall p. clone (new p) = p
   #-}
 
 -- | combining interface of Streams and Recycles yielding more optimisations.
@@ -114,35 +114,38 @@ class (IxContainer r, Index r ~ i, Elem r ~ a) => Recycleable r i a where
 --   Defining fill is sufficient and GHC-Rules replace all occurences of
 --   unstream and clone with the fill-based definition which then gets
 --   optimised away by further rules.
-class (Streamable s i a, MStreamable (ST i) s i a, Recycleable s i a) => RMStreams s i a where
-        fill :: Stream i a -> New s i a
+class Fillable m ds i a where
+        fill :: Stream i a -> New m ds
 
-        {-# INLINE unstream_ #-}
-        unstream_ :: Stream i a-> s
-        unstream_ s = new (fill s)
+class (PrimMonad m, Streamable ds i a, Streamable s i a, Recycleable m ds s, Fillable m ds i a) => RMStreams m s ds i a
 
-        {-# INLINE clone_ #-}
-        clone_ :: Streamable s i a => s -> New s i a
-        clone_ s = fill (stream s)
+{-# INLINE[1] unstream_ #-}
+unstream_ :: forall m s ds i a. RMStreams m s ds i a => Stream i a -> s
+unstream_ s = (new :: Recycleable m ds s => New m ds -> s) ((fill :: Fillable m ds i a => Stream i a -> New m ds) s)
 
-        {-# INLINE transform #-}
-        transform :: (forall n. Monad n => MStream n i a -> MStream n i a) -> New s i a -> New s i a
-        transform f (New init) = New $ do 
-                                       v <- init
-                                       unstreamM (f (liftMStream (stream v)))
+{-# INLINE[1] clone_ #-}
+clone_ :: forall m s ds i a. RMStreams m s ds i a => s -> New m ds
+clone_ s = (fill :: Fillable m ds i a => Stream i a -> New m ds) ((stream :: Streamable s i a => s -> Stream i a) s)
 
-        -- | functions that do not change the type can be done inplace. Definition is id but used in GHC-Rules.
-        {-# INLINE inplace #-}
-        inplace :: (forall n. Monad n => MStream n i a -> MStream n i a) -> MStream Identity i a -> MStream Identity i a
-        inplace f = f
+{-# INLINE[1] transform #-}
+transform :: (IxContainer ds, RMStreams m s ds i a) => (Stream i a -> Stream i a) -> New m ds -> New m ds
+transform f (New init) = New $ do
+                       v <- init
+                       return $ unstream (f (stream v))
 
-{- # RULES
-"unstream/fill_unstream" forall (t :: (Streamable m s i a, RMStreams m s i a) => MStream m s i a). unstream t = unstream_ t :: (Streamable m s i a, RMStreams m s i a) => m s
-"clone/fill_clone" forall (t :: (Recycleable s i a, RMStreams m s i a) => s). clone t = clone_ t :: (Recycleable s i a, RMStreams m s i a) => New s i a
-"fusion" forall s. stream (new (fill s)) = s
-"recycling" forall p. fill (stream (new p)) = p
-"inplace" forall (f :: forall m. Monad m => MStream m s i a -> MStream m s i a) p. fill (inplace f (stream (new p))) = transform (f :: forall m. Monad m => MStream m s i a -> MStream m s i a) p
-"uninplace" forall (f :: forall m. Monad m => MStream m s i a -> MStream m s i a) (p :: RMStreams m s i a => New s i a). stream (new (transform f p)) = inplace f (stream (new p)) :: RMStreams m s i a => MStream m s i a
-"inplace2" forall (f :: forall m. MStream m s i a -> MStream m s i a) (g :: forall m. MStream m s i a -> MStream m s i a) (s :: RMStreams m r i => MStream m s i a). inplace f (inplace g s) = inplace ((f . g) :: RMStreams m r i => forall m . MStream m s i a -> MStream m s i a) s :: MStream m s i a
-"mfusion" forall (f :: forall m. MStream m s i a -> MStream m s i a) (g :: forall m. MStream m s i a -> MStream m s i a) (p :: New s i a). transform f (transform g p) = transform (f . g :: forall m. MStream m s i a -> MStream m s i a) p :: New s i a
-  # -}
+-- | functions that do not change the type can be done inplace. Definition is id but used in GHC-Rules.
+{-# INLINE[1] inplace #-}
+inplace :: (forall m. Monad m => MStream m i a -> MStream m i a) -> Stream i a -> Stream i a
+inplace f = lowerIdentity . f . liftMStream
+-- not sure if the above works.
+
+{-# RULES
+-- can't get this specialisation typechecked ...
+-- "unstream/fill_unstream" forall (t :: RMStreams m s ds i a => Stream i a). unstream t = unstream_ t
+-- "clone/fill_clone" forall (t :: (Recycleable s i a, RMStreams ds s i a) => s). clone t = clone_ t :: (Recycleable s i a, RMStreams ds s i a) => New ds
+"fusion"[1] forall s. stream (new (fill s)) = s
+"recycling"[1] forall p. fill (stream (new p)) = p
+-- "embed"[1] forall (f :: Stream i a -> Stream i a) (p :: (IxContainer ds, RMStreams m s ds i a) => New m ds). fill (f (stream (new p))) = transform f p
+-- "unembed"[1] forall (f :: Stream i a -> Stream i a) (p :: (IxContainer ds, RMStreams m ds s i a) => New m ds). stream (new (transform f p)) = f (stream (new p))
+-- "tfusion"[1] forall f g p. transform f (transform g p) = transform (f . g) p
+  #-}
