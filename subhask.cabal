@@ -54,6 +54,10 @@ library
         SubHask.Algebra.Ring
         SubHask.Algebra.Vector
         SubHask.Algebra.Vector.FFI
+        SubHask.Algebra.Accelerate.Accelerate
+        SubHask.Algebra.Accelerate.AccelerateBackend
+        SubHask.Algebra.Accelerate.Vector
+
 
         SubHask.Category
         SubHask.Category.Finite
@@ -154,22 +158,27 @@ library
         QuickCheck,
 
         -- math
-        erf,
-        gamma,
-        hmatrix,
+        erf                         ,
+        gamma                       ,
+        hmatrix                     ,
+        accelerate                  ,
+        accelerate-cuda             ,
+        cuda                        ,
+        -- accelerate-llvm             ,
 
         -- compatibility control flow
         mtl,
         MonadRandom,
 
         -- compatibility data structures
-        bytestring,
---         bloomfilter,
-        cassava,
-        containers,
-        vector,
-        array,
+        bytestring                  ,
+        cassava                     ,
+        containers                  ,
+        vector                      ,
+        array                       ,
+        -- hyperloglog                 ,
         reflection
+--         bloomfilter,
 
         -- required for hyperloglog compatibility
 --         hyperloglog,
@@ -191,7 +200,10 @@ Test-Suite test
     build-depends:
         subhask,
         test-framework-quickcheck2,
-        test-framework
+        test-framework,
+        accelerate                  ,
+        accelerate-cuda             ,
+        cuda
   if flag(dotestoptimise)
     ghc-options: -O2
   if flag(llvmsupport)

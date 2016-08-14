@@ -54,10 +54,13 @@ To install on Linux or Mac, run the following commands:
     $ cd llvm-3.5.2
     $ mkdir build
     $ cd build
-    $ cmake ..
+    $ ../configure --enable-shared --enable-optimized
     $ make -j5
     $ sudo make install
     ```
+(Configuring with `cmake` won't export the correct shared libraries that llvm-general
+expects.  If you want more debugging capability of the llvm code, removed the `--enable-optimized` flag)
+
 
 1. Any version of BLAS and LAPACK.
 
