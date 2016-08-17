@@ -126,6 +126,7 @@ library
 
     ghc-options:
         -funbox-strict-fields
+        -fenable-rewrite-rules
         -Wall
         -Wno-simplifiable-class-constraints
 
@@ -230,19 +231,16 @@ benchmark ghc-test-linear-algebra
         -O2
         -funbox-strict-fields
         -fexcess-precision
+        -fenable-rewrite-rules
         -optlo-O3
         -optlo-enable-fp-mad
         -optlo-enable-no-infs-fp-math
         -optlo-enable-no-nans-fp-math
         -optlo-enable-unsafe-fp-math
         -ddump-to-file
---        -ddump-simpl
+        -ddump-rule-firings
+        -ddump-rule-rewrites
         -ddump-opt-cmm
-        -dsuppress-idinfo
-        -dsuppress-coercions
-        -dsuppress-type-applications
-        -dsuppress-uniques
-        -dsuppress-module-prefixes
 
 --------------------------------------------------------------------------------
 

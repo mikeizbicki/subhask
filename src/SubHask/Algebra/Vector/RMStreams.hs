@@ -87,7 +87,7 @@ lowerIdentity (MStream next i n) = Stream (runIdentity . next) i n
 
 
 -- | Wrapper for signaling a creation of a value
-newtype (PrimMonad m) => New m mutable = New (m mutable)
+newtype (PrimBase m) => New m mutable = New (m mutable)
 
 -- | Recycleable is used for collection of inplace-updates on indexed-based structures
 --   (read: Arrays) without exposing the mutability and performing safe optimisations.
@@ -96,7 +96,7 @@ newtype (PrimMonad m) => New m mutable = New (m mutable)
 --   whole structure can get updated.
 --
 --   clone . new gets fused away chaining New ds -> New ds functions.
-class (PrimMonad m) => Recycleable m ds r where
+class (PrimBase m) => Recycleable m ds r where
         new :: New m ds -> r
         clone :: r -> New m ds
 
@@ -104,6 +104,12 @@ class (PrimMonad m) => Recycleable m ds r where
 {-# RULES
 "clone/new"[~0] forall p. clone (new p) = p
   #-}
+
+newOp :: (PrimBase m) => (ds -> m ds) -> New m ds -> New m ds
+newOp f (New init) = New $ do
+                            v <- init
+                            f v
+
 
 -- | combining interface of Streams and Recycles yielding more optimisations.
 --   

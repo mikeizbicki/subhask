@@ -39,7 +39,7 @@ import Data.Primitive hiding (sizeOf)
 import qualified Data.Primitive as Prim
 import Foreign.Ptr
 import Foreign.ForeignPtr
-import Foreign.Marshal.Utils
+import Foreign.Marshal.Utils (copyBytes)
 import Test.QuickCheck.Gen (frequency)
 
 import qualified Data.Vector.Unboxed as VU
@@ -283,11 +283,12 @@ instance (Vector r, ValidUVector n r) => Vector (UVector (n::Symbol) r) where
 
 instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Symbol) r) where
 
-    {-# INLINE (!) #-}
+    {-# INLINE[0] (!) #-}
     (!) (UVector_Dynamic arr off _) i = indexByteArray arr (off+i)
 
-    {-# INLINE (!~) #-}
-    (!~) i e (UVector_Dynamic arr off n) =
+    {-# INLINE[2] (!~) #-}
+    (!~) i e = new . newOp (\(marr,n) -> (writeByteArray marr i e :: IO ()) >> return (marr,n :: Int)) . clone
+       {-
                 unsafeInlineIO $ do
                         let b = n*Prim.sizeOf(undefined::r)
                         marr <- newByteArray b
@@ -295,8 +296,9 @@ instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Sym
                         writeByteArray marr i e
                         arr' <- unsafeFreezeByteArray marr
                         return $ UVector_Dynamic arr' 0 n
+                        -}
 
-    {-# INLINE (%~) #-}
+    {-# INLINE[2] (%~) #-}
     (%~) i f (UVector_Dynamic arr off n) =
                 unsafeInlineIO $ do
                         let b = n*Prim.sizeOf(undefined::r)
@@ -397,7 +399,7 @@ instance (Prim r, r ~ Scalar r) => Recycleable IO (MutableByteArray RealWorld, I
                                             return (marr,n)
 
 
-instance (Prim r) => Fillable IO (MutableByteArray RealWorld, Int) Int r where
+instance Prim r => Fillable IO (MutableByteArray RealWorld, Int) Int r where
         fill (Stream next i n) = New $ do
                         arr <- safeNewByteArray (n*Prim.sizeOf (undefined::r)) 16
                         ent <- fillUV arr i 0
