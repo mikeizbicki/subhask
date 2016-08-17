@@ -23,5 +23,5 @@
 >
 >   let v' = unsafeToModule [1..5] :: UVector "bar" Double
 >   putStrLn $ " v' = " + show v'
->   w' <- return $ v' & (3 !~ 0) . (1 !~ 0) . (1 !~ 42)
+>   w' <- return $ v' & (1 !~ 42) . (2 %~ (+5)) . (1 !~ 5) . (3 !~ 0) . (1 !~ 0) . (1 !~ 42)
 >   putStrLn  $ " w' = " + show w'

@@ -41,7 +41,6 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Marshal.Utils (copyBytes)
 import Test.QuickCheck.Gen (frequency)
-import qualified Debug.Trace as D
 
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Storable as VS
@@ -288,7 +287,7 @@ instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Sym
     (!) (UVector_Dynamic arr off _) i = indexByteArray arr (off+i)
 
     {-# INLINE (!~) #-}
-    (!~) i e = \v -> newVec . newOp (\(marr,n) -> (writeByteArray marr i e :: IO ()) >> return (marr,n :: Int)) . cloneVec $ v
+    (!~) i e = \v -> new . newOp (\(marr,n) -> (writeByteArray marr i e :: IO ()) >> return (marr,n :: Int)) . clone $ v
        {-
                 unsafeInlineIO $ do
                         let b = n*Prim.sizeOf(undefined::r)
@@ -300,7 +299,12 @@ instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Sym
                         -}
 
     {-# INLINE (%~) #-}
-    (%~) i f (UVector_Dynamic arr off n) =
+    (%~) i f = \v -> new . newOp (\(marr,n) -> do
+                                                e <- readByteArray marr i
+                                                writeByteArray marr i (f e) :: IO ()
+                                                return (marr, n :: Int))
+                         . clone $ v
+            {-(UVector_Dynamic arr off n) =
                 unsafeInlineIO $ do
                         let b = n*Prim.sizeOf(undefined::r)
                         marr <- newByteArray b
@@ -308,7 +312,7 @@ instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Sym
                         e <- readByteArray marr i
                         writeByteArray marr i (f e)
                         arr' <- unsafeFreezeByteArray marr
-                        return $ UVector_Dynamic arr' 0 n
+                        return $ UVector_Dynamic arr' 0 n-}
 
     {-# INLINABLE toIxList #-}
     toIxList (UVector_Dynamic arr off n) = P.zip [0..] $ go (n-1) []
@@ -397,6 +401,20 @@ instance (Prim r, r ~ Scalar r) => Recycleable IO (MutableByteArray RealWorld, I
         new = newVec
         {-# INLINE clone #-}
         clone = cloneVec
+        -- {-# INLINE[0] new #-}
+        -- new :: forall (n :: Symbol) r. New IO (MutableByteArray RealWorld, Int) -> UVector n r
+        -- new (New init) = unsafeInlineIO $ do
+        --                                 (marr, n) <- init
+        --                                 arr <- unsafeFreezeByteArray marr
+        --                                 return $ UVector_Dynamic arr 0 n
+
+        -- {-# INLINE[0] clone #-}
+        -- clone :: forall r sym.(Prim r, r ~ Scalar r) => UVector (sym::Symbol) r -> New IO (MutableByteArray RealWorld, Int)
+        -- clone (UVector_Dynamic a off n) = New $ do
+        --                                     let b = n*Prim.sizeOf (undefined :: r)
+        --                                     marr <- newByteArray b
+        --                                     copyByteArray marr 0 a off b
+        --                                     return (marr,n)
 
 {-# INLINE[0] newVec #-}
 newVec :: forall (n :: Symbol) r. New IO (MutableByteArray RealWorld, Int) -> UVector n r
@@ -409,7 +427,7 @@ newVec (New init) = unsafeInlineIO $ do
 cloneVec :: forall r sym.(Prim r, r ~ Scalar r) => UVector (sym::Symbol) r -> New IO (MutableByteArray RealWorld, Int)
 cloneVec (UVector_Dynamic a off n) = New $ do
                                     let b = n*Prim.sizeOf (undefined :: r)
-                                    marr <- D.trace "allocating" $ newByteArray b
+                                    marr <- newByteArray b
                                     copyByteArray marr 0 a off b
                                     return (marr,n)
 
