@@ -41,6 +41,7 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Marshal.Utils (copyBytes)
 import Test.QuickCheck.Gen (frequency)
+import qualified Debug.Trace as D
 
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Storable as VS
@@ -286,8 +287,8 @@ instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Sym
     {-# INLINE[0] (!) #-}
     (!) (UVector_Dynamic arr off _) i = indexByteArray arr (off+i)
 
-    {-# INLINE[2] (!~) #-}
-    (!~) i e = new . newOp (\(marr,n) -> (writeByteArray marr i e :: IO ()) >> return (marr,n :: Int)) . clone
+    {-# INLINE (!~) #-}
+    (!~) i e = \v -> newVec . newOp (\(marr,n) -> (writeByteArray marr i e :: IO ()) >> return (marr,n :: Int)) . cloneVec $ v
        {-
                 unsafeInlineIO $ do
                         let b = n*Prim.sizeOf(undefined::r)
@@ -298,7 +299,7 @@ instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Sym
                         return $ UVector_Dynamic arr' 0 n
                         -}
 
-    {-# INLINE[2] (%~) #-}
+    {-# INLINE (%~) #-}
     (%~) i f (UVector_Dynamic arr off n) =
                 unsafeInlineIO $ do
                         let b = n*Prim.sizeOf(undefined::r)
@@ -351,11 +352,13 @@ instance (FreeModule r, ValidUVector n r, Eq r, ValidScalar r) => FiniteModule (
 -- Stream-Fusion/Recycling
 
 instance Prim r => Streamable (UVector (sym::Symbol) r) Int r where
+        {-# INLINABLE[0] stream #-}
         stream (UVector_Dynamic arr _ n) = Stream next 0 n
                 where
                         next i
                           | i < n     = Yield (indexByteArray arr i) (i+1)
                           | otherwise = Done
+        {-# INLINABLE[0] unstream #-}
         unstream (Stream next i n) = unsafeInlineIO $ do
                         v <- safeNewByteArray (n*Prim.sizeOf (undefined::r)) 16
                         ent <- fillUV v i 0
@@ -370,11 +373,13 @@ instance Prim r => Streamable (UVector (sym::Symbol) r) Int r where
                                          Done        -> return i'
 
 instance Prim r => Streamable (MutableByteArray RealWorld, Int) Int r where
+        {-# INLINABLE[0] stream #-}
         stream (marr, n) = Stream next 0 n
                 where
                         next i
                           | i < n     = Yield (unsafeInlineIO $ readByteArray marr i) (i+1)
                           | otherwise = Done
+        {-# INLINABLE[0] unstream #-}
         unstream (Stream next i n) = unsafeInlineIO $ do
                         marr <- newByteArray (n*Prim.sizeOf(undefined :: r))
                         ent <- fillUV marr i 0
@@ -388,18 +393,33 @@ instance Prim r => Streamable (MutableByteArray RealWorld, Int) Int r where
                                          Done        -> return i'
 
 instance (Prim r, r ~ Scalar r) => Recycleable IO (MutableByteArray RealWorld, Int) (UVector (sym::Symbol) r) where
-        new (New init) = unsafeInlineIO $ do
-                                        (marr, n) <- init
-                                        arr <- unsafeFreezeByteArray marr
-                                        return $ UVector_Dynamic arr 0 n
-        clone (UVector_Dynamic a off n) = New $ do
-                                            let b = n*Prim.sizeOf (undefined :: r)
-                                            marr <- newByteArray b
-                                            copyByteArray marr 0 a off b
-                                            return (marr,n)
+        {-# INLINE new #-}
+        new = newVec
+        {-# INLINE clone #-}
+        clone = cloneVec
+
+{-# INLINE[0] newVec #-}
+newVec :: forall (n :: Symbol) r. New IO (MutableByteArray RealWorld, Int) -> UVector n r
+newVec (New init) = unsafeInlineIO $ do
+                                (marr, n) <- init
+                                arr <- unsafeFreezeByteArray marr
+                                return $ UVector_Dynamic arr 0 n
+
+{-# INLINE[0] cloneVec #-}
+cloneVec :: forall r sym.(Prim r, r ~ Scalar r) => UVector (sym::Symbol) r -> New IO (MutableByteArray RealWorld, Int)
+cloneVec (UVector_Dynamic a off n) = New $ do
+                                    let b = n*Prim.sizeOf (undefined :: r)
+                                    marr <- D.trace "allocating" $ newByteArray b
+                                    copyByteArray marr 0 a off b
+                                    return (marr,n)
+
+{-# RULES
+"clone/new [UVector]"[~0] forall p. cloneVec (newVec p) = p
+  #-}
 
 
 instance Prim r => Fillable IO (MutableByteArray RealWorld, Int) Int r where
+        {-# INLINABLE[0] fill #-}
         fill (Stream next i n) = New $ do
                         arr <- safeNewByteArray (n*Prim.sizeOf (undefined::r)) 16
                         ent <- fillUV arr i 0

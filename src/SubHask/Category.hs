@@ -130,7 +130,7 @@ instance Category (->) where
     type ValidCategory (->) (a :: *) = ()
     id = P.id
 
-    {-# NOINLINE (.) #-}
+    {-# INLINE (.) #-}
     (.) = (P..)
 
 -- | The category with categories as objects and functors as arrows.

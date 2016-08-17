@@ -105,6 +105,7 @@ class (PrimBase m) => Recycleable m ds r where
 "clone/new"[~0] forall p. clone (new p) = p
   #-}
 
+{-# INLINE[1] newOp #-}
 newOp :: (PrimBase m) => (ds -> m ds) -> New m ds -> New m ds
 newOp f (New init) = New $ do
                             v <- init

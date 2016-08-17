@@ -231,16 +231,23 @@ benchmark ghc-test-linear-algebra
         -O2
         -funbox-strict-fields
         -fexcess-precision
-        -fenable-rewrite-rules
         -optlo-O3
         -optlo-enable-fp-mad
         -optlo-enable-no-infs-fp-math
         -optlo-enable-no-nans-fp-math
         -optlo-enable-unsafe-fp-math
         -ddump-to-file
+        -ddump-simpl-stats
+        -ddump-simpl-iterations
         -ddump-rule-firings
         -ddump-rule-rewrites
         -ddump-opt-cmm
+        -dverbose-core2core
+        -dsuppress-idinfo
+        -dsuppress-coercions
+        -dsuppress-type-applications
+        -dsuppress-uniques
+        -dsuppress-module-prefixes
 
 --------------------------------------------------------------------------------
 
