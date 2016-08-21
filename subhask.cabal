@@ -248,6 +248,7 @@ benchmark ghc-test-linear-algebra
         -dsuppress-type-applications
         -dsuppress-uniques
         -dsuppress-module-prefixes
+        -ddump-asm
 
 --------------------------------------------------------------------------------
 
