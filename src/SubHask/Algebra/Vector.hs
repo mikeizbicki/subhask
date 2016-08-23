@@ -373,7 +373,7 @@ instance
       = if
         | isZero n1 -> size v2
         | isZero n2 -> size v1
-        | otherwise -> go 0 (n1-1)
+        | otherwise -> sqrt $ go 0 (n1-1)
         where
             ub2=ub*ub
 
@@ -388,11 +388,9 @@ instance
                             )
                             (i-4)
 
-            goEach !tot !i = if tot>ub2
+            goEach !tot !i = if i<0
                 then tot
-                else if i<0
-                        then sqrt $ tot
-                        else goEach (tot + (v1!i-v2!i).*.(v1!i-v2!i)) (i-1)
+                else goEach (tot + (v1!i-v2!i).*.(v1!i-v2!i)) (i-1)
 
 instance (VectorSpace r, Prim r, IsScalar r, ExpField r) => Normed (UVector (n::Symbol) r) where
     {-# INLINE size #-}
@@ -872,7 +870,7 @@ instance
     distanceUB v1@(SVector_Dynamic fp1 _ n) v2@(SVector_Dynamic fp2 _ _) ub = if
         | isNull fp1 -> size v2
         | isNull fp2 -> size v1
-        | otherwise -> go 0 (n-1)
+        | otherwise -> sqrt $ go 0 (n-1)
         where
             ub2=ub*ub
 
@@ -886,11 +884,9 @@ instance
                                 +(v1!(i-3) - v2!(i-3)) .*. (v1!(i-3) - v2!(i-3))
                             ) (i-4)
 
-            goEach !tot !i = if tot>ub2
+            goEach !tot !i = if i<0
                 then tot
-                else if i<0
-                        then sqrt $ tot
-                        else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
+                else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
 
 instance (VectorSpace r, ValidSVector n r, IsScalar r, ExpField r) => Normed (SVector (n::Symbol) r) where
     {-# INLINE size #-}
@@ -1241,7 +1237,7 @@ instance
     distance v1 v2 = distance (static2dynamic v1) (static2dynamic v2 :: SVector "dyn" r)
 
     {-# INLINE[2] distanceUB #-}
-    distanceUB v1 v2 ub = go 0 (n-1)
+    distanceUB v1 v2 ub = sqrt $ go 0 (n-1)
         where
             n = nat2int (Proxy::Proxy n)
             ub2 = ub*ub
@@ -1256,11 +1252,9 @@ instance
                                 +(v1!(i-3) - v2!(i-3)) .*. (v1!(i-3) - v2!(i-3))
                             ) (i-4)
 
-            goEach !tot !i = if tot>ub2
+            goEach !tot !i = if i<0
                 then tot
-                else if i<0
-                        then sqrt $ tot
-                        else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
+                else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
 
 instance
     ( KnownNat n
