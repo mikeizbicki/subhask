@@ -2734,6 +2734,18 @@ class Eq s => IxContainer s where
 
     imap :: (Index s -> Elem s -> Elem s) -> s -> s
 
+    -- | Updates value at specific index. O(n), but can be everwritten with more efficient versions
+    infixr 4 !~
+    {-# INLINEABLE (!~) #-}
+    (!~) :: (Eq (Index s), Logic (Index s)~Bool, ValidElem s (Elem s)) => Index s -> Elem s -> s -> s
+    (!~) i e c = imap (\ix el -> if ix == i then e else el) c
+
+    -- | Similar to "!~" the operation "%~" applies a given function to the value
+    infixr 4 %~
+    {-# INLINEABLE (%~) #-}
+    (%~) :: (Eq (Index s), Logic (Index s)~Bool, ValidElem s (Elem s)) => Index s -> (Elem s -> Elem s) -> s -> s
+    (%~) i f c = imap (\ix el -> if ix == i then f el else el) c
+
     toIxList :: s -> [(Index s, Elem s)]
 
     indices :: s -> [Index s]

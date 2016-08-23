@@ -54,6 +54,7 @@ library
         SubHask.Algebra.Ring
         SubHask.Algebra.Vector
         SubHask.Algebra.Vector.FFI
+        SubHask.Algebra.Vector.RMStreams
 
         SubHask.Category
         SubHask.Category.Finite
@@ -125,6 +126,7 @@ library
 
     ghc-options:
         -funbox-strict-fields
+        -fenable-rewrite-rules
         -Wall
         -Wno-simplifiable-class-constraints
 
@@ -217,6 +219,36 @@ Test-Suite Example0003
     hs-source-dirs:     examples
     main-is:            example0003-linear-algebra.lhs
     build-depends:      subhask, base
+
+benchmark ghc-test-linear-algebra
+    default-language:   Haskell2010
+    type:               exitcode-stdio-1.0
+    hs-source-dirs:     examples
+    main-is:            ghc-test-linear-algebra.lhs
+    build-depends:      subhask, base, primitive
+
+    ghc-options:
+        -O2
+        -funbox-strict-fields
+        -fexcess-precision
+        -optlo-O3
+        -optlo-enable-fp-mad
+        -optlo-enable-no-infs-fp-math
+        -optlo-enable-no-nans-fp-math
+        -optlo-enable-unsafe-fp-math
+        -ddump-to-file
+        -ddump-simpl-stats
+        -ddump-simpl-iterations
+        -ddump-rule-firings
+        -ddump-rule-rewrites
+        -ddump-opt-cmm
+        -dverbose-core2core
+        -dsuppress-idinfo
+        -dsuppress-coercions
+        -dsuppress-type-applications
+        -dsuppress-uniques
+        -dsuppress-module-prefixes
+        -ddump-asm
 
 --------------------------------------------------------------------------------
 

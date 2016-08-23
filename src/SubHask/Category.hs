@@ -56,6 +56,7 @@ module SubHask.Category
     -- * Hask
     , Hask
     , ($)
+    , (&)
     , ($!)
     , embedHask
     , embedHask2
@@ -129,7 +130,7 @@ instance Category (->) where
     type ValidCategory (->) (a :: *) = ()
     id = P.id
 
-    {-# NOINLINE (.) #-}
+    {-# INLINE (.) #-}
     (.) = (P..)
 
 -- | The category with categories as objects and functors as arrows.
@@ -219,6 +220,22 @@ type Concrete cat = cat <: (->)
 infixr 0 $
 ($) :: Concrete subcat => subcat a b -> a -> b
 ($) = embedType2
+
+-- | Like in lens "&" is just "flip ($)" for reverse application.
+--
+-- This allows us to take advantage of function-composition when working on a single object, i.e. given
+--
+-- > vector :: Vector 5 Int
+--
+-- we can update the 3rd and 4th entry by
+--
+-- > vector & 3 !~ 23 . 4 !~ 42
+--
+-- without traversing the whole structure as (!~) may have a more performant implementation then "updating by traversing"
+
+infixr 1 &
+(&) :: Concrete subcat => a -> subcat a b -> b
+(&) = flip ($)
 
 -- | A strict version of '$'
 infixr 0 $!

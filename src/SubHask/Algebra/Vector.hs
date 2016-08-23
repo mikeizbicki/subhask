@@ -39,7 +39,7 @@ import Data.Primitive hiding (sizeOf)
 import qualified Data.Primitive as Prim
 import Foreign.Ptr
 import Foreign.ForeignPtr
-import Foreign.Marshal.Utils
+import Foreign.Marshal.Utils (copyBytes)
 import Test.QuickCheck.Gen (frequency)
 
 import qualified Data.Vector.Unboxed as VU
@@ -50,6 +50,7 @@ import SubHask.Algebra
 import SubHask.Category
 import SubHask.Internal.Prelude
 import SubHask.SubType
+import SubHask.Algebra.Vector.RMStreams
 
 import Data.Csv (FromRecord,FromField,parseRecord)
 
@@ -282,14 +283,54 @@ instance (Vector r, ValidUVector n r) => Vector (UVector (n::Symbol) r) where
 
 instance (Monoid r, Eq r, Prim r, ValidScalar r) => IxContainer (UVector (n::Symbol) r) where
 
-    {-# INLINE (!) #-}
+    {-# INLINE[0] (!) #-}
     (!) (UVector_Dynamic arr off _) i = indexByteArray arr (off+i)
+
+    {-# INLINE (!~) #-}
+    (!~) i e = \v -> new . newOp (\(marr,n) -> (writeByteArray marr i e :: IO ()) >> return (marr,n :: Int)) . clone $ v
+       {-
+                unsafeInlineIO $ do
+                        let b = n*Prim.sizeOf(undefined::r)
+                        marr <- newByteArray b
+                        copyByteArray marr 0 arr off b
+                        writeByteArray marr i e
+                        arr' <- unsafeFreezeByteArray marr
+                        return $ UVector_Dynamic arr' 0 n
+                        -}
+
+    {-# INLINE (%~) #-}
+    (%~) i f = \v -> new . newOp (\(marr,n) -> do
+                                                e <- readByteArray marr i
+                                                writeByteArray marr i (f e) :: IO ()
+                                                return (marr, n :: Int))
+                         . clone $ v
+            {-(UVector_Dynamic arr off n) =
+                unsafeInlineIO $ do
+                        let b = n*Prim.sizeOf(undefined::r)
+                        marr <- newByteArray b
+                        copyByteArray marr 0 arr off b
+                        e <- readByteArray marr i
+                        writeByteArray marr i (f e)
+                        arr' <- unsafeFreezeByteArray marr
+                        return $ UVector_Dynamic arr' 0 n-}
 
     {-# INLINABLE toIxList #-}
     toIxList (UVector_Dynamic arr off n) = P.zip [0..] $ go (n-1) []
         where
             go (-1) xs = xs
             go i xs = go (i-1) (indexByteArray arr (off+i) : xs)
+
+    {-# INLINABLE imap #-}
+    imap :: forall s.(ValidElem (UVector n s) s) => (Index (UVector n r) -> Elem (UVector n r) -> s) -> UVector n r -> UVector n s
+    imap f (UVector_Dynamic arr off n) =
+            unsafeInlineIO $ do
+                    let b = n*Prim.sizeOf(undefined::s)
+                    marr <- newByteArray b
+                    forM_ [0..(n-1)] $ \i -> writeByteArray marr i (f i $ indexByteArray arr i)
+                    arr' <- unsafeFreezeByteArray marr
+                    return $ UVector_Dynamic arr' 0 n
+
+    type ValidElem (UVector n r) s = (ValidScalar s, Monoid s, Eq s, Prim s)
 
 instance (FreeModule r, ValidUVector n r, Eq r, ValidScalar r) => FiniteModule (UVector (n::Symbol) r) where
 
@@ -310,6 +351,106 @@ instance (FreeModule r, ValidUVector n r, Eq r, ValidScalar r) => FiniteModule (
             go marr (x:xs') i = do
                 writeByteArray marr i x
                 go marr xs' (i-1)
+
+----------------------------------------
+-- Stream-Fusion/Recycling
+
+instance Prim r => Streamable (UVector (sym::Symbol) r) Int r where
+        {-# INLINABLE[0] stream #-}
+        stream (UVector_Dynamic arr _ n) = Stream next 0 n
+                where
+                        next i
+                          | i < n     = Yield (indexByteArray arr i) (i+1)
+                          | otherwise = Done
+        {-# INLINABLE[0] unstream #-}
+        unstream (Stream next i n) = unsafeInlineIO $ do
+                        v <- safeNewByteArray (n*Prim.sizeOf (undefined::r)) 16
+                        ent <- fillUV v i 0
+                        when (ent >= n) (error $ "tried to stream more than " + show n + " elements into " + show n + "-dim Vector.") -- impossible if types are correct!
+                                                                                                                                      -- abort as we have corrupted the memory anyways..
+                        a <- unsafeFreezeByteArray v
+                        return (UVector_Dynamic a 0 n)
+                where
+                        fillUV arr i' pos = case next i' of
+                                         Yield x i'' -> writeByteArray arr pos x >> fillUV arr i'' (pos+1)
+                                         Skip i''    -> fillUV arr i'' (pos+1)
+                                         Done        -> return i'
+
+instance Prim r => Streamable (MutableByteArray RealWorld, Int) Int r where
+        {-# INLINABLE[0] stream #-}
+        stream (marr, n) = Stream next 0 n
+                where
+                        next i
+                          | i < n     = Yield (unsafeInlineIO $ readByteArray marr i) (i+1)
+                          | otherwise = Done
+        {-# INLINABLE[0] unstream #-}
+        unstream (Stream next i n) = unsafeInlineIO $ do
+                        marr <- newByteArray (n*Prim.sizeOf(undefined :: r))
+                        ent <- fillUV marr i 0
+                        when (ent >= n) (error $ "tried to stream more than " + show n + " elements into " + show n + "-dim Vector.") -- impossible if types are correct!
+                                                                                                                                      -- abort as we have corrupted the memory anyways..
+                        return (marr, n)
+                where
+                        fillUV arr i' pos = case next i' of
+                                         Yield x i'' -> writeByteArray arr pos x >> fillUV arr i'' (pos+1)
+                                         Skip i''    -> fillUV arr i'' (pos+1)
+                                         Done        -> return i'
+
+instance (Prim r, r ~ Scalar r) => Recycleable IO (MutableByteArray RealWorld, Int) (UVector (sym::Symbol) r) where
+        {-# INLINE new #-}
+        new = newVec
+        {-# INLINE clone #-}
+        clone = cloneVec
+        -- {-# INLINE[0] new #-}
+        -- new :: forall (n :: Symbol) r. New IO (MutableByteArray RealWorld, Int) -> UVector n r
+        -- new (New init) = unsafeInlineIO $ do
+        --                                 (marr, n) <- init
+        --                                 arr <- unsafeFreezeByteArray marr
+        --                                 return $ UVector_Dynamic arr 0 n
+
+        -- {-# INLINE[0] clone #-}
+        -- clone :: forall r sym.(Prim r, r ~ Scalar r) => UVector (sym::Symbol) r -> New IO (MutableByteArray RealWorld, Int)
+        -- clone (UVector_Dynamic a off n) = New $ do
+        --                                     let b = n*Prim.sizeOf (undefined :: r)
+        --                                     marr <- newByteArray b
+        --                                     copyByteArray marr 0 a off b
+        --                                     return (marr,n)
+
+{-# INLINE[0] newVec #-}
+newVec :: forall (n :: Symbol) r. New IO (MutableByteArray RealWorld, Int) -> UVector n r
+newVec (New init) = unsafeInlineIO $ do
+                                (marr, n) <- init
+                                arr <- unsafeFreezeByteArray marr
+                                return $ UVector_Dynamic arr 0 n
+
+{-# INLINE[0] cloneVec #-}
+cloneVec :: forall r sym.(Prim r, r ~ Scalar r) => UVector (sym::Symbol) r -> New IO (MutableByteArray RealWorld, Int)
+cloneVec (UVector_Dynamic a off n) = New $ do
+                                    let b = n*Prim.sizeOf (undefined :: r)
+                                    marr <- newByteArray b
+                                    copyByteArray marr 0 a off b
+                                    return (marr,n)
+
+{-# RULES
+"clone/new [UVector]"[~0] forall p. cloneVec (newVec p) = p
+  #-}
+
+
+instance Prim r => Fillable IO (MutableByteArray RealWorld, Int) Int r where
+        {-# INLINABLE[0] fill #-}
+        fill (Stream next i n) = New $ do
+                        arr <- safeNewByteArray (n*Prim.sizeOf (undefined::r)) 16
+                        ent <- fillUV arr i 0
+                        when (ent >= n) (error $ "tried to stream more than " + show n + " elements into " + show n + "-dim Vector.") -- impossible if types are correct!
+                                                                                                                                      -- abort as we have corrupted the memory anyways..
+                        return (arr,n)
+                where
+                        fillUV arr i' pos = case next i' of
+                                         Yield x i'' -> writeByteArray arr pos x >> fillUV arr i'' (pos+1)
+                                         Skip i''    -> fillUV arr i'' (pos+1)
+                                         Done        -> return i'
+
+instance (Prim r, r ~ Scalar r) => RMStreams IO (UVector (sym::Symbol) r) (MutableByteArray RealWorld, Int) Int r
 
 ----------------------------------------
 -- comparison
@@ -373,7 +514,7 @@ instance
       = if
         | isZero n1 -> size v2
         | isZero n2 -> size v1
-        | otherwise -> sqrt $ go 0 (n1-1)
+        | otherwise -> go 0 (n1-1)
         where
             ub2=ub*ub
 
@@ -388,9 +529,11 @@ instance
                             )
                             (i-4)
 
-            goEach !tot !i = if i<0
+            goEach !tot !i = if tot>ub2
                 then tot
-                else goEach (tot + (v1!i-v2!i).*.(v1!i-v2!i)) (i-1)
+                else if i<0
+                        then sqrt $ tot
+                        else goEach (tot + (v1!i-v2!i).*.(v1!i-v2!i)) (i-1)
 
 instance (Vector r, Prim r, ValidScalar r, ExpField r) => Normed (UVector (n::Symbol) r) where
     {-# INLINE size #-}
@@ -765,6 +908,29 @@ instance
     {-# INLINE (!) #-}
     (!) (SVector_Dynamic fp off _) i = unsafeInlineIO $ withForeignPtr fp $ \p -> peekElemOff p (off+i)
 
+    {-# INLINE (!~) #-}
+    (!~) i e (SVector_Dynamic fp1 off n) =
+            unsafeInlineIO $ do
+                let b = n*sizeOf(undefined::r)
+                fp2 <- mallocForeignPtrBytes b
+                withForeignPtr fp1 $ \ptr1 ->
+                    withForeignPtr fp2 $ \ptr2 -> do
+                        copyBytes ptr2 (plusPtr ptr1 off) b
+                        pokeElemOff ptr2 i e
+                return $ (SVector_Dynamic fp2 0 n)
+
+    {-# INLINE (%~) #-}
+    (%~) i f (SVector_Dynamic fp1 off n) =
+            unsafeInlineIO $ do
+                let b = n*sizeOf(undefined::r)
+                fp2 <- mallocForeignPtrBytes b
+                withForeignPtr fp1 $ \ptr1 ->
+                    withForeignPtr fp2 $ \ptr2 -> do
+                        copyBytes ptr2 (plusPtr ptr1 off) b
+                        e <- peekElemOff ptr2 i
+                        pokeElemOff ptr2 i (f e)
+                return $ (SVector_Dynamic fp2 0 n)
+
     {-# INLINABLE toIxList #-}
     toIxList v = P.zip [0..] $ go (dim v-1) []
         where
@@ -863,7 +1029,7 @@ instance
     distanceUB v1@(SVector_Dynamic fp1 _ n) v2@(SVector_Dynamic fp2 _ _) ub = if
         | isNull fp1 -> size v2
         | isNull fp2 -> size v1
-        | otherwise -> sqrt $ go 0 (n-1)
+        | otherwise -> go 0 (n-1)
         where
             ub2=ub*ub
 
@@ -877,9 +1043,11 @@ instance
                                 +(v1!(i-3) - v2!(i-3)) .*. (v1!(i-3) - v2!(i-3))
                             ) (i-4)
 
-            goEach !tot !i = if i<0
+            goEach !tot !i = if tot>ub2
                 then tot
-                else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
+                else if i<0
+                        then sqrt $ tot
+                        else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
 
 instance (Vector r, ValidSVector n r, ValidScalar r, ExpField r) => Normed (SVector (n::Symbol) r) where
     {-# INLINE size #-}
@@ -1168,6 +1336,32 @@ instance
     {-# INLINE (!) #-}
     (!) (SVector_Nat fp) i = unsafeInlineIO $ withForeignPtr fp $ \p -> peekElemOff p i
 
+    {-# INLINE (!~) #-}
+    (!~) i e (SVector_Nat fp1) =
+            unsafeInlineIO $ do
+                let b = n*sizeOf(undefined::r)
+                    n = nat2int (Proxy::Proxy n)
+                fp2 <- mallocForeignPtrBytes b
+                withForeignPtr fp1 $ \ptr1 ->
+                    withForeignPtr fp2 $ \ptr2 -> do
+                        copyBytes ptr2 ptr1 b
+                        pokeElemOff ptr2 i e
+                return $ (SVector_Nat fp2)
+
+    {-# INLINE (%~) #-}
+    (%~) i f (SVector_Nat fp1) =
+            unsafeInlineIO $ do
+                let b = n*sizeOf(undefined::r)
+                    n = nat2int (Proxy::Proxy n)
+                fp2 <- mallocForeignPtrBytes b
+                withForeignPtr fp1 $ \ptr1 ->
+                    withForeignPtr fp2 $ \ptr2 -> do
+                        copyBytes ptr2 ptr1 b
+                        e <- peekElemOff ptr2 i
+                        pokeElemOff ptr2 i (f e)
+                return $ (SVector_Nat fp2)
+
+
     {-# INLINABLE toIxList #-}
     toIxList v = P.zip [0..] $ go (dim v-1) []
         where
@@ -1251,7 +1445,7 @@ instance
     distance v1 v2 = distance (static2dynamic v1) (static2dynamic v2 :: SVector "dyn" r)
 
     {-# INLINE[2] distanceUB #-}
-    distanceUB v1 v2 ub = sqrt $ go 0 (n-1)
+    distanceUB v1 v2 ub = go 0 (n-1)
         where
             n = nat2int (Proxy::Proxy n)
             ub2 = ub*ub
@@ -1266,9 +1460,11 @@ instance
                                 +(v1!(i-3) - v2!(i-3)) .*. (v1!(i-3) - v2!(i-3))
                             ) (i-4)
 
-            goEach !tot !i = if i<0
+            goEach !tot !i = if tot>ub2
                 then tot
-                else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
+                else if i<0
+                        then sqrt $ tot
+                        else goEach (tot+(v1!i - v2!i) * (v1!i - v2!i)) (i-1)
 
 instance
     ( KnownNat n
