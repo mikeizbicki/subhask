@@ -2,6 +2,7 @@ module SubHask.Algebra.Accelerate.Vector
     (
     ValidACCVector
     , ACCVector (..)
+
     )
     where
 
@@ -37,30 +38,28 @@ import Unsafe.Coerce
 -- | Accelerate based Vector
 -- | A.Acc is an accelreate computation, A.Array A.DIM1 a is a one dimensional array
 
-newtype ACCVector (bknd::Backend) (n::k) a = ACCVector (A.Acc (A.Array A.DIM1 a))
+newtype ACCVector (bknd::Backend) (n::Nat) a = ACCVector (A.Acc (A.Array A.DIM1 a))
 
 type instance Scalar (ACCVector bknd n r) =  A.Acc(A.Scalar r)
-type instance Logic (ACCVector bknd n r) = A.Acc(A.Scalar Bool)
+type instance Logic (ACCVector bknd n r) = A.Acc(A.Scalar r)
 
 type ValidACCVector bknd n a = (
                                  Prim a
                                 , A.Elt a
                                 , P.Num (A.Exp a)
-                                , Scalar (A.Acc (A.Scalar a)) ~ A.Acc (A.Scalar a)
+                                --, Scalar (A.Acc (A.Scalar a)) ~ A.Acc (A.Scalar a)
                                 , Ring (A.Acc (A.Scalar a))
-                                , Logic (Logic (A.Acc (A.Scalar Bool))) ~ Logic (A.Acc (A.Scalar Bool))
+                                --, Logic (Logic (A.Acc (A.Scalar Bool))) ~ Logic (A.Acc (A.Scalar Bool))
                                 , Container (A.Acc (A.Scalar Bool))
                                 , Boolean (A.Acc (A.Scalar Bool))
                                 , Ord (A.Acc (A.Scalar a))
                                 , Normed (A.Acc (A.Scalar a))
                                 , Vector (ACCVector bknd n a)
                                 , Vector (Square (ACCVector bknd n a))
-                                ,  Elem (Square (ACCVector bknd n a))  ~ ACCVector bknd n a
+
                                 , Semigroup (A.Exp a)
                                 , Field (A.Exp a)
                                 , Rg (A.Exp a)
-                                , Index (Square (ACCVector bknd n a)) ~ A.Acc (A.Scalar Int)
-                                -- , Logic (A.Acc (A.Scalar a)) ~ A.Acc (A.Scalar a)
                                 -- , Actor (A.Acc (A.Scalar a)) ~ A.Acc (A.Scalar a)
                                 -- , Container (A.Acc (A.Scalar a))
                                 -- , Container (Logic (A.Acc (A.Scalar Bool)))
@@ -71,7 +70,7 @@ type ValidACCVector bknd n a = (
                                 -- , P.Fractional (A.Exp a)
                                 -- , P.Floating (A.Exp a)
                                 , P.Floating (A.Acc (A.Scalar a))
-                                , P.Floating (A.Acc (A.Array A.DIM0 a))
+                                --, P.Floating (A.Acc (A.Array A.DIM0 a))
                                 -- , Elem (Square (ACCVector bknd n a)) ~ ACCVector bknd n a
                                 -- , Index (Square (ACCVector bknd n a)) ~ A.Acc (A.Scalar Int)
                                 -- , Index (A.Acc (A.Scalar Int)) ~  A.Acc (A.Scalar Int)
@@ -146,6 +145,7 @@ instance
     , Monoid r
     , ValidACCVector b n r
     , KnownNat n
+    , Eq (ACCVector b n r)
     , FreeModule r
     ) => IxContainer (ACCVector b (n::Nat) r)
         where
@@ -162,19 +162,20 @@ instance
 
     type ValidElem (ACCVector b n r) e = (FiniteModule e, ValidACCVector b n e)
 
-instance (A.Eq r, KnownNat n, Eq r, Monoid r, ValidACCVector b n r) => Eq (ACCVector b (n::Nat) r) where
-    {-# INLINE (==) #-}
-    (ACCVector v2) == (ACCVector v1) = let
-      l = A.zipWith (\x y -> x A.==* y) v1 v2
-      ele = l A.! A.index1 (A.constant 0)
-      bl = A.all (A.&&* ele) l
-      in bl
+-- instance  (A.Eq r, KnownNat n, Eq r, Monoid r, ValidACCVector b n r) => Eq (ACCVector b (n::Nat) r) where
+--     {-# INLINE (==) #-}
+--     (ACCVector v2) == (ACCVector v1) = let
+--       l = A.zipWith (\x y -> x A.==* y) v1 v2
+--       ele = l A.! A.index1 (A.constant 0)
+--       bl = A.all (A.&&* ele) l
+--       in bl
 
 instance
     ( ValidACCVector b n r
     , A.Eq r
     , ExpField r
     , Ord r
+    , Eq (ACCVector b n r)
     -- , VectorSpace r
     , KnownNat n
     ) => Metric (ACCVector b (n::Nat) r)
@@ -201,6 +202,7 @@ instance
     , ValidACCVector b n r
     , ExpField r
     , Real r
+    , Eq (ACCVector b n r)
     , Ord r
     , KnownNat n
     ) => Banach (ACCVector b (n::Nat) r)
@@ -226,12 +228,15 @@ instance
     , IxContainer (Square (ACCVector b n r))
     , FreeModule r
     , ExpField r
+    , Eq (ACCVector b n r)
     , Real r
     , A.Eq r
     , OrdField r
+    , Index (Square (ACCVector b n r)) ~ A.Acc (A.Scalar Int)
     , MatrixField r
     , KnownNat n
     , P.Num r
+    ,  Elem (Square (ACCVector b n r)) ~ ACCVector b n r
     ) => Hilbert (ACCVector b (n::Nat) r)
     where
     {-# INLINE (<>) #-}

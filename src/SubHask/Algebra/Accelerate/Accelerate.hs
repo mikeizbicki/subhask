@@ -20,7 +20,7 @@ import SubHask.Internal.Prelude
 import qualified Prelude as P
 
 --FIXME:  Replace all intermediary lists with correct use of acclerate-io
-mkAccVectorFromList :: A.Elt a => [a] -> ACCVector bknd (n::Symbol) a
+mkAccVectorFromList :: A.Elt a => [a] -> ACCVector bknd (n::Nat) a
 mkAccVectorFromList l = let
     len = P.length l
   in ACCVector (A.use (A.fromList (A.Z A.:.len) l))
@@ -39,7 +39,7 @@ mkAccVectorFromList l = let
 
 
 class ValidBackend (b::Backend) where
-    runAccVector :: (ValidACCVector (b::Backend) n a, A.IsScalar a) => ACCVector (b::Backend) n a -> [a]
+    runAccVector :: (ValidACCVector (b::Backend) n a) => ACCVector (b::Backend) n a -> [a]
     -- runAccMatrix :: (ValidACCMatrix (b::Backend) v r, A.IsScalar a, A.Elt a) => ACCMatrix (b::Backend) v n m a -> [a]
 
 instance ValidBackend 'Interpreter where
