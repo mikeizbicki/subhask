@@ -4,5 +4,4 @@ packages:
 extra-deps:
     [ homoiconic-0.1.2.0
     ]
-resolver: nightly-2016-06-15
-compiler: ghc-8.0.1
+resolver: lts-7.0
