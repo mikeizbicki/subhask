@@ -40,52 +40,21 @@ import Unsafe.Coerce
 
 newtype ACCVector (bknd::Backend) (n::Nat) a = ACCVector (A.Acc (A.Array A.DIM1 a))
 
-type instance Scalar (ACCVector bknd n r) =  A.Acc(A.Scalar r)
-type instance Logic (ACCVector bknd n r) = A.Acc(A.Scalar r)
+type instance Scalar (ACCVector bknd n r) =  A.Exp r
+type instance Logic (ACCVector bknd n r) = A.Exp r
 
 type ValidACCVector bknd n a = (
                                  Prim a
                                 , A.Elt a
                                 , P.Num (A.Exp a)
-                                --, Scalar (A.Acc (A.Scalar a)) ~ A.Acc (A.Scalar a)
-                                , Ring (A.Acc (A.Scalar a))
-                                --, Logic (Logic (A.Acc (A.Scalar Bool))) ~ Logic (A.Acc (A.Scalar Bool))
-                                , Container (A.Acc (A.Scalar Bool))
-                                , Boolean (A.Acc (A.Scalar Bool))
-                                , Ord (A.Acc (A.Scalar a))
-                                , Normed (A.Acc (A.Scalar a))
-                                , Vector (ACCVector bknd n a)
-                                , Vector (Square (ACCVector bknd n a))
-
-                                , Semigroup (A.Exp a)
-                                , Field (A.Exp a)
-                                , Rg (A.Exp a)
-                                -- , Actor (A.Acc (A.Scalar a)) ~ A.Acc (A.Scalar a)
-                                -- , Container (A.Acc (A.Scalar a))
-                                -- , Container (Logic (A.Acc (A.Scalar Bool)))
-                                -- , Boolean (Logic (A.Acc (A.Scalar Bool)))
-                                -- , Logic (Logic (A.Acc (A.Scalar Bool))) ~  Logic (A.Acc (A.Scalar Bool))
-                                -- , Logic (A.Acc (A.Scalar Bool)) ~ A.Acc (A.Scalar Bool)
-                                -- , Elem (A.Acc (A.Scalar a)) ~ A.Acc (A.Scalar a)
-                                -- , P.Fractional (A.Exp a)
-                                -- , P.Floating (A.Exp a)
-                                , P.Floating (A.Acc (A.Scalar a))
-                                --, P.Floating (A.Acc (A.Array A.DIM0 a))
-                                -- , Elem (Square (ACCVector bknd n a)) ~ ACCVector bknd n a
-                                -- , Index (Square (ACCVector bknd n a)) ~ A.Acc (A.Scalar Int)
-                                -- , Index (A.Acc (A.Scalar Int)) ~  A.Acc (A.Scalar Int)
-                                -- , Vector (Square (ACCVector bknd n a))
-                                -- , Transposable (Square (ACCVector bknd n a))
-                                -- , IxContainer (Square (ACCVector bknd n a))
-                                -- , FreeModule a
-                                -- , Vector (ACCVector bknd n a)
+                                , Scalar (A.Exp a) ~ A.Exp a
 
                                 )
 
-type instance Index (ACCVector bknd n r) =  A.Acc(A.Scalar Int)
-type instance Elem (ACCVector bknd n r) =  A.Acc(A.Scalar r)
+type instance Index (ACCVector bknd n r) =  A.Exp Int
+type instance Elem (ACCVector bknd n r) =  A.Exp r
 
-type instance Actor (ACCVector (bknd::Backend) n r) = A.Acc(A.Scalar r)
+type instance Actor (ACCVector (bknd::Backend) n r) = A.Exp r
 
 instance (KnownNat n, Prim a) => IsMutable (ACCVector (bknd::Backend) (n::Nat) a)
 
@@ -94,9 +63,9 @@ instance (KnownNat n, Monoid r, ValidACCVector b n r) => Semigroup (ACCVector (b
     (+) :: ACCVector bknd n r -> ACCVector bknd n r -> ACCVector bknd n r
     (+) (ACCVector v1) (ACCVector v2)=ACCVector (A.zipWith (P.+) v1 v2)
 
-instance (Semigroup (A.Acc (A.Scalar r)), KnownNat n, ValidACCVector bknd n r, Action r, Semigroup r, Prim r) => Action (ACCVector (bknd::Backend) (n::Nat) r) where
+instance (Semigroup (A.Exp r), KnownNat n, ValidACCVector bknd n r, Action r, Semigroup r, Prim r) => Action (ACCVector (bknd::Backend) (n::Nat) r) where
     {-# INLINE (.+)   #-}
-    (.+) (ACCVector v) r = ACCVector (A.map (A.+ (A.the r)) v)
+    (.+) (ACCVector v) r = ACCVector (A.map (A.+ (r)) v)
 
 instance (KnownNat n, Monoid r, Cancellative r, ValidACCVector bknd n r) => Cancellative (ACCVector (bknd::Backend) (n::Nat) r) where
     {-# INLINE (-)  #-}
@@ -115,13 +84,13 @@ instance (KnownNat n, Group r, ValidACCVector bknd n r) => Group (ACCVector (bkn
 
 instance (KnownNat n, Monoid r, Abelian r, ValidACCVector bknd n r) => Abelian (ACCVector (bknd::Backend)  (n::Nat) r)
 
-instance ( KnownNat n, FreeModule r, ValidACCVector bknd n r) => FreeModule (ACCVector (bknd::Backend)  (n::Nat) r) where
+instance (Ring (A.Exp r),  KnownNat n, FreeModule r, ValidACCVector bknd n r) => FreeModule (ACCVector (bknd::Backend)  (n::Nat) r) where
     {-# INLINE (.*.)   #-}
     (.*.) (ACCVector a1) (ACCVector a2) = ACCVector( A.zipWith (P.*) a1 a2)
 
-instance ( KnownNat n, Module r, ValidACCVector bknd n r) => Module (ACCVector (bknd::Backend) (n::Nat) r) where
+instance (Ring (A.Exp r), KnownNat n, Module r, ValidACCVector bknd n r) => Module (ACCVector (bknd::Backend) (n::Nat) r) where
     {-# INLINE (.*)   #-}
-    (.*) (ACCVector  v) r = ACCVector (A.map (P.* (A.the r)) v)
+    (.*) (ACCVector  v) r = ACCVector (A.map (P.* (r)) v)
 
 -- instance (Field  (A.Acc (A.Scalar r)), KnownNat n, VectorSpace r, ValidACCVector bknd n r) => VectorSpace (ACCVector (bknd::Backend) (n::Nat) r) where
 --     {-# INLINE (./)   #-}
@@ -130,7 +99,7 @@ instance ( KnownNat n, Module r, ValidACCVector bknd n r) => Module (ACCVector (
 --     {-# INLINE (./.)  #-}
 --     (./.) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (P./) a1 a2)
 
-instance (KnownNat n, FreeModule r, ValidACCVector b n r) => FiniteModule (ACCVector b (n::Nat) r)
+instance (Ring (A.Exp r), KnownNat n, FreeModule r, ValidACCVector b n r) => FiniteModule (ACCVector b (n::Nat) r)
 --dim wants an Int but here gets an A.Exp Int.  I tried changing the signiture to a generic type in Alegbra.hs but that produced numerous errors.
   where
     -- dim :: ACCVector b (n::Nat) r -> A.Exp Int
@@ -149,9 +118,9 @@ instance
     , FreeModule r
     ) => IxContainer (ACCVector b (n::Nat) r)
         where
-
-    {-# INLINE (!) #-}
-    (!) (ACCVector v) i = A.unit (v A.! A.index1 (A.the (i)))
+    --
+    -- {-# INLINE (!) #-}
+    -- (!) (ACCVector v) i = A.unit (v A.! A.index1 i)
 
     -- {-# INLINABLE imap #-}
     -- -- imap f (ACCVector v) = A.zipWith (\i x -> f ((A.unit i)::A.Acc (A.Scalar Int)) ((A.unit x)::A.Acc (A.Scalar r))) ((A.generate (A.shape v) P.id):: A.Array A.DIM1 Int) v
@@ -172,37 +141,45 @@ instance
 
 instance
     ( ValidACCVector b n r
+    , Normed (A.Exp r)
     , A.Eq r
     , ExpField r
     , Ord r
+    , Ring (A.Exp r)
     , Eq (ACCVector b n r)
+    , Boolean (A.Exp r)
+    , Ord (A.Exp r)
     -- , VectorSpace r
     , KnownNat n
     ) => Metric (ACCVector b (n::Nat) r)
 
-        where
-    {-# INLINE[2] distance #-}
-    distance (ACCVector v1) (ACCVector v2) = {-# SCC distance_ACCVector #-}let
-      dmag = A.zipWith (P.-) v1 v2
-      dsq = A.zipWith (P.*) dmag dmag
-      drt = A.sqrt (A.sum dsq)
-      in drt
+    --     where
+    -- {-# INLINE[2] distance #-}
+    -- distance (ACCVector v1) (ACCVector v2) = {-# SCC distance_ACCVector #-}let
+    --   dmag = A.zipWith (P.-) v1 v2
+    --   dsq = A.zipWith (P.*) dmag dmag
+    --   drt = A.sqrt (A.sum dsq)
+    --   in drt
 
-instance (KnownNat n,  ValidACCVector b n r, ExpField r) => Normed (ACCVector b (n::Nat) r) where
-    {-# INLINE size #-}
-    size (ACCVector v1) = let
-      sq = A.zipWith (P.*) v1 v1
-      s = A.fold (P.+) (A.constant 0.0) sq
-      srt = A.sqrt s
-      in srt
+instance (Ord (A.Exp r), KnownNat n, Ring (A.Exp r), ValidACCVector b n r, ExpField r) => Normed (ACCVector b (n::Nat) r)
+-- where
+--     {-# INLINE size #-}
+--     size (ACCVector v1) = let
+--       sq = A.zipWith (P.*) v1 v1
+--       s = A.fold (P.+) (A.constant 0.0) sq
+--       srt = A.sqrt s
+--       in srt
 
 instance
     ( A.Eq r
     , Normed r
+    , Eq (ACCVector b n r)
+    , Normed (A.Exp r)
+    , Ord (A.Exp r)
     , ValidACCVector b n r
     , ExpField r
     , Real r
-    , Eq (ACCVector b n r)
+    , Vector (ACCVector b n r)
     , Ord r
     , KnownNat n
     ) => Banach (ACCVector b (n::Nat) r)
@@ -224,25 +201,29 @@ instance
 
 instance
     (  ValidACCVector b n r
-    , Transposable (Square (ACCVector b n r))
-    , IxContainer (Square (ACCVector b n r))
-    , FreeModule r
-    , ExpField r
+    , Normed (A.Exp r)
     , Eq (ACCVector b n r)
-    , Real r
+    , FreeModule r
+    , Ord (A.Exp r)
+    , IxContainer (Square (ACCVector b n r))
+    , Transposable (Square (ACCVector b n r))
     , A.Eq r
+    , Vector (ACCVector b n r)
+    , Vector (Square (ACCVector b n r))
+    , ExpField r
+    , Index (Square (ACCVector b n r)) ~ A.Exp Int
+    , Real r
     , OrdField r
-    , Index (Square (ACCVector b n r)) ~ A.Acc (A.Scalar Int)
     , MatrixField r
     , KnownNat n
     , P.Num r
     ,  Elem (Square (ACCVector b n r)) ~ ACCVector b n r
     ) => Hilbert (ACCVector b (n::Nat) r)
-    where
-    {-# INLINE (<>) #-}
-    (<>) (ACCVector v1) (ACCVector v2) = let
-      singlton = A.fold (+) 0.0 (A.zipWith (*) v1 v2) --This float-valued accumulator forces a Field (A.Exp r) constraint above.  Is there a way to formulate the constraints such that a more general zero-value could be used?
-      in singlton
+    -- where
+    -- {-# INLINE (<>) #-}
+    -- (<>) (ACCVector v1) (ACCVector v2) = let
+    --   singlton = A.fold (+) 0.0 (A.zipWith (*) v1 v2) --This float-valued accumulator forces a Field (A.Exp r) constraint above.  Is there a way to formulate the constraints such that a more general zero-value could be used?
+    --   in singlton
 
 
 type MatrixField r =
