@@ -8,11 +8,10 @@
 > {-# LANGUAGE DataKinds #-}
 > import qualified Prelude as P
 > import SubHask
-> import SubHask.Algebra.Accelerate.Vector (ACCVector)
+> import SubHask.Algebra.Accelerate.Vector (ACCVector, ValidBackend(..), mkAccVectorFromList)
 > import SubHask.Algebra.Vector (UVector)
 > --import SubHask.Algebra.Matrix (Matrix, unsafeToModuleM)
 > --import SubHask.Algebra.Accelerate.Matrix (ACCMatrix, mmult)
-> import SubHask.Algebra.Accelerate.Accelerate (ValidBackend(..), mkAccVectorFromList)
 > import SubHask.Algebra.Accelerate.AccelerateBackend (Backend(..))
 > import System.IO
 >
