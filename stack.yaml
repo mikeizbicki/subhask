@@ -11,14 +11,19 @@ extra-lib-dirs:
 - /usr/local/lib
 packages:
 - '.'
-- location:
-    git: https://github.com/AccelerateHS/accelerate.git
-    commit: aed12138a9788ff5d6289d214c84ff6108dc04bd
+- location: ../accelerate
   extra-dep: true
-- location:
-    git: https://github.com/AccelerateHS/accelerate-cuda
-    commit: 05acd3adca9fd89a8ac19184afbed47d1b7d1505
+# - location:
+#     git: https://github.com/AccelerateHS/accelerate.git
+#     commit: aed12138a9788ff5d6289d214c84ff6108dc04bd
+#   extra-dep: true
+- location: ../accelerate-cuda
   extra-dep: true
+
+# - location:
+#     git: https://github.com/AccelerateHS/accelerate-cuda
+#     commit: 05acd3adca9fd89a8ac19184afbed47d1b7d1505
+#   extra-dep: true
 # - location:
 #     git: https://github.com/AccelerateHS/accelerate-llvm/
 #     commit: 2c26ca7755a3f5acc3a56dd0f4a23565ba620501
@@ -30,4 +35,4 @@ extra-deps:
 - homoiconic-0.1.2.0
 - unique-0
 compiler: ghc-8.0.1
-resolver: nightly-2016-06-15
+resolver: lts-7.2

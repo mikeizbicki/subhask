@@ -1554,4 +1554,3 @@ instance Vector a => Field (a +> a) where
     reciprocal Zero = undefined
     reciprocal (Id_ r ) = Id_ $ reciprocal r
     reciprocal (Mat_ m) = Mat_ $ HM.inv m
-
