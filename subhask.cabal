@@ -54,7 +54,6 @@ library
         SubHask.Algebra.Ring
         SubHask.Algebra.Vector
         SubHask.Algebra.Vector.FFI
-        SubHask.Algebra.Accelerate.Accelerate
         SubHask.Algebra.Accelerate.AccelerateBackend
         SubHask.Algebra.Accelerate.Vector
 
@@ -255,4 +254,3 @@ benchmark bench
 
  if flag(llvmsupport)
     ghc-options: -fllvm
-
