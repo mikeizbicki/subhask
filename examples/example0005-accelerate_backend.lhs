@@ -43,7 +43,7 @@
 >   putStrLn $ "v * v / v' = " + (show $ runAccVector (v .*. v ./. v'))
 >   putStrLn $ "v' .*  2 = " + (show $ runAccVector (v' .* sngtln))
 >   putStrLn $ "v' ./  2 = " + (show $ runAccVector (v' ./ sngtln))
->   putStrLn $ "v >< v' = " + (show $ runAccVector (v >< v'))
+>   putStrLn $ "v >< v' = " + (show $ runAccVector (v >< v))
 >   putStrLn $ "v**2 = " + (show $ runAccVector (v**v'))
 >   --putStrLn $ "m *  2 = " ++ show (runAccMatrix (m .* 2))
 >   --putStrLn $ "m + 2 = " ++ show (runAccMatrix ((m + 2) - 1 ))

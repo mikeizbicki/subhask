@@ -24,7 +24,7 @@ import qualified Data.Array.Accelerate as A
 import SubHask.Algebra
 import SubHask.Algebra.Accelerate.AccelerateBackend (Backend(..))
 import SubHask.Category
-import SubHask.Algebra.Vector (SVector, type (+>))
+import SubHask.Algebra.Vector (SVector)
 import SubHask.Compatibility.Base
 import SubHask.Internal.Prelude
 import SubHask.SubType
@@ -43,26 +43,14 @@ mkAccVectorFromList l = let
     len = P.length l
   in ACCVector (A.use (A.fromList (A.Z A.:.len) l))
 
--- mkAccVector :: (A.Elt a, ValidSVector (n::Symbol) a) => SVector (n::Symbol) a -> ACCVector (bknd::Backend) (n::Symbol) a
--- mkAccVector v @(SVector_Dynamic fp off n) = let
---   arr = A.fromList (A.Z A.:. n) $ unsafeInlineIO $ go (n-1) []
---   go (-1) xs = return $ xs
---   go i    xs = withForeignPtr fp $ \p -> do
---       x <- peekElemOff p (off+i)
---       go (i-1) (x:xs)
---   in ACCVector (A.use arr)
-
--- acc2SVector :: ValidACCVector (b::Backend) n a => ACCVector (b::Backend) n a  -> SVector n a
--- acc2SVector (ACCVector v) = unsafeToModule $ (runAccVector v) :: SVector n a
-
-
 class ValidBackend (b::Backend) where
     runAccVector :: (ValidACCVector (b::Backend) n a) => ACCVector (b::Backend) n a -> [a]
-    -- runAccMatrix :: (ValidACCMatrix (b::Backend) v r, A.IsScalar a, A.Elt a) => ACCMatrix (b::Backend) v n m a -> [a]
+    runAccMatrix :: (A.IsScalar a, A.Elt a) => ACCMatrix (b::Backend) n m a -> [a]
 
 instance ValidBackend 'Interpreter where
     runAccVector (ACCVector a) =  A.toList (I.run a)
-    -- runAccMatrix (ACCMatrix a) =  A.toList (I.run a)
+    --how to preserve the >< = a+>a interface since I.run wants a plain A.Acc?
+    --runAccMatrix (ACCMatrix m) =  A.toList (I.run m)
 
 -- instance ValidBackend 'CUDA where
 --     runAccVector (ACCVector a) = A.toList (CUDA.run a)
@@ -73,7 +61,7 @@ instance ValidBackend 'Interpreter where
 --     runAccMatrix (ACCMatrix a) = A.toList (LLVM.runArray a)
 
 --------------------------------------------------------------------------------
---A.Exp Instances
+--A.Exp Orphaned Instances; I'm sure there's a way to clean these up . . .
 instance (Prim r) => IsMutable (A.Exp r )
 
 instance (Monoid r, Prim r ) => Semigroup (A.Exp r )
@@ -94,12 +82,10 @@ instance Module (A.Exp Int) where (.*) = (A.*)
 instance (P.Num (A.Exp Integer), Prim Integer) => Module (A.Exp Integer) where (.*) = (A.*)
 instance Module (A.Exp Float) where (.*) = (A.*)
 instance Module (A.Exp Double) where (.*) = (A.*)
--- instance (Prim (GHC.Real.Ratio Integer), P.Num (A.Exp Rational), Prim Integer) => Module (A.Exp Rational) where (.*) = (A.*)
+
 --------------------------------------------------------------------------------
 --A.Acc (A.Scalar r)  Instances
--- newtype ACCScalar r = ACCScalar (A.Acc (A.Scalar r))
 instance (Prim r) => IsMutable (A.Acc (A.Scalar r))
--- instance  (Prim r) => Scalar(A.Acc (A.Scalar r))
 instance (Prim r, Monoid r) => Semigroup (A.Acc (A.Scalar r))
 
 instance (Prim r, Monoid r) => Monoid (A.Acc (A.Scalar r))
@@ -185,9 +171,7 @@ instance (KnownNat n, Monoid r, Cancellative r, ValidACCVector bknd n r) => Canc
     {-# INLINE (-)  #-}
     (-) (ACCVector a1) (ACCVector a2) = ACCVector (A.zipWith (A.-) a1 a2)
 
---The zero method wants a Ring r in the case where zero is the integer "0"
---or Field r in the case of "0.0"
---In either case, the Group instance wants the same constraint. Not exactly sure how to handle this.
+
 instance (KnownNat n, Monoid r, ValidACCVector bknd n r) => Monoid (ACCVector (bknd::Backend) (n::Nat) r)
   -- where
 --     {-# INLINE zero #-}
@@ -231,15 +215,11 @@ instance
 
     ) => IxContainer (ACCVector b (n::Nat) r)
         where
-    --
-    -- {-# INLINE (!) #-}
-    -- (!) (ACCVector v) i = A.unit (v A.! A.index1 i)
 
     {-# INLINE (!) #-}
     (!) (ACCVector v) i =  (v A.! A.index1  i)
 
     {-# INLINABLE imap #-}
-    -- imap f (ACCVector v) = A.zipWith (\i x -> f ((A.unit i)::A.Acc (A.Scalar Int)) ((A.unit x)::A.Acc (A.Scalar r))) ((A.generate (A.shape v) P.id):: A.Array A.DIM1 Int) v
     imap f (ACCVector v) = ACCVector $ A.imap (\i x ->let
         A.Z A.:. idx = A.unlift i
       in  f idx x
@@ -303,7 +283,7 @@ instance
     , Vector r
     , Ord (A.Acc (A.Scalar r))
     , Real r
-    , P.Num r
+    , P.Num r 
     , ExpField (A.Acc (A.Scalar r))
     , Rg (A.Exp r)
     , Normed (A.Acc (A.Scalar r))
@@ -315,20 +295,12 @@ instance
     , KnownNat n
     ) => Banach (ACCVector b (n::Nat) r)
 
--- instance
---     ( FiniteModule (ACCVector b (n::Nat) r)
---     , VectorSpace (ACCVector b (n::Nat) r)
---     , Normed (ACCVector b n r +> ACCVector b n r)
---     , KnownNat n
---     , MatrixField r
---     ) => TensorAlgebra (ACCVector b (n::Nat) r)
---         where
---     (ACCVector v1)><(ACCVector v2) = let
---       r = A.size v1
---       c = A.size v2
---       arr = A.map (\i -> A.lift (A.map (\j -> i * j ) v1)) v2
---       m = A.reshape (A.index2 r c) arr :: ACCVector bknd n r +> ACCVector bknd m r
---       in m
+
+-- So far unable to get the dagger interface to square with the fact that any operation returns inside the A.Acc monad.
+--newtype ACCMatrix b m n a = ACCMatrix( A.Acc (A.Array A.DIM2 a))--ACCVector b m a +> ACCVector b n a
+newtype ACCMatrix b m n a = ACCMatrix (ACCVector b m a +> ACCVector b n a)
+
+mkACCMatrix r c l = Mat_ $ A.use $  A.fromList (A.Z A.:. r A.:. c) l
 
 instance
     (  ValidACCVector b n r
@@ -348,9 +320,9 @@ instance
     , Vector r
     , OrdField r
     , MatrixField r
-    -- , Field (A.Acc (A.Scalar r))
     , KnownNat n
     , Field (A.Exp r)
+    , IsMutable (ACCVector b n r +> ACCVector b n r)
     , P.Num r
     ,  Elem (Square (ACCVector b n r)) ~ ACCVector b n r
     ) => Hilbert (ACCVector b (n::Nat) r)
@@ -361,12 +333,249 @@ instance
       in A.the s
 
     type Square (ACCVector b n r) = ACCVector b n r +> ACCVector b n r
+    --Does this need an unsafeCoerce to get GHC to accept that the result is ACCVector b n r + > ACCVector b n r and not the acclerate types?
+    -- (ACCVector v1)><(ACCVector v2) = let
+    --   r = A.size v1 
+    --   c = A.size v2
+    --   m = A.zipWith (A.*) (A.replicate  (A.lift $ A.Any A.:. r A.:. A.All) v1 )  (A.replicate  (A.lift $ A.Any A.:. A.All A.:. c) v2)
+    --   in m
+
+    mXv m v= m $ v
+    vXm v m = trans m $ v
 
 instance (Show r, ValidBackend b, ValidACCVector (b::Backend) n r, KnownNat n) => Show (ACCVector (b::Backend) n r) where
     show v = show (runAccVector v)
 
 
 type MatrixField r =
-    (
-     Field r
-    )
+  (ValidScalar r
+  , Vector r
+   , Field r
+  )
+
+class ToFromVector a where
+  toVector   :: a -> ACCVector b n a
+  fromVector :: ACCVector b n a -> a
+
+instance ToFromVector Double where
+  toVector x = mkAccVectorFromList [x]
+  --fromVector v = A.toList v
+
+-- These are building what from what, exactly?
+-- instance MatrixField r => ToFromVector (ACCVector b (n::Symbol) r) where
+--   toVector (SVector_Dynamic fp off n) = VS.unsafeFromForeignPtr fp off n
+--   fromVector v = SVector_Dynamic fp off n
+--       where
+--           (fp,off,n) = VS.unsafeToForeignPtr v
+
+-- instance (KnownNat n, MatrixField r) => ToFromVector (SVector (n::Nat) r) where
+  --   toVector (SVector_Nat fp) = VS.unsafeFromForeignPtr fp 0 n
+--       where
+--           n = nat2int (Proxy::Proxy n)
+--   fromVector v = SVector_Nat fp
+--       where
+--           (fp,_,_) = VS.unsafeToForeignPtr v
+
+-- what is this?
+-- apMat_ ::
+--   ( Scalar a~Scalar b
+--   , Scalar b ~ Scalar (Scalar b)
+--   , MatrixField (Scalar a)
+--   , ToFromVector a
+--   , ToFromVector b
+--   ) => HM.Matrix (Scalar a) -> a -> b
+-- apMat_ m a = fromVector $ A.flatten $ m HM.<> HM.asColumn (toVector a)
+
+
+data (+>) a b where
+        Zero :: (Module a, Module b) => a +> b
+        Id_ :: (Vector b) => !(Scalar b) -> b +> b
+        Mat_ ::
+            (MatrixField (Scalar b), Scalar a ~ Scalar b,
+             Scalar b ~ Scalar (Scalar b), Scalar a ~ A.Exp a,
+             Scalar b ~ A.Exp b, P.Fractional (A.Exp a), P.Fractional (A.Exp b),
+             P.Num (A.Exp b), P.Num (A.Exp a), Prim a, Prim b, A.Elt b, A.Elt a,
+             Vector a, Vector b, ToFromVector a, ToFromVector b) =>
+            A.Acc (A.Array A.DIM2 b) -> a +> b
+
+type instance Scalar (a +> b) = Scalar b
+type instance Logic (a +> b) = A.Exp Bool
+
+-- type instance (a +> b) >< c = Tensor_Linear (a +> b) c
+-- type family Tensor_Linear a b where
+--     Tensor_Linear (a +> b) c = a +> b
+
+--------------------------------------------------------------------------------
+-- instances
+
+deriving instance (A.Elt b, A.Elt a, MatrixField (Scalar b), Show (Scalar b) ) => Show (a +> b)
+
+
+
+
+
+
+---------------------------------------------------------------------------------
+-- accelerate linear algebra helpers
+-- omitted some signitures because I couldn't deduce what ghc wanted and it's likely to need refactoring anyway
+
+--fillsqu_:: (A.Elt a, A.Num a) => (A.Exp((A.Z A.:. Int ) A.:. Int) -> A.Exp a) -> A.Exp Int -> ACCMatrix b m m a
+fillsqu_ f d = A.generate (A.index2 d d) f
+
+--ident_:: A.Exp((A.Z A.:. Int ) A.:. Int) -> A.Exp Int
+ident_ d = let
+  A.Z A.:. rows A.:. cols     = A.unlift d 
+  in A.cond (rows A.==* cols ) (A.constant one) (A.constant zero)
+
+identFrm_ :: (A.IsNum a , A.Elt a ) => A.Acc (A.Array A.DIM2 a) -> A.Acc (A.Array A.DIM2 Int)
+identFrm_ m = fillsqu_ ident_ (fst $ matrixShape_ m)
+
+matrixShape_ :: (A.IsNum a , A.Elt a ) => A.Acc (A.Array A.DIM2 a) -> (A.Exp Int, A.Exp Int)
+matrixShape_ arr = let
+    A.Z A.:. rows A.:. cols     = A.unlift (A.shape arr)
+  in (rows, cols)
+
+--multiplyMatrixMatrix_ :: (A.IsNum b , A.Elt b ) => (A.Acc (A.Array A.DIM2 b)) -> (A.Acc (A.Array A.DIM2 b)) -> (A.Acc (A.Array A.DIM2 b)) -> (A.Acc (A.Array A.DIM2 b))
+multiplyMatrixMatrix_ arr brr = A.fold1 (+)  (A.zipWith (*) arrRepl brrRepl)
+  where
+    A.Z A.:. rowsA A.:. _     = A.unlift (A.shape arr) :: A.Z A.:. A.Exp Int A.:. A.Exp Int
+    A.Z A.:. _     A.:. colsB = A.unlift (A.shape brr) :: A.Z A.:. A.Exp Int A.:. A.Exp Int
+
+    arrRepl             = A.replicate (A.lift $ A.Z A.:. A.All   A.:. colsB A.:. A.All) arr
+    brrRepl             = A.replicate (A.lift $ A.Z A.:. rowsA A.:. A.All   A.:. A.All) (A.transpose brr)
+
+
+----------------------------------------
+-- category
+
+instance Category (+>) where
+    type ValidCategory (+>) a = MatrixField a
+    -- This needs to be an A.Exp a in order for the below binary operations to typecheck.
+    -- However, I haven't been able to successfully make id an "A.Exp 1" . . .
+    id = Id_ 1
+
+    Zero      . Zero      = Zero
+    Zero      . (Id_  _ ) = Zero
+    Zero      . (Mat_ _ ) = Zero
+
+    (Id_  _ ) . Zero      = Zero
+    (Id_  r1) . (Id_  r2) = Id_ (r1*r2)
+    (Id_  r ) . (Mat_ m ) = Mat_ $ A.map (A.* r) m
+
+    (Mat_ _) . Zero      = Zero
+    (Mat_ m ) . (Id_  r ) = Mat_ $ A.map (A.* r) m
+    (Mat_ m1) . (Mat_ m2) = Mat_ $ multiplyMatrixMatrix_ m1 m2
+
+instance Sup (+>) (->) (->)
+instance Sup (->) (+>) (->)
+
+instance (+>) <: (->) where
+    embedType_ = Embed2 (embedType2 go)
+        where
+            go :: a +> b -> a -> b
+            go Zero     = zero
+            go (Id_  r) = (r*.)
+            -- go (Mat_ m) = apMat_ m
+
+instance Dagger (+>) where
+    dagger Zero     = Zero
+    dagger (Id_  r) = Id_ r
+    dagger (Mat_ m) = Mat_ $ A.transpose m
+
+instance Groupoid (+>) where
+    inverse Zero = undefined
+    inverse (Id_  r) = Id_  $ reciprocal r
+    -- inverse (Mat_ m) = Mat_ $ HM.inv m
+
+-- FIXME
+type instance Elem (a +> b) = b
+type instance Index (a +> b) = Index a
+
+instance (Container (A.Exp Bool)) => Eq (a +> b)
+instance (Container (A.Exp Bool)) => IxContainer (a +> b)
+instance Transposable (a +> a) where
+    trans = dagger
+
+----------------------------------------
+-- size
+
+-- FIXME: what's the norm of a tensor?
+instance (Ord (A.Exp r), Prim r, MatrixField r) => Normed (ACCVector b m r +> ACCVector b m r) where
+    size Zero = zero
+    size (Id_ r) = r
+    -- size (Mat_ m) = HM.det m
+
+----------------------------------------
+-- algebra
+
+instance (IsMutable(a +> b)) => Semigroup (a +> b) where
+    Zero      + a         = a
+    a         + Zero      = a
+    (Id_  r1) + (Id_  r2) = Id_ (r1+r2)
+    -- (Id_  r ) + (Mat_ m ) = Mat_ $ A.zipWith (+) (A.map ((*) $ A.constant r) (identFrm_ m)) m
+    -- (Mat_ m ) + (Id_  r ) = Mat_ $ A.zipWith (A.+) m (A.map ((A.*) $ A.constant r) (identFrm_ m))
+    (Mat_ m1) + (Mat_ m2) = Mat_ $ A.zipWith (A.+) m1 m2
+
+instance (Vector a, Vector b, IsMutable(a +> b)) => Monoid (a +> b) where
+    zero = Zero
+
+instance (Vector a, Vector b, IsMutable(a +> b)) => Cancellative (a +> b) where
+    a         - Zero      = a
+    Zero      - a         = negate a
+    (Id_  r1) - (Id_  r2) = Id_ (r1-r2)
+    -- (Id_  r ) - (Mat_ m ) = Mat_ $ A.zipWith (A.-) (A.map ((A.*) r) (identFrm_ m)) m
+    -- (Mat_ m ) - (Id_  r ) = Mat_ $ A.zipWith (A.-) m (A.map ((A.*) r) (identFrm_ m))
+    (Mat_ m1) - (Mat_ m2) = Mat_ $ A.zipWith (A.-) m1 m2
+
+instance (Vector a, Vector b, IsMutable(a +> b)) => Group (a +> b) where
+    negate Zero     = Zero
+    negate (Id_  r) = Id_ $ negate r
+    negate (Mat_ m) = Mat_ $ A.map (A.* (-1)) m
+
+instance (IsMutable(a +> b)) => Abelian (a +> b)
+
+-------------------
+-- modules
+
+instance (Vector a, Vector b, IsMutable(a +> b)) => Module (a +> b) where
+    Zero     .* _  = Zero
+    (Id_ r1) .* r2 = Id_ $ r1*r2
+    (Mat_ m) .* r2 = Mat_ $ A.map (A.* (r2)) m
+
+instance (Vector a, Vector b, IsMutable(a +> b)) => FreeModule (a +> b) where
+    Zero      .*. _          = Zero
+    _         .*. Zero      = Zero
+    (Id_  r1) .*. (Id_  r2) = Id_ $ r1*r2
+    -- (Id_  r ) .*. (Mat_ m ) = Mat_ $ A.zipWith (A.*) (A.map ((A.*) r) (identFrm_ m)) m
+    -- (Mat_ m ) .*. (Id_  r ) = Mat_ $ A.zipWith (A.*) m (A.map ((A.*) r) (identFrm_ m))
+    (Mat_ m1) .*. (Mat_ m2) = Mat_ $ A.zipWith (A.*) m1 m2
+
+instance (Vector a, Vector b, IsMutable(a +> b)) => Vector (a +> b) where
+    Zero      ./. _         = Zero
+    (Id_  _) ./. Zero = undefined
+    (Mat_  _) ./. Zero = undefined
+    (Id_  r1) ./. (Id_  r2) = Id_ $ r1/r2
+    -- (Id_  r ) ./. (Mat_ m ) = Mat_ $ A.zipWith (A./) (A.map ((A.*) r) (identFrm_ m)) m
+    -- (Mat_ m ) ./. (Id_  r ) = Mat_ $ A.zipWith (A./) m (A.map ((A.*) r) (identFrm_ m))
+    (Mat_ m1) ./. (Mat_ m2) = Mat_ $ A.zipWith (A./) m1 m2
+
+-------------------
+-- rings
+--
+-- NOTE: matrices are only a ring when their dimensions are equal
+
+instance (Vector a, IsMutable(a +> a)) => Rg (a +> a) where
+    (*) = (>>>)
+
+instance (Vector a, IsMutable(a +> a)) => Rig (a +> a) where
+    one = Id_ one
+
+instance  (Vector a, IsMutable(a +> a)) => Ring (a +> a) where
+    fromInteger i = Id_ $ fromInteger i
+
+instance  (Vector a, IsMutable(a +> a)) => Field (a +> a) where
+    fromRational r = Id_ $ fromRational r
+
+    reciprocal Zero = undefined
+    reciprocal (Id_ r ) = Id_ $ reciprocal r
+    -- reciprocal (Mat_ m) = Mat_ $ HM.inv m
