@@ -227,7 +227,7 @@ mkClassTests className = do
         ( typeTests )
     where
         go [] = return $ ConE $ mkName "[]"
-        go ((InstanceD _ (AppT _ t) _):xs) = case t of
+        go ((InstanceD _ _ (AppT _ t) _):xs) = case t of
             (ConT a) -> do
                 tests <- mkSpecializedClassTest (ConT a) className
                 next <- go xs
@@ -290,7 +290,7 @@ specializeLaw
 specializeLaw typeName lawName = do
     lawInfo <- reify lawName
     let newType = case lawInfo of
-            VarI _ t _ _ -> specializeType t typeName
+            VarI _ t _ -> specializeType t typeName
             _ -> error "mkTest lawName not a function"
     return $ SigE (VarE lawName) newType
 
