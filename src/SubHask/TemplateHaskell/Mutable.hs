@@ -49,9 +49,9 @@ mkMutableNewtype :: Name -> Q [Dec]
 mkMutableNewtype typename = do
     typeinfo <- reify typename
     (conname,typekind,typeapp) <- case typeinfo of
-        TyConI (NewtypeD [] _ typekind (NormalC conname [(  _,typeapp)]) _)
+        TyConI (NewtypeD [] _ typekind _ (NormalC conname [(  _,typeapp)]) _)
             -> return (conname,typekind,typeapp)
-        TyConI (NewtypeD [] _ typekind (RecC    conname [(_,_,typeapp)]) _)
+        TyConI (NewtypeD [] _ typekind _ (RecC    conname [(_,_,typeapp)]) _)
             -> return (conname,typekind,typeapp)
         _ -> error $ "\nderiveSingleInstance; typeinfo="++show typeinfo
 
@@ -65,9 +65,10 @@ mkMutableNewtype typename = do
                 [ ]
                 ( mkName $ "Mutable" )
                 [ VarT (mkName "m"), apply2varlist (ConT typename) typekind ]
+                Nothing
                 ( NormalC
                     mutname
-                    [( NotStrict
+                    [( (Bang NoSourceUnpackedness NoSourceStrictness)
                      , AppT
                         ( AppT
                             ( ConT $ mkName "Mutable" )
@@ -78,6 +79,7 @@ mkMutableNewtype typename = do
                 )
                 [ ]
             , InstanceD
+                Nothing
                 ( map (\x -> AppT (ConT $ mkName "IsMutable") (bndr2type x)) $ filter isStar $ typekind )
                 ( AppT
                     ( ConT $ mkName "IsMutable" )
@@ -129,14 +131,16 @@ mkMutablePrimRef qt = do
             cxt'
             ( mkName $ "Mutable" )
             [ VarT (mkName "m"), t ]
+            Nothing
             ( NormalC
                 ( type2name t )
-                [( NotStrict
+                [( (Bang NoSourceUnpackedness NoSourceStrictness)
                  , AppT (AppT (ConT $ mkName "PrimRef") (VarT $ mkName "m")) t
                  )]
             )
             [ ]
         , InstanceD
+            Nothing
             cxt'
             ( AppT ( ConT $ mkName "IsMutable" ) t )
             [ FunD (mkName "freeze")

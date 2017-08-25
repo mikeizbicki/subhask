@@ -127,7 +127,7 @@ library
 
     build-depends:
         -- haskell language
-        base >= 4.8 && <4.9,
+        base >= 4.8 && <4.10,
         ghc-prim,
         template-haskell,
 
@@ -161,7 +161,7 @@ library
         semigroups,
         bytes,
         approximate,
-        lens                 
+        lens
 
     default-language:
         Haskell2010
