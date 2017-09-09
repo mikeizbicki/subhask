@@ -11,8 +11,6 @@ import qualified Prelude as P
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Mutable
-import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
@@ -30,62 +28,6 @@ instance (Ord t, Group t) => Cancellative (NonNegative t) where
         where
             diff=t1-t2
 
--------------------
-
-{-
-newtype a +> b = HomHask { unHomHask :: a -> b }
-infixr +>
-
-unsafeHomHask2 :: (a -> b -> c) -> (a +> b +> c)
-unsafeHomHask2 f = HomHask (\a -> HomHask $ \b -> f a b)
-
-instance Category (+>) where
-    type ValidCategory (+>) a = ()
-    id = HomHask id
-    (HomHask a).(HomHask b) = HomHask $ a.b
-
-instance Sup (+>) (->) (->)
-instance Sup (->) (+>) (->)
-instance (+>) <: (->) where
-    embedType_ = Embed2 unHomHask
-
-instance Monoidal (+>) where
-    type Tensor (+>) = (,)
-    tensor = unsafeHomHask2 $ \a b -> (a,b)
-
-instance Braided (+>) where
-    braid  = HomHask $ \(a,b) -> (b,a)
-    unbraid = braid
-
-instance Closed (+>) where
-    curry (HomHask f) = HomHask $ \ a -> HomHask $ \b -> f (a,b)
-    uncurry (HomHask f) = HomHask $ \ (a,b) -> unHomHask (f a) b
-
-mkSubtype [t|Int|] [t|Integer|] 'toInteger
-
-[subhask|
-poop :: (Semigroup' g, Ring g) => g +> g
-poop = (+:1)
-|]
-
-class Semigroup' a where
-    (+:) :: a +> a +> a
-
-instance Semigroup' Int where (+:) = unsafeHomHask2 (+)
-
-instance Semigroup' [a] where (+:) = unsafeHomHask2 (+)
-
-f :: Integer +> Integer
-f = HomHask $ \i -> i+1
-
-n1 = NonNegative 5 :: NonNegative Int
-n2 = NonNegative 3 :: NonNegative Int
-i1 = 5 :: Int
-i2 = 3 :: Int
-j1 = 5 :: Integer
-j2 = 3 :: Integer
--}
-
 -------------------------------------------------------------------------------
 -- integers modulo n
 
@@ -95,10 +37,6 @@ class Quotient a (b::k) where
 
 -- | The type of equivalence classes created by a mod b.
 newtype (/) (a :: *) (b :: k) = Mod a
-
--- mkDefaultMutable [t| forall a b. a/b |]
-
--- newtype instance Mutable m (a/b) = Mutable_Mod (Mutable m a)
 
 instance (Quotient a b, Arbitrary a) => Arbitrary (a/b) where
     arbitrary = liftM mkQuotient arbitrary

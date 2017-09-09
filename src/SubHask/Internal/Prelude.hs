@@ -4,7 +4,6 @@ module SubHask.Internal.Prelude
     Show (..)
     , Read (..)
     , read
-
     , Storable (..)
 
     -- * data types
@@ -30,10 +29,8 @@ module SubHask.Internal.Prelude
     -- * Prelude functions
     , build
     , (++)
-
     , Prelude.all
     , map
-
     , asTypeOf
     , undefined
     , otherwise
@@ -50,8 +47,6 @@ module SubHask.Internal.Prelude
     , module Data.Typeable
     , module GHC.TypeLits
 
-    -- * Non-Prelude types
-
     -- ** QuickCheck
     , Arbitrary (..)
     , CoArbitrary (..)
@@ -64,12 +59,9 @@ module SubHask.Internal.Prelude
 
 import Control.DeepSeq
 import Control.Monad.ST
-import Data.Foldable
-import Data.List (foldl, foldl', foldr, foldl1, foldl1', foldr1, map, (++), intersectBy, unionBy )
 import Data.Maybe
 import Data.Typeable
 import Data.Proxy
-import Data.Traversable
 import GHC.TypeLits
 import GHC.Exts
 import GHC.Int
@@ -78,7 +70,7 @@ import Test.QuickCheck.Arbitrary
 import Foreign.Storable
 
 {-# INLINE ifThenElse #-}
--- ifThenElse a b c = if a then b else c
+ifThenElse :: Bool -> a -> a -> a
 ifThenElse a b c = case a of
     True -> b
     False -> c

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
+
 module SubHask.Compatibility.BloomFilter
     ( BloomFilter
     )
@@ -9,8 +11,6 @@ import SubHask.Internal.Prelude
 
 import qualified Data.BloomFilter as BF
 
---------------------------------------------------------------------------------
-
 newtype BloomFilter (n::Nat) a = BloomFilter (BF.Bloom a)
 
 mkMutable [t| forall n a. BloomFilter n a |]
@@ -21,13 +21,11 @@ type instance Logic (BloomFilter n a) = Bool
 type instance Elem (BloomFilter n a) = a
 type instance SetElem (BloomFilter n a) b = BloomFilter n b
 
-hash = undefined
-
 instance KnownNat n => Semigroup (BloomFilter n a)
     -- FIXME: need access to the underlying representation of BF.Bloom to implement
 
 instance KnownNat n => Monoid (BloomFilter n a) where
-    zero = BloomFilter (BF.empty hash n)
+    zero = BloomFilter (BF.empty undefined n)
         where
             n = fromInteger $ natVal (Proxy::Proxy n)
 

@@ -1,43 +1,35 @@
 {-# LANGUAGE NoAutoDeriveTypeable #-} -- can't derive typeable of data families
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 
 -- | This module defines the subtyping mechanisms used in subhask.
 module SubHask.SubType
     ( (<:) (..)
     , Sup
 
---     , toRational
-
     -- **
     , Embed (..)
     , embedType
     , embedType1
     , embedType2
---     , Embed0 (..)
---     , Embed1 (..)
---     , Embed2 (..)
+    , apEmbedType1
+    , apEmbedType2
 
     -- * Template Haskell
     , mkSubtype
     , mkSubtypeInstance
+
+    , law_Subtype_f1
+    , law_Subtype_f2
     )
     where
 
 import Control.Monad
 import Language.Haskell.TH
-import Language.Haskell.TH.Quote
--- import Language.Haskell.Meta
 
 import SubHask.Internal.Prelude
 import Prelude
 
 -------------------------------------------------------------------------------
--- common helper functions
-
-toRational :: (a <: Rational) => a -> Rational
-toRational = embedType
-
--------------------------------------------------------------------------------
-
 -- | Subtypes are partially ordered.
 -- Unfortunately, there's no way to use the machinery of the "POrd"/"Lattice" classes.
 -- The "Sup" type family is a promotion of the "sup" function to the type level.
@@ -123,16 +115,16 @@ law_Subtype_f2 _ b f a1 a2 = embedType (f a1 a2) == f (embedType a1) (embedType 
 -------------------
 
 type family a == b :: Bool where
-    a == a = True
-    a == b = False
+    a == a = 'True
+    a == b = 'False
 
 type family If (a::Bool) (b::k) (c::k) :: k where
-    If True  b c = b
-    If False b c = c
+    If 'True  b c = b
+    If 'False b c = c
 
 type family When (a::Bool) (b::Constraint) :: Constraint where
-    When True  b = b
-    When False b = ()
+    When 'True  b = b
+    When 'False b = ()
 
 -------------------
 

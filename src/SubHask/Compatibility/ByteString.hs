@@ -11,8 +11,6 @@ import SubHask.TemplateHaskell.Deriving
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Prelude as P
 
---------------------------------------------------------------------------------
-
 -- | The type of lazy byte strings.
 --
 -- FIXME:
@@ -25,8 +23,6 @@ type instance Scalar (ByteString b) = Int
 type instance Logic (ByteString b) = Bool
 type instance Elem (ByteString b) = b
 type instance SetElem (ByteString b) c = ByteString c
-
-----------------------------------------
 
 newtype instance ByteString Char = BSLC { unBSLC :: BS.ByteString }
     deriving (NFData,Read,Show)
@@ -64,15 +60,12 @@ instance Normed (ByteString Char) where
 instance Foldable (ByteString Char) where
     uncons (BSLC xs) = case BS.uncons xs of
         Nothing -> Nothing
-        Just (x,xs) -> Just (x,BSLC xs)
+        Just (x,xs') -> Just (x,BSLC xs')
 
     toList (BSLC xs) = BS.unpack xs
 
     foldr   f a (BSLC xs) = BS.foldr   f a xs
---     foldr'  f a (BSLC xs) = BS.foldr'  f a xs
     foldr1  f   (BSLC xs) = BS.foldr1  f   xs
---     foldr1' f   (BSLC xs) = BS.foldr1' f   xs
-
     foldl   f a (BSLC xs) = BS.foldl   f a xs
     foldl'  f a (BSLC xs) = BS.foldl'  f a xs
     foldl1  f   (BSLC xs) = BS.foldl1  f   xs
@@ -81,18 +74,16 @@ instance Foldable (ByteString Char) where
 instance Partitionable (ByteString Char) where
     partition n (BSLC xs) = go xs
         where
-            go xs = if BS.null xs
+            go xs' = if BS.null xs'
                 then []
                 else BSLC a:go b
                 where
-                    (a,b) = BS.splitAt len xs
+                    (a,b) = BS.splitAt len xs'
 
             n' = P.fromIntegral $ toInteger n
-            size = BS.length xs
-            len = size `P.div` n'
-              P.+ if size `P.rem` n' P.== (P.fromInteger 0) then P.fromInteger 0 else P.fromInteger 1
-
---------------------------------------------------------------------------------
+            size' = BS.length xs
+            len = size' `P.div` n'
+              P.+ if size' `P.rem` n' P.== (P.fromInteger 0) then P.fromInteger 0 else P.fromInteger 1
 
 -- |
 --
@@ -100,8 +91,6 @@ instance Partitionable (ByteString Char) where
 -- Make generic method "readFile" probably using cereal/binary
 readFileByteString :: FilePath -> IO (ByteString Char)
 readFileByteString = fmap BSLC . BS.readFile
-
---------------------------------------------------------------------------------
 
 -- | FIXME:
 -- Make this generic by moving some of the BS functions into the Foldable/Unfoldable type classes.
@@ -115,7 +104,7 @@ instance (a~ByteString Char, Partitionable a) => Partitionable (PartitionOnNewli
         where
             go []  = []
             go [x] = [x]
-            go (x1:x2:xs) = (x1+BSLC a):go (BSLC b:xs)
+            go (x1:x2:xs') = (x1+BSLC a):go (BSLC b:xs')
                 where
                     (a,b) = BS.break (=='\n') $ unBSLC x2
 

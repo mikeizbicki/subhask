@@ -1,9 +1,10 @@
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
+
 module SubHask.Algebra.Ring
     where
 
 import SubHask.Algebra
 import SubHask.Category
-import SubHask.Internal.Prelude
 
 --------------------------------------------------------------------------------
 
@@ -45,7 +46,3 @@ instance FiniteModule v => Ring (Componentwise v)
 
 instance (FiniteModule v, VectorSpace v) => Field (Componentwise v) where
     (Componentwise v1)/(Componentwise v2) = Componentwise $ v1./.v2
-
--- instance (ValidLogic v, FiniteModule v) => IxContainer (Componentwise v) where
---     values (Componentwise v) = values v
-

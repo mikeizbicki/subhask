@@ -5,20 +5,11 @@ module SubHask.Algebra.Container
     where
 
 import Control.Monad
-import GHC.Prim
-import Control.Monad
-import GHC.TypeLits
 import qualified Prelude as P
 import Prelude (tail,head,last)
 
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-
 import SubHask.Algebra
-import SubHask.Algebra.Ord
 import SubHask.Category
-import SubHask.Compatibility.Base
-import SubHask.SubType
 import SubHask.Internal.Prelude
 import SubHask.TemplateHaskell.Deriving
 
@@ -137,31 +128,29 @@ instance
 
     {-# INLINE distance #-}
     distance (Hamming xs) (Hamming ys) =
-        {-# SCC distance_Hamming #-}
         go (toList xs) (toList ys) 0
         where
             go [] [] i = i
-            go xs [] i = i + fromIntegral (size xs)
-            go [] ys i = i + fromIntegral (size ys)
-            go (x:xs) (y:ys) i = go xs ys $ i + if x==y
+            go xs' [] i = i + fromIntegral (size xs')
+            go [] ys' i = i + fromIntegral (size ys')
+            go (x:xs') (y:ys') i = go xs' ys' $ i + if x==y
                 then 0
                 else 1
 
     {-# INLINE distanceUB #-}
     distanceUB (Hamming xs) (Hamming ys) dist =
-        {-# SCC distanceUB_Hamming #-}
         go (toList xs) (toList ys) 0
         where
-            go xs ys tot = if tot > dist
+            go xs' ys' tot = if tot > dist
                 then tot
-                else go_ xs ys tot
+                else go_ xs' ys' tot
                 where
-                    go_ (x:xs) (y:ys) i = go xs ys $ i + if x==y
+                    go_ (x:xs'') (y:ys'') i = go xs'' ys'' $ i + if x==y
                         then 0
                         else 1
                     go_ [] [] i = i
-                    go_ xs [] i = i + fromIntegral (size xs)
-                    go_ [] ys i = i + fromIntegral (size ys)
+                    go_ xs'' [] i = i + fromIntegral (size xs'')
+                    go_ [] ys'' i = i + fromIntegral (size ys'')
 
 ----------------------------------------
 
@@ -193,7 +182,6 @@ instance
 
     {-# INLINE distance #-}
     distance (Levenshtein xs) (Levenshtein ys) =
-        {-# SCC distance_Levenshtein #-}
         fromIntegral $ dist (toList xs) (toList ys)
 
 -- | this function stolen from
@@ -209,14 +197,14 @@ dist a b
         mainDiag = oneDiag a b (head uppers) (-1 : head lowers)
         uppers = eachDiag a b (mainDiag : uppers) -- upper diagonals
         lowers = eachDiag b a (mainDiag : lowers) -- lower diagonals
-        eachDiag a [] diags = []
-        eachDiag a (bch:bs) (lastDiag:diags) = oneDiag a bs nextDiag lastDiag : eachDiag a bs diags
+        eachDiag _ (_:bs) (lastDiag:diags) = oneDiag a bs nextDiag lastDiag : eachDiag a bs diags
             where
                 nextDiag = head (tail diags)
-        oneDiag a b diagAbove diagBelow = thisdiag
+        eachDiag _ _ _ = []
+        oneDiag _ _ diagAbove diagBelow = thisdiag
             where
-                doDiag [] b nw n w = []
-                doDiag a [] nw n w = []
+                doDiag [] _ _ _ _ = []
+                doDiag _ [] _ _ _ = []
                 doDiag (ach:as) (bch:bs) nw n w = me : (doDiag as bs me (tail n) (tail w))
                     where
                         me = if ach == bch then nw else 1 + min3 (head w) nw (head n)

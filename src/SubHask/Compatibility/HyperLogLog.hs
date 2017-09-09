@@ -17,8 +17,6 @@ import qualified Control.Lens as L
 
 type instance Scalar Int64 = Int64
 
---------------------------------------------------------------------------------
-
 newtype HyperLogLog p a = H (H.HyperLogLog p)
 
 mkMutable [t| forall p a. HyperLogLog p a |]

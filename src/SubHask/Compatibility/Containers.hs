@@ -19,10 +19,9 @@ import SubHask.Algebra.Parallel
 import SubHask.Category
 import SubHask.Category.Trans.Constrained
 import SubHask.Category.Trans.Monotonic
-import SubHask.Compatibility.Base
+import SubHask.Compatibility.Base()
 import SubHask.Internal.Prelude
 import SubHask.Monad
-import SubHask.TemplateHaskell.Deriving
 
 -------------------------------------------------------------------------------
 -- | This is a thin wrapper around Data.Sequence
@@ -97,15 +96,12 @@ instance ValidEq a => Foldable (Seq a) where
         then Nothing
         else Just (Seq $ Seq.take (Seq.length e-1) e, Seq.index e 0)
 
---     foldMap f   (Seq a) = F.foldMap f   a
-
     {-# INLINE foldr #-}
     {-# INLINE foldr' #-}
     {-# INLINE foldr1 #-}
     foldr   f e (Seq a) = F.foldr   f e a
     foldr'  f e (Seq a) = F.foldr'  f e a
     foldr1  f   (Seq a) = F.foldr1  f   a
---     foldr1' f   (Seq a) = F.foldr1' f   a
 
     {-# INLINE foldl #-}
     {-# INLINE foldl' #-}
@@ -113,27 +109,27 @@ instance ValidEq a => Foldable (Seq a) where
     foldl   f e (Seq a) = F.foldl   f e a
     foldl'  f e (Seq a) = F.foldl'  f e a
     foldl1  f   (Seq a) = F.foldl1  f   a
---     foldl1' f   (Seq a) = F.foldl1' f   a
 
 instance (ValidEq a) => Partitionable (Seq a) where
     {-# INLINABLE partition #-}
     partition n (Seq xs) = go xs
         where
             go :: Seq.Seq a -> [Seq a]
-            go xs = if Seq.null xs
+            go xs' = if Seq.null xs'
                 then []
                 else Seq a:go b
                 where
-                    (a,b) = Seq.splitAt len xs
+                    (a,b) = Seq.splitAt len xs'
 
-            size = Seq.length xs
-            len = size `div` n
-                + if size `rem` n == 0 then 0 else 1
+            size' = Seq.length xs
+            len = size' `div` n
+                + if size' `rem` n == 0 then 0 else 1
 
     {-# INLINABLE partitionInterleaved #-}
     partitionInterleaved n xs = foldl' go (P.replicate n empty) xs
         where
             go (r:rs) x = rs+[r`snoc`x]
+            go [] _ = undefined
 
 -------------------------------------------------------------------------------
 -- | This is a thin wrapper around Data.Map
@@ -499,12 +495,10 @@ instance Ord a => Foldable (Set a) where
     {-# INLINE foldl' #-}
     {-# INLINE foldr #-}
     {-# INLINE foldr' #-}
-    foldl   f a (Set s) = Set.foldl   (\a (WithPreludeOrd e) -> f a e) a s
-    foldl'  f a (Set s) = Set.foldl'  (\a (WithPreludeOrd e) -> f a e) a s
-    foldr  f a (Set s) = Set.foldr  (\(WithPreludeOrd e) a -> f e a) a s
-    foldr' f a (Set s) = Set.foldr' (\(WithPreludeOrd e) a -> f e a) a s
-
--------------------
+    foldl   f a (Set s) = Set.foldl   (\a' (WithPreludeOrd e) -> f a' e) a s
+    foldl'  f a (Set s) = Set.foldl'  (\a' (WithPreludeOrd e) -> f a' e) a s
+    foldr  f a (Set s) = Set.foldr  (\(WithPreludeOrd e) a' -> f e a') a s
+    foldr' f a (Set s) = Set.foldr' (\(WithPreludeOrd e) a' -> f e a') a s
 
 -- |
 --
@@ -590,6 +584,4 @@ instance Monad Mon LexSet where
     join    = unsafeProveMon $ \(LexSet s) -> foldl1' (+) s
 
 instance Then LexSet where
-    (LexSet a)>>(LexSet b) = LexSet b
-
-
+    (LexSet _)>>(LexSet b) = LexSet b
