@@ -143,7 +143,7 @@ library
 
     build-depends:
         -- haskell language
-        base >= 4.9 && <4.10,
+        base >= 4.9 && <5,
         ghc-prim,
         template-haskell,
 
@@ -196,8 +196,8 @@ Test-Suite test
         test-framework
   if flag(dotestoptimise)
     ghc-options: -O2
-  if flag(llvmsupport)
-    ghc-options: -fllvm
+--   if flag(llvmsupport)
+--     ghc-options: -fllvm
 
 Test-Suite Example0001
     default-language:   Haskell2010

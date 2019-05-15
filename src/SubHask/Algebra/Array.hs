@@ -12,7 +12,7 @@ module SubHask.Algebra.Array
 
 import Control.Monad
 import Control.Monad.Primitive
-import Data.Primitive as Prim
+import Data.Primitive as Prim hiding (fromList)
 import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Unboxed.Mutable as VUM
@@ -318,7 +318,7 @@ instance
     , ClassicalLogic elem
     , Unbox elem
     , Prim elem
-    ) => Unbox (UVector (n::Symbol) elem)
+    ) => VU.Unbox (UVector (n::Symbol) elem)
 
 data instance VU.Vector (UVector (n::Symbol) elem) = UArray_UVector
     {-#UNPACK#-}!ByteArray
@@ -420,7 +420,7 @@ instance
     , ValidScalar a
     , Unbox a
     , Prim a
-    ) => Unbox (Labeled' (UVector (s::Symbol) a) y)
+    ) => VU.Unbox (Labeled' (UVector (s::Symbol) a) y)
 
 data instance VUM.MVector s (Labeled' (UVector (n::Symbol) elem) y) = UArray_Labeled'_MUVector
     {-#UNPACK#-}!(MutableByteArray s)
