@@ -8,4 +8,4 @@ extra-deps:
 - monad-primitive-0.1@sha256:dc0f6ccd61aab3a1782a12c7291b9b04f0eee0b3f5709ef53afda58784a89075
 - continued-fractions-0.10.0.2@sha256:82808ad1721046ca406659331402c5d894946d974f9ba4925931e9c7e6934549
 - converge-0.1.0.1@sha256:47e5534a30ab798062012c003df12efcb9b3fbc63ac4f80525dcfc70737f1dc0
-resolver: lts-13.21
+resolver: lts-13.15
