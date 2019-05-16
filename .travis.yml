@@ -11,8 +11,8 @@ matrix:
   include:
 
   - env: BUILD=stack
-    compiler: ": #stack 7.10.3"
-    addons: {apt: {packages: [ghc-7.10.3, libblas-dev, liblapack-dev, g++-4.8], sources: [hvr-ghc, ubuntu-toolchain-r-test]}}
+    compiler: ": #stack 8.6.4"
+    addons: {apt: {packages: [ghc-8.6.4, libblas-dev, liblapack-dev, g++-4.8], sources: [hvr-ghc, ubuntu-toolchain-r-test]}}
 
 # Caching so the next build will be fast too.
 cache:

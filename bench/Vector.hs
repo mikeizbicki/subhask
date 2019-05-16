@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds,KindSignatures #-}
 
-import qualified Prelude as P
-import Control.Monad.Random
+import qualified Prelude as P hiding (return)
+import Control.Monad.Random hiding (return)
 import Criterion.Main
 import Criterion.Types
 import System.IO

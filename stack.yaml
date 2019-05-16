@@ -2,7 +2,10 @@ flags: {}
 packages:
 - '.'
 extra-deps:
-    [ homoiconic-0.1.2.0
-    ]
-resolver: nightly-2016-06-15
-compiler: ghc-8.0.1
+- git: https://github.com/o1lo01ol1o/homoiconic
+  commit: 2e3a08ded37ba7ed29ebf710794cb985e2204c94 
+- gamma-0.10.0.0@sha256:0d666fc486899a2e22f44aec1aa32c168e0803e6c2ddb266a18a07700ca5d95b
+- monad-primitive-0.1@sha256:dc0f6ccd61aab3a1782a12c7291b9b04f0eee0b3f5709ef53afda58784a89075
+- continued-fractions-0.10.0.2@sha256:82808ad1721046ca406659331402c5d894946d974f9ba4925931e9c7e6934549
+- converge-0.1.0.1@sha256:47e5534a30ab798062012c003df12efcb9b3fbc63ac4f80525dcfc70737f1dc0
+resolver: lts-13.15
